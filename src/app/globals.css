@@ -1,0 +1,60 @@
+@import "tailwindcss";
+
+@theme {
+  /* Brand blue gradient colors (from logo) */
+  --color-fox-50: #eff8ff;
+  --color-fox-100: #dbeffe;
+  --color-fox-200: #b9dffd;
+  --color-fox-300: #7cc7fa;
+  --color-fox-400: #38abf5;
+  --color-fox-500: #0e8fe5;
+  --color-fox-600: #0b72c9;
+  --color-fox-700: #0b5aa0;
+  --color-fox-800: #0e4880;
+  --color-fox-900: #0f3d6a;
+
+  /* Navy sidebar */
+  --color-navy-950: #060e1c;
+  --color-navy-900: #0c1a2e;
+  --color-navy-800: #102038;
+  --color-navy-700: #162844;
+  --color-navy-600: #1e3558;
+  --color-navy-500: #2a4570;
+
+  /* AI / Copilot accent - violet */
+  --color-ai-50: #f5f3ff;
+  --color-ai-100: #ede9fe;
+  --color-ai-400: #a78bfa;
+  --color-ai-500: #8b5cf6;
+  --color-ai-600: #7c3aed;
+
+  /* Font */
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 9999px; }
+::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+/* Brand gradient utility */
+.bg-fox-gradient {
+  background: linear-gradient(135deg, #38BDF8 0%, #2563EB 100%);
+}
+.text-fox-gradient {
+  background: linear-gradient(135deg, #38BDF8 0%, #2563EB 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.bg-ai-gradient {
+  background: linear-gradient(135deg, #a78bfa 0%, #7c3aed 100%);
+}
+
+/* Focus ring */
+*:focus-visible {
+  outline: 2px solid #2563EB;
+  outline-offset: 2px;
+}
