@@ -54,19 +54,19 @@ function LoginPageContent() {
 
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Email</label>
-                <input type="email" required autoFocus value={email} onChange={e => setEmail(e.target.value)}
+                <label htmlFor="email" className="block text-sm font-medium text-slate-700 mb-1">Email</label>
+                <input id="email" name="email" type="email" required autoFocus autoComplete="email" value={email} onChange={e => setEmail(e.target.value)}
                   className="w-full px-3 py-2.5 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   placeholder="you@company.com" />
               </div>
 
               <div>
                 <div className="flex items-center justify-between mb-1">
-                  <label className="text-sm font-medium text-slate-700">Password</label>
+                  <label htmlFor="password" className="text-sm font-medium text-slate-700">Password</label>
                   <Link href="/forgot-password" className="text-xs text-blue-600 hover:underline">Forgot password?</Link>
                 </div>
                 <div className="relative">
-                  <input type={showPw ? 'text' : 'password'} required value={password} onChange={e => setPassword(e.target.value)}
+                  <input id="password" name="password" type={showPw ? 'text' : 'password'} required autoComplete="current-password" value={password} onChange={e => setPassword(e.target.value)}
                     className="w-full px-3 py-2.5 pr-10 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     placeholder="••••••••" />
                   <button type="button" onClick={() => setShowPw(v => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
