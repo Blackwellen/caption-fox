@@ -58,7 +58,7 @@ export default function Sidebar({ userEmail, userName, isAdmin }: SidebarProps) 
     : userEmail?.[0]?.toUpperCase() ?? '?'
 
   return (
-    <aside className="w-[220px] shrink-0 h-screen bg-navy-900 flex flex-col border-r border-navy-800 overflow-hidden">
+    <aside className="hidden lg:flex w-[220px] shrink-0 h-screen bg-navy-900 flex-col border-r border-navy-800 overflow-hidden">
       {/* Logo */}
       <div className="px-4 py-4 border-b border-navy-800">
         <Link href="/app/home" className="flex items-center gap-2.5">

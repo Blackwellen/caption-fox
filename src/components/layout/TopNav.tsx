@@ -1,13 +1,12 @@
 'use client'
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import {
   Search, Bell, HelpCircle, Plus, ChevronDown,
   FileText, Megaphone, CalendarPlus, Upload, Video, UserPlus, BarChart2,
 } from 'lucide-react'
-import { cn } from '@/lib/utils'
+import CommandPalette from '@/components/command/CommandPalette'
 
 const quickCreateItems = [
   { label: 'New Post',             href: '/app/studio?action=new-post',     icon: FileText },
@@ -27,42 +26,40 @@ interface TopNavProps {
 
 export default function TopNav({ workspaceName, notifCount = 0 }: TopNavProps) {
   const [quickOpen, setQuickOpen] = useState(false)
-  const [searchOpen, setSearchOpen] = useState(false)
-  const [searchVal, setSearchVal] = useState('')
-  const router = useRouter()
+  const [paletteOpen, setPaletteOpen] = useState(false)
+
+  // Global ⌘K / Ctrl+K to open the command palette.
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault()
+        setPaletteOpen(o => !o)
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
 
   return (
     <header className="h-14 bg-white border-b border-slate-200 flex items-center px-5 gap-3 shrink-0 z-10 relative">
+      <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
+
       {/* Workspace name */}
       <div className="flex items-center gap-1.5 text-sm font-medium text-slate-700 mr-2">
         {workspaceName ?? 'My Workspace'}
         <ChevronDown size={13} className="text-slate-400" />
       </div>
 
-      {/* Search */}
+      {/* Search → command palette */}
       <div className="flex-1 max-w-md">
-        {searchOpen ? (
-          <div className="relative">
-            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-            <input
-              autoFocus
-              value={searchVal}
-              onChange={e => setSearchVal(e.target.value)}
-              onBlur={() => { setSearchOpen(false); setSearchVal('') }}
-              placeholder="Search posts, campaigns, creators…"
-              className="w-full pl-9 pr-3 py-1.5 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-        ) : (
-          <button
-            onClick={() => setSearchOpen(true)}
-            className="flex items-center gap-2 px-3 py-1.5 text-sm text-slate-400 bg-slate-50 border border-slate-200 rounded-lg hover:bg-slate-100 transition-colors w-full"
-          >
-            <Search size={14} />
-            <span>Search…</span>
-            <kbd className="ml-auto text-xs text-slate-300 font-mono">⌘K</kbd>
-          </button>
-        )}
+        <button
+          onClick={() => setPaletteOpen(true)}
+          className="flex items-center gap-2 px-3 py-1.5 text-sm text-slate-400 bg-slate-50 border border-slate-200 rounded-lg hover:bg-slate-100 transition-colors w-full"
+        >
+          <Search size={14} />
+          <span>Search…</span>
+          <kbd className="ml-auto text-xs text-slate-300 font-mono">⌘K</kbd>
+        </button>
       </div>
 
       <div className="flex items-center gap-1 ml-auto">

@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import Sidebar from '@/components/layout/Sidebar'
 import TopNav from '@/components/layout/TopNav'
+import MobileNav from '@/components/layout/MobileNav'
 import FoxAIBubble from '@/components/fox-ai/FoxAIBubble'
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
@@ -31,10 +32,11 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       />
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         <TopNav workspaceName={workspace?.name ?? 'My Workspace'} />
-        <main className="flex-1 overflow-y-auto">
+        <main className="flex-1 overflow-y-auto pb-16 lg:pb-0">
           {children}
         </main>
       </div>
+      <MobileNav />
       <FoxAIBubble />
     </div>
   )
