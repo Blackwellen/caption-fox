@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import { getActiveWorkspace } from '@/lib/workspace'
 import Sidebar from '@/components/layout/Sidebar'
 import TopNav from '@/components/layout/TopNav'
 import MobileNav from '@/components/layout/MobileNav'
@@ -17,21 +18,33 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     .eq('id', user.id)
     .single()
 
-  const { data: workspace } = await supabase
-    .from('workspaces')
-    .select('name')
-    .eq('owner_id', user.id)
-    .single()
+  const { active, workspaces } = await getActiveWorkspace(supabase, user.id)
+
+  const { data: notifications } = await supabase
+    .from('notifications')
+    .select('id, title, body, link, is_read, created_at')
+    .eq('user_id', user.id)
+    .order('created_at', { ascending: false })
+    .limit(10)
+
+  const isAdmin = profile?.is_platform_admin ?? false
 
   return (
     <div className="flex h-screen bg-slate-50 overflow-hidden">
       <Sidebar
         userEmail={user.email}
         userName={profile?.full_name ?? undefined}
-        isAdmin={profile?.is_platform_admin ?? false}
+        isAdmin={isAdmin}
       />
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        <TopNav workspaceName={workspace?.name ?? 'My Workspace'} />
+        <TopNav
+          workspaces={workspaces}
+          activeWorkspaceId={active?.id ?? null}
+          userName={profile?.full_name ?? null}
+          userEmail={user.email ?? null}
+          isAdmin={isAdmin}
+          notifications={notifications ?? []}
+        />
         <main className="flex-1 overflow-y-auto pb-16 lg:pb-0">
           {children}
         </main>

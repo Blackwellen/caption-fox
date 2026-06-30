@@ -3,10 +3,14 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import {
-  Search, Bell, HelpCircle, Plus, ChevronDown,
+  Search, HelpCircle, Plus,
   FileText, Megaphone, CalendarPlus, Upload, Video, UserPlus, BarChart2,
 } from 'lucide-react'
 import CommandPalette from '@/components/command/CommandPalette'
+import WorkspaceSwitcher from '@/components/layout/WorkspaceSwitcher'
+import NotificationsBell, { type NotificationItem } from '@/components/layout/NotificationsBell'
+import AvatarMenu from '@/components/layout/AvatarMenu'
+import type { WorkspaceLite } from '@/lib/workspace-shared'
 
 const quickCreateItems = [
   { label: 'New Post',             href: '/app/studio?action=new-post',     icon: FileText },
@@ -20,11 +24,22 @@ const quickCreateItems = [
 ]
 
 interface TopNavProps {
-  workspaceName?: string
-  notifCount?: number
+  workspaces?: WorkspaceLite[]
+  activeWorkspaceId?: string | null
+  userName?: string | null
+  userEmail?: string | null
+  isAdmin?: boolean
+  notifications?: NotificationItem[]
 }
 
-export default function TopNav({ workspaceName, notifCount = 0 }: TopNavProps) {
+export default function TopNav({
+  workspaces = [],
+  activeWorkspaceId,
+  userName,
+  userEmail,
+  isAdmin,
+  notifications = [],
+}: TopNavProps) {
   const [quickOpen, setQuickOpen] = useState(false)
   const [paletteOpen, setPaletteOpen] = useState(false)
 
@@ -44,11 +59,8 @@ export default function TopNav({ workspaceName, notifCount = 0 }: TopNavProps) {
     <header className="h-14 bg-white border-b border-slate-200 flex items-center px-5 gap-3 shrink-0 z-10 relative">
       <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
 
-      {/* Workspace name */}
-      <div className="flex items-center gap-1.5 text-sm font-medium text-slate-700 mr-2">
-        {workspaceName ?? 'My Workspace'}
-        <ChevronDown size={13} className="text-slate-400" />
-      </div>
+      {/* Workspace switcher */}
+      <WorkspaceSwitcher workspaces={workspaces} activeId={activeWorkspaceId} />
 
       {/* Search → command palette */}
       <div className="flex-1 max-w-md">
@@ -93,19 +105,17 @@ export default function TopNav({ workspaceName, notifCount = 0 }: TopNavProps) {
         </div>
 
         {/* Notifications */}
-        <Link href="/app/home?tab=activity" className="relative p-2 rounded-lg text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-colors">
-          <Bell size={18} />
-          {notifCount > 0 && (
-            <span className="absolute top-1 right-1 w-4 h-4 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
-              {notifCount > 9 ? '9+' : notifCount}
-            </span>
-          )}
-        </Link>
+        <NotificationsBell initial={notifications} />
 
         {/* Help */}
         <Link href="/help" className="p-2 rounded-lg text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-colors">
           <HelpCircle size={18} />
         </Link>
+
+        {/* Account */}
+        <div className="ml-1">
+          <AvatarMenu userName={userName} userEmail={userEmail} isAdmin={isAdmin} />
+        </div>
       </div>
     </header>
   )
