@@ -1,0 +1,151 @@
+'use client'
+
+import { use, useState } from 'react'
+import Link from 'next/link'
+import { useRouter } from 'next/navigation'
+import {
+  Star, BadgeCheck, MapPin, Clock, ShieldCheck, Heart, Check,
+  ChevronLeft, Lock, MessageSquare,
+} from 'lucide-react'
+import { getDemoListing } from '@/lib/marketplace/demo'
+import { formatPrice, typeLabel } from '@/lib/marketplace/types'
+
+const DEMO_REVIEWS = [
+  { id: 1, name: 'Hannah R.', rating: 5, body: 'Delivered ahead of schedule and the content performed brilliantly.' },
+  { id: 2, name: 'Daniel O.', rating: 5, body: 'Professional, on-brand and easy to work with. Will book again.' },
+  { id: 3, name: 'Aisha M.', rating: 4, body: 'Great quality. Needed one small revision which was handled quickly.' },
+]
+
+const ESCROW_STEPS = ['Payment held in escrow', 'Supplier delivers the work', 'You approve', 'Funds released']
+
+export default function ListingDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params)
+  const router = useRouter()
+  const listing = getDemoListing(id)
+  const [checkout, setCheckout] = useState(false)
+  const [fav, setFav] = useState(false)
+
+  if (!listing) {
+    return (
+      <div className="max-w-3xl mx-auto px-4 py-20 text-center">
+        <p className="text-slate-500">This listing could not be found.</p>
+        <Link href="/marketplace" className="text-blue-600 text-sm font-medium hover:underline mt-2 inline-block">← Back to marketplace</Link>
+      </div>
+    )
+  }
+
+  return (
+    <div className="max-w-6xl mx-auto px-4 py-6">
+      <button onClick={() => router.back()} className="flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700 mb-4"><ChevronLeft size={15} /> Back</button>
+
+      {/* Cover */}
+      <div className="relative aspect-[21/9] rounded-3xl overflow-hidden mb-6" style={{ background: listing.gradient }}>
+        <button onClick={() => setFav(f => !f)} className="absolute top-4 right-4 p-2 rounded-full bg-white/85 backdrop-blur" aria-label="Favourite">
+          <Heart size={18} className={fav ? 'fill-rose-500 text-rose-500' : 'text-slate-700'} />
+        </button>
+        <span className="absolute bottom-4 left-4 px-2.5 py-1 bg-white/90 rounded-full text-xs font-semibold text-slate-700">{listing.category}</span>
+      </div>
+
+      <div className="grid lg:grid-cols-3 gap-8">
+        {/* Main */}
+        <div className="lg:col-span-2 space-y-8">
+          <div>
+            <span className="text-xs font-semibold text-blue-600 uppercase tracking-wider">{typeLabel(listing.supplierType)}</span>
+            <h1 className="text-2xl font-bold text-slate-900 mt-1">{listing.title}</h1>
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 text-sm text-slate-600">
+              <span className="flex items-center gap-1 font-medium text-slate-900">{listing.supplierName}{listing.verified && <BadgeCheck size={15} className="text-blue-500" />}</span>
+              <span className="flex items-center gap-1"><Star size={14} className="fill-amber-400 text-amber-400" /> {listing.rating.toFixed(1)} ({listing.reviewsCount} reviews)</span>
+              <span className="flex items-center gap-1"><MapPin size={14} /> {listing.location}</span>
+              <span className="flex items-center gap-1"><Clock size={14} /> {listing.deliveryDays}-day delivery</span>
+            </div>
+          </div>
+
+          <section>
+            <h2 className="text-base font-bold text-slate-900 mb-2">About this service</h2>
+            <p className="text-sm text-slate-600 leading-relaxed">{listing.summary} This supplier delivers premium, on-brand work tailored to your goals. Share your brief and references, and you&apos;ll receive a first draft within the delivery window, with revisions included.</p>
+          </section>
+
+          <section>
+            <h2 className="text-base font-bold text-slate-900 mb-3">What&apos;s included</h2>
+            <ul className="space-y-2">
+              {['Discovery & brief alignment', 'Concept and scripting', `Delivery within ${listing.deliveryDays} days`, '2 rounds of revisions', 'Full commercial usage rights'].map(i => (
+                <li key={i} className="flex items-center gap-2 text-sm text-slate-700"><Check size={15} className="text-emerald-500 shrink-0" /> {i}</li>
+              ))}
+            </ul>
+          </section>
+
+          <section>
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-base font-bold text-slate-900">Reviews</h2>
+              <span className="flex items-center gap-1 text-sm text-slate-700"><Star size={14} className="fill-amber-400 text-amber-400" /> {listing.rating.toFixed(1)} · {listing.reviewsCount}</span>
+            </div>
+            <div className="space-y-3">
+              {DEMO_REVIEWS.map(r => (
+                <div key={r.id} className="border border-slate-200 rounded-xl p-4">
+                  <div className="flex items-center justify-between mb-1">
+                    <p className="text-sm font-medium text-slate-900">{r.name}</p>
+                    <span className="flex items-center gap-0.5">{Array.from({ length: r.rating }).map((_, i) => <Star key={i} size={12} className="fill-amber-400 text-amber-400" />)}</span>
+                  </div>
+                  <p className="text-sm text-slate-600">{r.body}</p>
+                </div>
+              ))}
+            </div>
+          </section>
+        </div>
+
+        {/* Sticky booking card */}
+        <div className="lg:col-span-1">
+          <div className="lg:sticky lg:top-20 border border-slate-200 rounded-2xl p-5 shadow-sm">
+            <p className="text-2xl font-bold text-slate-900">{formatPrice(listing.priceCents, listing.currency)}</p>
+            <p className="text-xs text-slate-500 mb-4">{listing.deliveryDays}-day delivery · revisions included</p>
+
+            {!checkout ? (
+              <>
+                <button onClick={() => setCheckout(true)} className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg text-sm transition-colors">
+                  {listing.supplierType === 'influencer' || listing.supplierType === 'ugc_creator' ? 'Request booking' : 'Continue'}
+                </button>
+                <button className="w-full mt-2 py-2.5 border border-slate-200 hover:bg-slate-50 text-slate-700 font-medium rounded-lg text-sm transition-colors flex items-center justify-center gap-1.5">
+                  <MessageSquare size={15} /> Message supplier
+                </button>
+                <div className="mt-4 p-3 bg-emerald-50 rounded-lg">
+                  <p className="text-xs font-semibold text-emerald-800 flex items-center gap-1.5 mb-1.5"><ShieldCheck size={14} /> Escrow protected</p>
+                  <p className="text-[11px] text-emerald-700">Your payment is held securely and only released when you approve the delivered work.</p>
+                </div>
+              </>
+            ) : (
+              <div>
+                <p className="text-sm font-semibold text-slate-900 mb-3">Checkout</p>
+                <div className="space-y-2 mb-4">
+                  <Row label={listing.title} value={formatPrice(listing.priceCents, listing.currency)} />
+                  <Row label="Buyer protection fee" value={formatPrice(Math.round(listing.priceCents * 0.05), listing.currency)} />
+                  <div className="border-t border-slate-100 pt-2"><Row label="Total" value={formatPrice(Math.round(listing.priceCents * 1.05), listing.currency)} bold /></div>
+                </div>
+                <ol className="space-y-1.5 mb-4">
+                  {ESCROW_STEPS.map((s, i) => (
+                    <li key={s} className="flex items-center gap-2 text-xs text-slate-600"><span className="w-4 h-4 rounded-full bg-slate-100 text-[10px] font-bold text-slate-500 flex items-center justify-center">{i + 1}</span> {s}</li>
+                  ))}
+                </ol>
+                <button disabled className="w-full py-2.5 bg-slate-200 text-slate-500 font-semibold rounded-lg text-sm cursor-not-allowed flex items-center justify-center gap-1.5">
+                  <Lock size={14} /> Pay into escrow
+                </button>
+                <p className="text-[11px] text-slate-400 mt-2 text-center">Payment requires Stripe Connect — add your keys to enable live escrow checkout, payouts and disputes.</p>
+                <button onClick={() => setCheckout(false)} className="w-full mt-2 text-xs text-slate-500 hover:text-slate-700">← Back</button>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <p className="mt-10 text-center text-xs text-slate-400">Demo listing — wire to <code>marketplace_listings</code> / <code>marketplace_orders</code> and Stripe Connect for live booking, escrow & disputes.</p>
+    </div>
+  )
+}
+
+function Row({ label, value, bold }: { label: string; value: string; bold?: boolean }) {
+  return (
+    <div className="flex items-center justify-between text-sm">
+      <span className={bold ? 'font-semibold text-slate-900' : 'text-slate-600'}>{label}</span>
+      <span className={bold ? 'font-bold text-slate-900' : 'text-slate-700'}>{value}</span>
+    </div>
+  )
+}
