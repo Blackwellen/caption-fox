@@ -28,6 +28,7 @@ const COMMANDS: Command[] = [
   { label: 'Listening', href: '/app/listening', group: 'Go to', icon: Radio, keywords: 'mentions monitoring' },
   { label: 'Affiliates', href: '/app/affiliates', group: 'Go to', icon: Gift, keywords: 'referral earn commission affiliate' },
   { label: 'Marketplace', href: '/marketplace', group: 'Go to', icon: Store, keywords: 'hire suppliers ugc freelancers ads agencies influencers' },
+  { label: 'Supplier portal', href: '/supplier', group: 'Go to', icon: Store, keywords: 'sell seller listings orders payouts supplier dashboard' },
   { label: 'Settings', href: '/app/settings', group: 'Go to', icon: Settings, keywords: 'team billing workspace account' },
   { label: 'New Post', href: '/app/studio?action=new-post', group: 'Create', icon: FileText },
   { label: 'New Campaign', href: '/app/campaigns?action=new', group: 'Create', icon: Megaphone },
