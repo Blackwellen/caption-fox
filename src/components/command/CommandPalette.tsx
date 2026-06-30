@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   Search, Home, Calendar, Megaphone, Wand2, Video, Inbox, BarChart2,
-  Radio, Link2, Settings, Plus, FileText, CalendarPlus, UserPlus, ArrowRight,
+  Radio, Link2, Settings, Plus, FileText, CalendarPlus, UserPlus, ArrowRight, Gift,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -26,7 +26,8 @@ const COMMANDS: Command[] = [
   { label: 'Inbox', href: '/app/inbox', group: 'Go to', icon: Inbox, keywords: 'messages comments dms engage' },
   { label: 'Analytics', href: '/app/analytics', group: 'Go to', icon: BarChart2, keywords: 'reports performance measure' },
   { label: 'Listening', href: '/app/listening', group: 'Go to', icon: Radio, keywords: 'mentions monitoring' },
-  { label: 'Settings', href: '/app/settings', group: 'Go to', icon: Settings, keywords: 'team billing workspace' },
+  { label: 'Affiliates', href: '/app/affiliates', group: 'Go to', icon: Gift, keywords: 'referral earn commission affiliate' },
+  { label: 'Settings', href: '/app/settings', group: 'Go to', icon: Settings, keywords: 'team billing workspace account' },
   { label: 'New Post', href: '/app/studio?action=new-post', group: 'Create', icon: FileText },
   { label: 'New Campaign', href: '/app/campaigns?action=new', group: 'Create', icon: Megaphone },
   { label: 'Generate Content Plan', href: '/app/studio?action=plan', group: 'Create', icon: CalendarPlus },

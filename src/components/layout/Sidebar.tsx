@@ -7,7 +7,7 @@ import { createClient } from '@/lib/supabase/client'
 import { cn } from '@/lib/utils'
 import {
   Home, Calendar, Megaphone, Wand2, Video, Inbox,
-  BarChart2, Settings, LogOut, ChevronRight, Radio, Link2,
+  BarChart2, Settings, LogOut, ChevronRight, Radio, Link2, Gift,
 } from 'lucide-react'
 
 // Grouped, enterprise IA (audit §21.3). Groups are visual headers only — routes unchanged.
@@ -32,6 +32,7 @@ const navGroups: { group: string | null; items: { label: string; href: string; i
     { label: 'Listening', href: '/app/listening', icon: Radio },
   ] },
   { group: 'Manage', items: [
+    { label: 'Affiliates', href: '/app/affiliates', icon: Gift },
     { label: 'Settings', href: '/app/settings', icon: Settings },
   ] },
 ]
