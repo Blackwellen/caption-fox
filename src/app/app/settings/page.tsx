@@ -14,6 +14,7 @@ import {
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { Tabs } from '@/components/ui/Tabs'
+import { canManageWorkspace } from '@/lib/workspace-shared'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
 import { EmptyState } from '@/components/ui/EmptyState'
@@ -106,19 +107,31 @@ interface Subscription {
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const SETTINGS_TABS = [
-  { id: 'workspace',     label: 'Workspace',      icon: <Building2 size={14} /> },
-  { id: 'profile',       label: 'Profile',         icon: <UserCircle2 size={14} /> },
-  { id: 'channels',      label: 'Channels',        icon: <Link2 size={14} /> },
-  { id: 'team',          label: 'Team',            icon: <Users size={14} /> },
-  { id: 'brand-voice',   label: 'Brand Voice',     icon: <Sparkles size={14} /> },
-  { id: 'billing',       label: 'Billing',         icon: <CreditCard size={14} /> },
-  { id: 'security',      label: 'Security',        icon: <ShieldCheck size={14} /> },
-  { id: 'integrations',  label: 'Integrations',    icon: <Plug size={14} /> },
-  { id: 'notifications', label: 'Notifications',   icon: <Bell size={14} /> },
-  { id: 'audit-log',     label: 'Audit Log',       icon: <ClipboardList size={14} /> },
-  { id: 'danger',        label: 'Danger Zone',     icon: <AlertCircle size={14} /> },
+// Three settings sections (audit §21 / founder requirement):
+//   • Account  — visible to everyone (also linked from the avatar dropdown)
+//   • Workspace — admin / workspace-manager only
+//   • Billing   — admin / workspace-manager only
+const SETTINGS_GROUPS: { group: string; manage: boolean; items: { id: string; label: string; icon: React.ReactNode }[] }[] = [
+  { group: 'Account', manage: false, items: [
+    { id: 'profile',       label: 'Profile',       icon: <UserCircle2 size={14} /> },
+    { id: 'security',      label: 'Security',       icon: <ShieldCheck size={14} /> },
+    { id: 'notifications', label: 'Notifications',  icon: <Bell size={14} /> },
+  ] },
+  { group: 'Workspace', manage: true, items: [
+    { id: 'workspace',    label: 'General',      icon: <Building2 size={14} /> },
+    { id: 'channels',     label: 'Channels',     icon: <Link2 size={14} /> },
+    { id: 'team',         label: 'Team',         icon: <Users size={14} /> },
+    { id: 'brand-voice',  label: 'Brand Voice',  icon: <Sparkles size={14} /> },
+    { id: 'integrations', label: 'Integrations', icon: <Plug size={14} /> },
+    { id: 'audit-log',    label: 'Audit Log',    icon: <ClipboardList size={14} /> },
+    { id: 'danger',       label: 'Danger Zone',  icon: <AlertCircle size={14} /> },
+  ] },
+  { group: 'Billing', manage: true, items: [
+    { id: 'billing', label: 'Plan & Billing', icon: <CreditCard size={14} /> },
+  ] },
 ]
+const ALL_TABS = SETTINGS_GROUPS.flatMap(g => g.items)
+const MANAGE_TAB_IDS = new Set(SETTINGS_GROUPS.filter(g => g.manage).flatMap(g => g.items.map(i => i.id)))
 
 const PLATFORM_ICONS: Record<string, React.ReactNode> = {
   instagram: <Camera size={16} className="text-pink-500" />,
@@ -208,7 +221,7 @@ export default function SettingsPage() {
   const supabase = createClient()
   const { toast, show: showToast } = useToast()
 
-  const [activeTab, setActiveTab] = useState('workspace')
+  const [activeTab, setActiveTab] = useState('profile')
   const [profile, setProfile] = useState<Profile | null>(null)
   const [workspace, setWorkspace] = useState<Workspace | null>(null)
   const [members, setMembers] = useState<Member[]>([])
@@ -222,6 +235,14 @@ export default function SettingsPage() {
   const [loading, setLoading] = useState(true)
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
   const [currentUserRole, setCurrentUserRole] = useState<string>('viewer')
+
+  // Deep-link: avatar dropdown links to ?tab=account → Account/Profile. Also honour ?tab=<id>.
+  useEffect(() => {
+    const t = new URLSearchParams(window.location.search).get('tab')
+    if (!t) return
+    const resolved = t === 'account' ? 'profile' : t
+    if (ALL_TABS.some(i => i.id === resolved)) setActiveTab(resolved)
+  }, [])
 
   // ── Bootstrap ──────────────────────────────────────────────────────────────
 
@@ -1897,6 +1918,11 @@ export default function SettingsPage() {
     )
   }
 
+  // Role-gating: only owners/admins/managers see Workspace + Billing sections.
+  const canManage = canManageWorkspace(currentUserRole)
+  const visibleGroups = SETTINGS_GROUPS.filter(g => !g.manage || canManage)
+  const effectiveTab = (!MANAGE_TAB_IDS.has(activeTab) || canManage) ? activeTab : 'profile'
+
   return (
     <div className="min-h-screen bg-slate-50">
       {/* Toast */}
@@ -1918,24 +1944,31 @@ export default function SettingsPage() {
         />
 
         <div className="flex gap-8">
-          {/* Sidebar nav */}
+          {/* Sidebar nav — grouped: Account / Workspace / Billing */}
           <aside className="w-52 shrink-0">
-            <nav className="space-y-1">
-              {SETTINGS_TABS.map(tab => (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={cn(
-                    'w-full flex items-center gap-2.5 px-3 py-2.5 text-sm rounded-lg transition-all text-left',
-                    activeTab === tab.id
-                      ? 'bg-blue-600 text-white font-semibold shadow-sm'
-                      : 'text-slate-600 hover:bg-white hover:text-slate-900 hover:shadow-sm',
-                    tab.id === 'danger' && activeTab !== tab.id && 'text-red-500 hover:bg-red-50',
-                  )}
-                >
-                  <span className="shrink-0">{tab.icon}</span>
-                  {tab.label}
-                </button>
+            <nav className="space-y-4">
+              {visibleGroups.map(grp => (
+                <div key={grp.group}>
+                  <p className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400">{grp.group}</p>
+                  <div className="space-y-1">
+                    {grp.items.map(tab => (
+                      <button
+                        key={tab.id}
+                        onClick={() => setActiveTab(tab.id)}
+                        className={cn(
+                          'w-full flex items-center gap-2.5 px-3 py-2.5 text-sm rounded-lg transition-all text-left',
+                          effectiveTab === tab.id
+                            ? 'bg-blue-600 text-white font-semibold shadow-sm'
+                            : 'text-slate-600 hover:bg-white hover:text-slate-900 hover:shadow-sm',
+                          tab.id === 'danger' && effectiveTab !== tab.id && 'text-red-500 hover:bg-red-50',
+                        )}
+                      >
+                        <span className="shrink-0">{tab.icon}</span>
+                        {tab.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
               ))}
             </nav>
           </aside>
@@ -1944,10 +1977,10 @@ export default function SettingsPage() {
           <main className="flex-1 min-w-0 bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
             <div className="mb-6 pb-5 border-b border-slate-100">
               <h2 className="text-base font-bold text-slate-900">
-                {SETTINGS_TABS.find(t => t.id === activeTab)?.label}
+                {ALL_TABS.find(t => t.id === effectiveTab)?.label}
               </h2>
             </div>
-            {TAB_CONTENT[activeTab]}
+            {TAB_CONTENT[effectiveTab]}
           </main>
         </div>
       </div>
