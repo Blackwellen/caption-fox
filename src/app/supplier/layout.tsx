@@ -3,8 +3,9 @@ import { createClient } from '@/lib/supabase/server'
 import SupplierSidebar from '@/components/supplier/SupplierSidebar'
 import type { SupplierType } from '@/lib/marketplace/types'
 
-// Separate supplier/seller workspace shell. Requires the user to have a
-// marketplace_suppliers row; otherwise routes them to onboarding.
+// Standalone supplier/seller WORKSPACE shell (a supplier logs into their own
+// workspace — not a portal controlled from a marketer workspace). Requires the
+// user to have a marketplace_suppliers row; otherwise routes them to onboarding.
 export default async function SupplierLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()

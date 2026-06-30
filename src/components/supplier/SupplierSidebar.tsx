@@ -37,7 +37,7 @@ export default function SupplierSidebar({
         <Link href="/supplier" className="flex items-center gap-2.5">
           <Image src="/caption fox favicon.png" alt="" width={30} height={30} className="rounded-lg" />
           <div className="leading-tight">
-            <p className="text-white font-bold text-[13px]">Supplier portal</p>
+            <p className="text-white font-bold text-[13px]">Supplier workspace</p>
             <p className="text-[10px] text-slate-400">Caption Fox Marketplace</p>
           </div>
         </Link>
