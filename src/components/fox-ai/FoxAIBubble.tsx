@@ -55,7 +55,8 @@ export default function FoxAIBubble() {
   async function handleSend() {
     if (!input.trim() || loading) return
     const userMsg: Message = { role: 'user', content: input.trim(), timestamp: new Date() }
-    setMessages(prev => [...prev, userMsg])
+    const history = [...messages, userMsg]
+    setMessages(history)
     setInput('')
     setLoading(true)
 
@@ -63,18 +64,23 @@ export default function FoxAIBubble() {
       const res = await fetch('/api/ai/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: userMsg.content, mode }),
+        // API expects a `messages` array (role/content) + mode; send recent history for context.
+        body: JSON.stringify({
+          messages: history.slice(-12).map(m => ({ role: m.role, content: m.content })),
+          mode,
+        }),
       })
-      const data = await res.json()
-      setMessages(prev => [...prev, {
-        role: 'assistant',
-        content: data.response ?? 'I couldn\'t process that request. Please try again.',
-        timestamp: new Date(),
-      }])
+      const data = await res.json().catch(() => ({} as { text?: string; error?: string }))
+      const reply = res.ok
+        ? (data.text ?? 'I couldn\'t process that request. Please try again.')
+        : (data.error === 'Unauthorized'
+            ? 'Please sign in to use Fox AI.'
+            : data.error ?? 'I couldn\'t process that request. Please try again.')
+      setMessages(prev => [...prev, { role: 'assistant', content: reply, timestamp: new Date() }])
     } catch {
       setMessages(prev => [...prev, {
         role: 'assistant',
-        content: 'Something went wrong. Please check your AI configuration.',
+        content: 'Something went wrong. Please check your connection and try again.',
         timestamp: new Date(),
       }])
     } finally {

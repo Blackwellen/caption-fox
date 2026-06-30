@@ -10,17 +10,30 @@ import {
   BarChart2, Settings, LogOut, ChevronRight, Radio, Link2,
 } from 'lucide-react'
 
-const navItems = [
-  { label: 'Home',      href: '/app/home',      icon: Home },
-  { label: 'Calendar',  href: '/app/calendar',  icon: Calendar },
-  { label: 'Campaigns', href: '/app/campaigns', icon: Megaphone },
-  { label: 'Studio',    href: '/app/studio',    icon: Wand2 },
-  { label: 'Links',     href: '/app/links',     icon: Link2 },
-  { label: 'UGC',       href: '/app/ugc',       icon: Video },
-  { label: 'Inbox',     href: '/app/inbox',     icon: Inbox },
-  { label: 'Analytics', href: '/app/analytics', icon: BarChart2 },
-  { label: 'Listening', href: '/app/listening', icon: Radio },
-  { label: 'Settings',  href: '/app/settings',  icon: Settings },
+// Grouped, enterprise IA (audit §21.3). Groups are visual headers only — routes unchanged.
+const navGroups: { group: string | null; items: { label: string; href: string; icon: typeof Home }[] }[] = [
+  { group: null, items: [
+    { label: 'Home', href: '/app/home', icon: Home },
+  ] },
+  { group: 'Create', items: [
+    { label: 'Studio',   href: '/app/studio',   icon: Wand2 },
+    { label: 'Calendar', href: '/app/calendar', icon: Calendar },
+  ] },
+  { group: 'Promote', items: [
+    { label: 'Campaigns',   href: '/app/campaigns', icon: Megaphone },
+    { label: 'UGC',         href: '/app/ugc',       icon: Video },
+    { label: 'Link in Bio', href: '/app/links',     icon: Link2 },
+  ] },
+  { group: 'Engage', items: [
+    { label: 'Inbox', href: '/app/inbox', icon: Inbox },
+  ] },
+  { group: 'Measure', items: [
+    { label: 'Analytics', href: '/app/analytics', icon: BarChart2 },
+    { label: 'Listening', href: '/app/listening', icon: Radio },
+  ] },
+  { group: 'Manage', items: [
+    { label: 'Settings', href: '/app/settings', icon: Settings },
+  ] },
 ]
 
 interface SidebarProps {
@@ -62,26 +75,35 @@ export default function Sidebar({ userEmail, userName, isAdmin }: SidebarProps) 
 
       {/* Nav */}
       <nav className="flex-1 px-2.5 py-3 space-y-0.5 overflow-y-auto">
-        {navItems.map(({ label, href, icon: Icon }) => {
-          const active = pathname.startsWith(href)
-          return (
-            <Link
-              key={href}
-              href={href}
-              className={cn(
-                'flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-150 group',
-                active
-                  ? 'bg-blue-600 text-white'
-                  : 'text-navy-500 hover:bg-navy-800 hover:text-white',
-              )}
-              style={{ color: active ? undefined : '#94a3b8' }}
-            >
-              <Icon size={16} className={cn('shrink-0', active ? 'text-white' : 'text-slate-400 group-hover:text-white')} />
-              {label}
-              {active && <ChevronRight size={12} className="ml-auto opacity-60" />}
-            </Link>
-          )
-        })}
+        {navGroups.map(({ group, items }) => (
+          <div key={group ?? 'top'} className={cn(group && 'pt-3')}>
+            {group && (
+              <p className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-slate-600">
+                {group}
+              </p>
+            )}
+            {items.map(({ label, href, icon: Icon }) => {
+              const active = pathname.startsWith(href)
+              return (
+                <Link
+                  key={href}
+                  href={href}
+                  className={cn(
+                    'flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-150 group',
+                    active
+                      ? 'bg-blue-600 text-white'
+                      : 'text-navy-500 hover:bg-navy-800 hover:text-white',
+                  )}
+                  style={{ color: active ? undefined : '#94a3b8' }}
+                >
+                  <Icon size={16} className={cn('shrink-0', active ? 'text-white' : 'text-slate-400 group-hover:text-white')} />
+                  {label}
+                  {active && <ChevronRight size={12} className="ml-auto opacity-60" />}
+                </Link>
+              )
+            })}
+          </div>
+        ))}
 
         {isAdmin && (
           <Link

@@ -1,13 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
 import { createClient } from '@/lib/supabase/server'
+import { enforceAiRateLimit } from '@/lib/ai/rate-limit'
+import { isAiConfigured } from '@/lib/env'
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! })
 
 export async function POST(req: NextRequest) {
+  if (!isAiConfigured()) {
+    return NextResponse.json({ error: 'AI is not configured on this environment.' }, { status: 503 })
+  }
+
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const limited = await enforceAiRateLimit(supabase, user.id, { table: 'ai_generations' })
+  if (limited) return limited
 
   const { prompt, style, platform, aspect_ratio, workspace_id } = await req.json()
   if (!prompt) return NextResponse.json({ error: 'Prompt required' }, { status: 400 })
