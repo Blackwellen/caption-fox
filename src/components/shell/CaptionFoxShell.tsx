@@ -4,11 +4,28 @@ import Link from 'next/link'
 import { useMemo, useState } from 'react'
 import { Bell, ChevronDown, Command, HelpCircle, Menu, MoreHorizontal, Plus, Search, Settings2, Sparkles, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import WorkspaceSwitcher from '@/components/layout/WorkspaceSwitcher'
+import type { WorkspaceLite } from '@/lib/workspace-shared'
 import { getShellItem, shellConfigs, type ShellConfig, type ShellNavItem, type ShellSurface } from '@/lib/shell/caption-fox-shell'
 
 type ShellState = 'ready' | 'empty' | 'loading' | 'error' | 'restricted' | 'upgrade' | 'archived'
 
-export default function CaptionFoxShell({ surface, path = [], basePath = '/shell' }: { surface: ShellSurface; path?: string[]; basePath?: string }) {
+export default function CaptionFoxShell({
+  surface,
+  path = [],
+  basePath = '/shell',
+  workspaces,
+  activeWorkspaceId,
+  supplier,
+}: {
+  surface: ShellSurface
+  path?: string[]
+  basePath?: string
+  /** Real workspaces for the switcher. Omitted on the fixture-only /shell route. */
+  workspaces?: WorkspaceLite[]
+  activeWorkspaceId?: string | null
+  supplier?: { display_name: string; verified?: boolean | null } | null
+}) {
   const config = shellConfigs[surface]
   const item = getShellItem(config, path[0])
   const isDetail = path[1]?.startsWith('detail-') ?? false
@@ -50,7 +67,9 @@ export default function CaptionFoxShell({ surface, path = [], basePath = '/shell
         <header className="sticky top-8 z-20 flex h-16 items-center gap-3 border-b border-slate-200 bg-white/95 px-4 backdrop-blur lg:px-7">
           <button onClick={() => setMobileOpen(true)} className="rounded-lg p-2 hover:bg-slate-100 lg:hidden" aria-label="Open navigation"><Menu size={20} /></button>
           <Link href={basePath} className="hidden text-sm font-semibold text-slate-700 sm:block">{config.label}</Link>
-          <button className="flex min-w-0 items-center gap-1 rounded-lg border border-slate-200 px-2 py-1.5 text-xs text-slate-600"><span className="truncate">Jamahl {config.label.replace(' workspace', '')}</span><ChevronDown size={13} /></button>
+          {workspaces
+            ? <WorkspaceSwitcher workspaces={workspaces} activeId={activeWorkspaceId} supplier={supplier} />
+            : <button className="flex min-w-0 items-center gap-1 rounded-lg border border-slate-200 px-2 py-1.5 text-xs text-slate-600"><span className="truncate">{config.label.replace(' workspace', '')}</span><ChevronDown size={13} /></button>}
           <button className="hidden flex-1 items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-left text-sm text-slate-400 sm:flex"><Search size={15} />Search this shell <kbd className="ml-auto text-[10px]">Ctrl K</kbd></button>
           <div className="ml-auto flex items-center gap-1"><button onClick={() => setCreateOpen(true)} className="inline-flex items-center gap-1 rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white"><Plus size={15} />Create</button><button className="rounded-lg p-2 text-slate-500 hover:bg-slate-100" aria-label="Notifications"><Bell size={18} /></button><button className="rounded-lg p-2 text-slate-500 hover:bg-slate-100" aria-label="Help"><HelpCircle size={18} /></button></div>
         </header>
