@@ -54,7 +54,7 @@ export default function SellPage() {
 
   const benefits = [
     'Reach brands and agencies already creating content in Caption Fox',
-    'Get paid securely — funds held in escrow, released on approval',
+    'Prepare for secure payouts when Stripe Connect is enabled',
     'Manage listings, orders, deliveries and disputes from one portal',
   ]
 

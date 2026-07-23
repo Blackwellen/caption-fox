@@ -2,23 +2,26 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { ChevronsUpDown, Check, Plus, Building2 } from 'lucide-react'
-import { cn } from '@/lib/utils'
+import { ChevronsUpDown, Check, Plus, Building2, Store } from 'lucide-react'
 import { ACTIVE_WORKSPACE_COOKIE, type WorkspaceLite } from '@/lib/workspace-shared'
 
 export default function WorkspaceSwitcher({
   workspaces,
   activeId,
+  supplier,
 }: {
   workspaces: WorkspaceLite[]
   activeId?: string | null
+  supplier?: { display_name: string; verified?: boolean | null } | null
 }) {
   const router = useRouter()
   const [open, setOpen] = useState(false)
   const active = workspaces.find(w => w.id === activeId) ?? workspaces[0]
 
   function choose(id: string) {
-    document.cookie = `${ACTIVE_WORKSPACE_COOKIE}=${id}; path=/; max-age=31536000; samesite=lax`
+    // The browser cookie is the server-rendered workspace preference.
+    // eslint-disable-next-line react-hooks/immutability
+    window.document.cookie = `${ACTIVE_WORKSPACE_COOKIE}=${id}; path=/; max-age=31536000; samesite=lax`
     setOpen(false)
     router.refresh()
   }
@@ -59,6 +62,20 @@ export default function WorkspaceSwitcher({
                 <p className="px-3 py-2 text-sm text-slate-400 flex items-center gap-2"><Building2 size={14} /> No workspaces</p>
               )}
             </div>
+            {supplier && (
+              <div className="border-t border-slate-100 mt-1 pt-1">
+                <button
+                  onClick={() => { setOpen(false); router.push('/supplier') }}
+                  className="flex items-center gap-2.5 w-full px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
+                >
+                  <span className="w-6 h-6 rounded bg-violet-100 flex items-center justify-center shrink-0">
+                    <Store size={13} className="text-violet-600" />
+                  </span>
+                  <span className="flex-1 text-left truncate">{supplier.display_name}</span>
+                  <span className="text-[10px] text-violet-600 font-medium">Supplier</span>
+                </button>
+              </div>
+            )}
             <div className="border-t border-slate-100 mt-1 pt-1">
               <button
                 onClick={() => { setOpen(false); router.push('/onboarding') }}

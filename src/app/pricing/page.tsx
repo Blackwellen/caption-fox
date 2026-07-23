@@ -315,6 +315,7 @@ function PublicNav() {
           </Link>
           <nav className="hidden md:flex items-center gap-8">
             <Link href="/features" className="text-sm text-slate-600 hover:text-slate-900 font-medium transition-colors">Features</Link>
+            <Link href="/marketplace" className="text-sm text-slate-600 hover:text-slate-900 font-medium transition-colors">Marketplace</Link>
             <Link href="/pricing" className="text-sm text-blue-600 font-semibold">Pricing</Link>
             <Link href="#use-cases" className="text-sm text-slate-600 hover:text-slate-900 font-medium transition-colors">Use Cases</Link>
           </nav>

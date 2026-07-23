@@ -41,10 +41,11 @@ function PublicNav() {
           </Link>
 
           {/* Desktop nav */}
-          <nav className="hidden md:flex items-center gap-6">
-            <Link href="/" className="text-sm text-slate-500 hover:text-slate-900 transition-colors font-medium">Home</Link>
-            <Link href="/features" className="text-sm text-blue-600 font-semibold border-b-2 border-blue-600 pb-0.5">Features</Link>
-            <Link href="/pricing" className="text-sm text-slate-500 hover:text-slate-900 transition-colors font-medium">Pricing</Link>
+            <nav className="hidden md:flex items-center gap-6">
+              <Link href="/" className="text-sm text-slate-500 hover:text-slate-900 transition-colors font-medium">Home</Link>
+              <Link href="/features" className="text-sm text-blue-600 font-semibold border-b-2 border-blue-600 pb-0.5">Features</Link>
+              <Link href="/marketplace" className="text-sm text-slate-500 hover:text-slate-900 transition-colors font-medium">Marketplace</Link>
+              <Link href="/pricing" className="text-sm text-slate-500 hover:text-slate-900 transition-colors font-medium">Pricing</Link>
             <Link href="/contact" className="text-sm text-slate-500 hover:text-slate-900 transition-colors font-medium">Contact</Link>
           </nav>
 
@@ -77,6 +78,7 @@ function PublicNav() {
           {[
             { href: '/', label: 'Home' },
             { href: '/features', label: 'Features' },
+            { href: '/marketplace', label: 'Marketplace' },
             { href: '/pricing', label: 'Pricing' },
             { href: '/contact', label: 'Contact' },
           ].map(l => (

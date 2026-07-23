@@ -1663,3 +1663,456 @@ Legend: ✅ strong · 🟡 partial/UI-only · ❌ missing.
 
 **Bottom line:** Caption Fox already has a *wider* surface than Buffer/Later/Planable and a genuinely unique **campaigns + giveaways/competitions + UGC** wedge. To be "the best," don't add more sections — **make the spine real (publishing, billing, inbox/listening, copilot), tighten the IA (Section 21), and gate the premium differentiators**. That converts breadth into a defensible, enterprise-ready platform.
 
+---
+
+## 23. Campaign Operating System, Supplier Marketplace & Automation Re-Audit (2026-07-23)
+
+*Added 2026-07-23 after a further code-level assessment and a current market/documentation review. This section supersedes stale statements in Sections 19, 21 and 22 where the repository has since changed. It distinguishes a rendered scaffold from an operational product and expands the roadmap beyond organic social into paid media, lifecycle/email, influencer, affiliate, search, web and other marketing workstreams.*
+
+### 23.1 Corrected current reality
+
+Several items described as missing in the June audit have now been partially added:
+
+| Area | What now exists in the repository | Honest current verdict |
+|---|---|---|
+| Grouped app navigation | `Sidebar.tsx` now groups Home, Create, Promote, Engage, Measure and Manage. | **Shipped UI.** Section 21.2's "10 flat items" statement is stale. The rail is still too long once new marketing modules are considered. |
+| Command palette | `CommandPalette.tsx` is wired to Cmd/Ctrl+K and includes navigation/create commands. | **Partial.** It searches a static command registry, not posts, campaigns, creators, orders or suppliers. |
+| Workspace switcher | `WorkspaceSwitcher.tsx` lists memberships, writes an active-workspace cookie and refreshes. | **Broken semantics.** Many pages still independently select the first `workspace_members` row and ignore the cookie, so the shell can say one workspace while page queries use another. Fix before adding more workspaces. |
+| Notification bell | A real `NotificationsBell` is present and the app shell loads notifications. | **Partial.** Needs a full notification centre, pagination/preferences, deep-link validation and cross-workspace scoping. |
+| Fox AI contract | `FoxAIBubble` now sends `messages[]` and reads `{ text }`, matching `/api/ai/chat`. | **The old P0 request/response bug is fixed.** Fox remains a stateless prompt chat, not a grounded copilot or agent. |
+| Supplier marketplace | Public `/marketplace`, `/marketplace/[id]`, `/marketplace/sell`; separate `/supplier` shell with dashboard, listings, orders, disputes, profile and payouts; marketplace migration and seed exist. | **Scaffold/adminless beta only. Not transaction-safe and not release-ready.** Details in 23.5. |
+| Caption Fox affiliate programme | `/app/affiliates` plus affiliate tables/migration. | **Separate product concept.** This promotes Caption Fox subscriptions; it must not be reused for a customer's own affiliate campaigns. |
+| PWA | A Next.js manifest exists. | **Partial only.** No complete offline/service-worker/update/install QA was found, so "PWA shipped" is not yet justified. |
+| Automations | No automation/workflow route, engine, schema, queue or canvas dependency was found. | **Missing.** The CLAUDE.md automation checklist is a release contract, not an implementation. |
+| Marketing campaign breadth | Generic campaign records support 12 labels: standard, launch, awareness, giveaway, competition, UGC, influencer, seasonal, event, lead-gen, retargeting and partnership. | **Taxonomy only.** Paid ads, email, influencer and partner programmes do not yet have their own operational data models or workflows. |
+
+**Net assessment:** Caption Fox has moved from a single-workspace UI toward a platform shell, but it has not yet become a campaign operating system or a safe two-sided marketplace. The immediate job is to make the new foundations true before adding more navigation.
+
+### 23.2 Product and route architecture decision
+
+Use **two operating workspaces plus one discovery surface**, not a separate workspace for every marketing discipline:
+
+1. **Campaign Manager workspace (buyer/marketer):** creators, brands, internal marketing teams and agencies plan and operate marketing here.
+2. **Supplier workspace (seller):** freelancers, creators, influencers, media buyers and agencies manage their profile, services, orders, delivery and payouts here.
+3. **Marketplace:** public/buyer-facing discovery and purchasing surface connecting the two.
+
+A single user may be a marketer, a supplier, or both. "Creator" is a persona, not a sufficient tenancy boundary. Do not create separate email/password accounts when one identity can have multiple memberships and a supplier profile.
+
+#### Recommended canonical routes
+
+```text
+/campaign-manager                       campaign workspace shell
+  /home
+  /calendar
+  /campaigns
+  /studio
+  /inbox
+  /analytics
+  /automations
+  /settings
+
+/supplier                               supplier workspace shell
+  /home                                 redirect from /supplier
+  /listings
+  /orders
+  /orders/[id]
+  /messages
+  /calendar
+  /reviews
+  /disputes
+  /earnings
+  /settings
+
+/marketplace                            public/buyer discovery
+  /categories/[slug]
+  /suppliers/[slug]                     real public shopfront
+  /listings/[id]
+  /orders/[id]                          authenticated buyer order room
+  /favourites
+```
+
+- If the founder wants `/campaign-manager`, use that exact spelling; never ship `/campaign-manaager`.
+- Migrate `/app/*` with tested permanent redirects and a route map. Do not run a blind search/replace: emails, notifications, saved links, OAuth callbacks, tests and public links may contain old paths.
+- Keep `/app/*` aliases during a deprecation window. The rename is not a product feature and should not displace transaction, publishing or auth work.
+- Do not call the existing `/app/campaigns` page "Campaign Manager" while the shell contains Studio, Inbox, Analytics and Settings. `Campaign Manager` describes the whole buyer workspace; `Campaigns` remains one entity area inside it.
+
+#### Workspace switcher target
+
+The top-left switcher should have two levels:
+
+- **Surface:** Campaign Manager / Supplier Workspace / Marketplace.
+- **Account context:** the active brand/agency workspace inside Campaign Manager, or the active supplier business inside Supplier Workspace.
+
+The active context must be resolved server-side once and supplied to every page. Remove all "first membership" lookups. Mutations, AI tools, notifications, command search and analytics must use the same active context and must fail closed if it is missing.
+
+#### Onboarding branch
+
+Replace the current four-persona-only choice with an intent gate:
+
+- **Run marketing:** Creator, Small Business, Brand, Agency -> Campaign Manager onboarding.
+- **Sell marketing services:** Individual/Freelancer, Creator/Influencer, Agency/Studio -> supplier onboarding.
+- **Both:** finish the campaign workspace first, then create a linked supplier profile.
+
+Supplier onboarding needs: legal/business identity, service categories, country/currency, portfolio, availability, terms acceptance, tax/VAT status where relevant, identity/KYC hand-off, Stripe Connect onboarding, payout capability status, moderation/verification and first-listing review. Do not promise escrow or payouts before the connected account is capable and the payment flow is live.
+
+### 23.3 Campaign Manager: full marketing taxonomy without sidebar bloat
+
+The right model is one **universal campaign portfolio** with type-specific workstreams. Do not add 12-15 new top-level sidebar links. The campaign entity should provide common planning and measurement, while adapters add fields and workflows for each channel.
+
+#### Universal campaign object
+
+Every campaign type should share:
+
+- objective, funnel stage, owner, team, brand, market, dates and status;
+- audience/segments/personas;
+- channel mix and workstreams;
+- brief, messaging, offer and creative requirements;
+- budget, forecast, actual spend, commitments and supplier costs;
+- assets, tasks, dependencies, approvals and comments;
+- tracking plan: UTMs, pixels/events, promo codes, referral links and attribution model;
+- content/calendar view, automation links and supplier orders;
+- targets/KPIs, live results, experiments, learnings and audit history.
+
+The current campaign type enum mixes **strategy** (`brand_awareness`), **occasion** (`seasonal`), **mechanic** (`giveaway`) and **channel** (`influencer`). Replace it with orthogonal fields:
+
+```text
+objective: awareness | engagement | traffic | leads | revenue | retention | advocacy
+channel: organic_social | paid_media | email_crm | influencer | affiliate_partner |
+         ugc | seo_content | web_cro | messaging | event | pr_earned | referral_loyalty
+mechanic: always_on | launch | promotion | giveaway | competition | webinar |
+          sponsorship | nurture | retargeting | experiment
+```
+
+This avoids an enum explosion and supports a product launch that uses email, creators, paid social and a landing page in one campaign.
+
+#### Marketing workstreams to add
+
+| Workstream | Required operating depth | Build/integrate verdict |
+|---|---|---|
+| **Organic social** | Existing Studio + Calendar + publishing queue, channel variants, approvals, first comments, threads/carousels, evergreen recycling and real API publishing. | **Finish first.** This remains the table-stakes spine. |
+| **Paid media / Ads Manager** | Connected ad accounts; campaign/ad-set/ad hierarchy; objective; budget and pacing; bid strategy; audiences; placements; creative variants; tracking/pixels/conversion events; approval; policy status; spend/ROAS/CAC reporting; automated rules. | **Add as a major module.** Start read-only reporting + draft/export, then gated direct creation. |
+| **Email and lifecycle CRM** | Audience/consent, segments, suppression lists, sender/domain status, template builder, broadcasts, sequences/journeys, triggers, A/B tests, send-time, deliverability, opens/clicks/conversions and unsubscribes. | **Integrate before becoming an ESP.** Use provider adapters for Mailchimp/Klaviyo/HubSpot/Resend rather than building mail infrastructure first. |
+| **Influencer campaigns** | Discovery and shortlists; audience fit/authenticity; outreach; negotiation; contracts; brief; deliverables; content review; disclosure; gifting; usage rights/whitelisting; posting proof; codes/links; payments; performance. | **Dedicated workflow required.** It is not merely a generic `influencer` label and is not the same as UGC. |
+| **Customer affiliate/partner campaigns** | Programme/application pages; partner recruitment; terms; links/codes; attribution; commission tiers; validation/locking period; fraud checks; reversals; payouts; partner portal; performance. | **Separate domain from Caption Fox Affiliates.** Name it `Partner Campaigns` or `Affiliate Programmes` to prevent confusion. |
+| **UGC** | Briefing, sourcing, product samples, deliverables, review/revisions, rights/licensing, usage expiry, payments and performance. | **Deepen the existing module** and connect it to supplier orders. |
+| **SEO and content marketing** | Topic/keyword clusters, content briefs, editorial workflow, on-page checklist, publish URL, Search Console query/page data, refresh tasks and content attribution. | **Add after publishing/analytics.** Integrate Search Console; do not build a crawler/backlink index in v1. |
+| **Web, landing pages and CRO** | Landing pages/forms, lead capture, CTA/offer variants, UTM builder, pixels/events, experiments, conversion funnel and lead routing. | **Add a lightweight builder/integration layer.** Keep Link in Bio as one landing-page format. |
+| **SMS, WhatsApp and push** | Consent, templates, segments, journeys, quiet hours, frequency caps, replies, delivery status and opt-out compliance. | **Provider integration only at first.** High compliance risk; approval and preference gates are mandatory. |
+| **Events and webinars** | Registration page, invitations, speakers, sessions, reminders, attendance, follow-up, recordings, leads and attribution. | **Campaign template + integrations**, not a separate workspace. |
+| **PR and earned media** | Media/contact lists, pitches, coverage, mentions, sentiment, share of voice and clipping/reporting. | **Later premium add-on**, connected to Listening. |
+| **Referral and loyalty** | Advocate/referral offers, codes, reward rules, milestones, fraud controls, reward fulfilment and cohort/LTV reporting. | **Later growth module**, distinct from affiliate partners. |
+| **Offline/direct mail/OOH** | Brief, vendors, placements, print assets, QR/promo codes, proof-of-play/delivery and attributed response. | **Tracking/project template only**, not a native buying system. |
+
+Current platform documentation supports this objective-and-channel separation: Google Ads treats the objective and campaign type as separate decisions and includes Search, Video, Shopping, App, Demand Gen and Performance Max surfaces ([Google Ads objectives](https://support.google.com/google-ads/answer/7450050?hl=en)); Meta optimises around objectives such as awareness, traffic, engagement, leads, app promotion and sales ([Meta ad objectives](https://www.facebook.com/business/ads/ad-objectives?locale=en_GB)); TikTok separates brand objectives from traffic, lead generation, app promotion and sales ([TikTok bidding/objective guide](https://ads.tiktok.com/help/article/bidding-interface)); and Pinterest currently exposes awareness, video completion, consideration, leads and sales objectives ([Pinterest objectives](https://help.pinterest.com/en/business/article/campaign-objectives)).
+
+Email is also more than a composer: current Mailchimp documentation distinguishes regular, plain-text, A/B or multivariate and automated campaigns ([Mailchimp campaign types](https://mailchimp.com/help/getting-started-with-campaigns/)). Shopify Collabs distinguishes open-access and invite-only creator affiliate programmes with commission rules ([Shopify Collabs programmes](https://help.shopify.com/en/manual/promoting-marketing/collabs/merchants/collabs-programs)). Search Console exposes query/page performance, branded vs non-branded analysis and change comparisons, which defines a sensible integration boundary for SEO rather than inventing rankings ([Search Console performance use cases](https://support.google.com/webmasters/answer/17010961?hl=en)).
+
+#### Paid Ads Manager: recommended route depth
+
+```text
+/campaign-manager/paid-media
+  Overview | Campaigns | Creative | Audiences | Conversions | Rules | Reports | Connections
+
+Campaign detail
+  Overview | Ad sets/groups | Ads | Creative tests | Budget | Results | Change history
+```
+
+Release in three safe levels:
+
+1. **Observe:** OAuth/connect, import accounts/campaigns/spend/results and reconcile attribution.
+2. **Plan:** build briefs, budgets, creatives, audiences and drafts; export/push for approval.
+3. **Operate:** create/pause/edit ads through provider APIs behind permissions, spend caps, policy validation, two-person approval, idempotency and audit logs.
+
+Never let Fox AI silently launch, increase spend, broaden an audience or pause a revenue campaign.
+
+### 23.4 Automations and calendar operations
+
+#### Automation product surface
+
+```text
+/campaign-manager/automations
+  Automations | Recipes | Connections | Run history | Usage & settings
+
+/campaign-manager/automations/[id]
+  Visual canvas | Versions | Test data | Runs | Audit
+```
+
+The visual builder needs a maintained node/edge library (for example React Flow), accessible keyboard alternatives and a non-canvas form view on mobile. Drag-and-drop is only the editor; the actual product is the durable execution engine.
+
+Required engine components:
+
+- immutable published workflow versions and editable drafts;
+- event registry with typed payload schemas;
+- trigger, condition, branch, delay, action, approval, error and terminal nodes;
+- worker queue, scheduled jobs, retries/backoff, dead-letter queue and replay controls;
+- per-step execution log with input/output redaction;
+- idempotency keys, deduplication, concurrency controls and loop prevention;
+- encrypted connection secrets and credential rotation;
+- dry-run/test event, pause, clone, template install and rollback;
+- quotas by plan plus workspace/user permissions;
+- human approval nodes for publishing, replies, supplier acceptance, spend and money movement;
+- webhook signature verification, replay protection, egress allow-list/SSRF protection;
+- monitoring for stuck/delayed runs and a support-safe run inspector.
+
+#### Marketing-specific trigger catalogue
+
+Start with a curated catalogue rather than a generic property-management list:
+
+- **Content:** post created/approved/scheduled/published/failed; asset expiring; approval overdue.
+- **Calendar:** date reached; schedule gap detected; best-time window; recurring cadence; campaign milestone moved.
+- **Social:** comment/DM/mention/review received; keyword/sentiment threshold; follower or engagement anomaly.
+- **Campaign:** campaign created/status changed/budget threshold/milestone overdue/goal reached.
+- **Paid media:** ad disapproved; spend threshold; CPA/ROAS threshold; pacing deviation; creative fatigue.
+- **Email/CRM:** contact subscribed/unsubscribed; segment entered; form submitted; email opened/clicked/bounced; inactivity window.
+- **Influencer/UGC:** application received; creator selected; deliverable due/submitted/approved; rights expiring; post detected.
+- **Affiliate:** partner applied/approved; conversion tracked/locked/reversed; payout due; fraud threshold.
+- **Marketplace:** order paid/accepted/delivered/approved/disputed; evidence due; review eligible; payout status changed.
+- **Analytics:** KPI anomaly; report due; attribution data refreshed.
+- **External:** inbound signed webhook and scheduled/cron trigger.
+
+Actions should include create/update task, draft content, generate variants, request approval, schedule content, pause for approval, notify/assign, draft reply/email, add/remove segment/tag, create supplier brief/order draft, update campaign budget forecast, send signed webhook and create report. Financial release, refund, paid-ad spend changes and public publishing remain approval-gated.
+
+#### Proper calendar automation
+
+The current calendar is primarily a dated content view. Add:
+
+- drag-to-create and drag-to-reschedule with optimistic rollback and timezone safety;
+- dependency-aware campaign timelines and milestone shifting;
+- recurring series and evergreen queues with duplicate/repetition guards;
+- channel cadence rules, blackout dates, quiet hours and approval lead times;
+- best-time recommendations with confidence/source shown;
+- gap detection and AI suggestions that create **drafts**, never automatic low-quality filler;
+- automatic repurposing windows across channels;
+- supplier deliverables and influencer posting windows as optional calendar layers;
+- email sends, ads flights, webinars and launches in the same campaign timeline;
+- collision, capacity and budget warnings;
+- publishing queue with ETA, token-expiry warning, retry, partial-success handling and incident history;
+- iCal/Google/Outlook sync with conflict policy and one source of truth.
+
+### 23.5 Supplier workspace and marketplace: what is still missing
+
+#### P0 truth, payment and authorization defects
+
+The current marketplace must not be promoted as escrow-protected yet:
+
+1. `/marketplace/[id]` inserts an order directly with `status: 'escrow_held'`; no PaymentIntent is created and `stripe_payment_intent` remains empty. The UI itself comments that payment capture is stubbed.
+2. The insert RLS checks only `buyer_id = auth.uid()`. A malicious client can currently attempt to choose an arbitrary listing/supplier combination, amount, currency and `escrow_held` status. Price, supplier and status must be derived server-side from the active listing and verified PaymentIntent.
+3. The supplier Orders UI attempts to update order status, but the migration defines no supplier update policy/RPC. The button is therefore expected to fail under RLS.
+4. The supplier Disputes UI attempts to update disputes, but the migration defines select-only dispute access. Evidence submission is therefore expected to fail under RLS.
+5. Public screens fall back to demo listings and demo reviews. Demo data must be unmistakably labelled and must never expose an enabled purchase/escrow path.
+6. The migration is not reconciled into the canonical `supabase/schema.sql` or generated database types, creating fresh-database/type drift.
+
+**Immediate action:** hide/rename all "escrow", "funds protected" and automatic-payout claims until a test payment passes end-to-end. Replace with "Payments coming soon" behind a feature flag. Do not simulate a held balance from order rows.
+
+Stripe Connect is the correct provider boundary, but not a magic escrow toggle. Stripe documents that marketplaces must onboard and verify connected accounts, choose a charge model and explicitly manage transfers/payouts ([Connect overview](https://docs.stripe.com/connect)). With destination charges or separate charges/transfers, the platform is commonly debited for refunds/disputes and can carry loss exposure ([Connect charge types](https://docs.stripe.com/connect/charges?locale=en-GB), [Connect disputes](https://docs.stripe.com/connect/disputes?locale=en-GB)). Product copy and legal review should use "payment held pending approval" only if the implemented funds flow and jurisdiction permit it; do not imply Caption Fox itself is a regulated escrow agent.
+
+#### Complete buyer-supplier transaction lifecycle
+
+```text
+draft request/custom offer
+  -> checkout/payment authorised
+  -> supplier accepts/declines
+  -> requirements and milestones agreed
+  -> work in progress
+  -> deliverable submitted
+  -> buyer approves or requests revision
+  -> payment transfer becomes eligible
+  -> payout/refund/dispute
+  -> transaction-verified review
+```
+
+Required missing surfaces:
+
+- buyer order centre and order detail room;
+- pre-sale messaging, custom briefs and custom offers;
+- requirements form, files, milestones, due dates and revision limits;
+- order conversation, internal support notes and notification preferences;
+- delivery/evidence upload, versions, preview, acceptance and revision requests;
+- cancellation/refund rules, expiry/auto-cancel and no-response timers;
+- supplier acceptance and capacity/availability calendar;
+- buyer approval plus safe auto-approval policy after a disclosed review window;
+- transaction events/timeline and immutable financial ledger;
+- admin marketplace operations: supplier moderation, listing review, risk flags, order intervention, disputes, refunds, review moderation and audit export.
+
+#### Supplier shopfront and discovery
+
+The profile editor is not yet a shopfront system. Add:
+
+- public `/marketplace/suppliers/[slug]`;
+- avatar/cover, verified identity/business badges and response metrics;
+- specialisms, industries, platforms, languages, location/timezone and service area;
+- portfolio media/case studies with permission and rights metadata;
+- service packages (Basic/Standard/Premium), add-ons, turnaround and revisions;
+- hourly, fixed-price, retainer, booking and custom-quote models;
+- availability, lead time, minimum notice and pause/holiday mode;
+- FAQs, requirements, cancellation/revision terms;
+- transaction-verified reviews, supplier response and rating breakdown;
+- favourites, saved searches, comparison and shortlist;
+- ranking rules that do not fabricate ratings or pay-to-win without disclosure.
+
+Expand supplier capabilities beyond the current five labels: UGC creator, influencer, photographer/videographer, designer/editor, copywriter, social/community manager, paid-media buyer, email/CRM specialist, SEO/content specialist, web/CRO specialist, strategist, PR specialist and agency/studio. Store capabilities as many-to-many tags; do not force one supplier into a single `type`.
+
+#### Reviews, disputes and payouts
+
+- Reviews: one eligible review per completed order/party; verified-purchase marker; edit window; moderation/appeal; aggregate recalculation in a transaction; anti-retaliation and abuse reporting.
+- Disputes: reason taxonomy, eligibility/deadline, evidence files, evidence access control, mediation owner, SLA, status timeline, settlement options, refund/transfer reversal, appeal policy and immutable decision log.
+- Payouts: Connect onboarding/status, capability requirements, platform fee, tax/VAT fields, pending/available/paid balances derived from provider ledger, payout schedule, failed payout recovery and downloadable statements.
+- Security: server-only checkout/order RPC, listing snapshot at purchase, signed webhooks, replay protection, idempotency, amount/currency validation, no client-controlled financial status, rate limits and full negative RLS tests.
+
+### 23.6 Proper Fox copilot and agents
+
+The copilot is no longer broken at the HTTP-contract level, but it is still a generic chatbot:
+
+- the bubble does not send `workspaceId`, brand, route, record or selected campaign context;
+- `/api/ai/chat` does not retrieve workspace records or expose tools;
+- mode names only change the system prompt; Tasks/Alerts/Inbox do not actually read or act on those domains;
+- no streaming, persisted conversation, citations, action preview, approval queue, result receipt or undo;
+- no prompt-injection defence around external inbox/listening/supplier content;
+- usage logging is attempted, but the user cannot see a reliable quota/cost breakdown.
+
+#### Target architecture
+
+Build one **Fox** experience with specialist skills, not five unrelated chat tabs:
+
+1. **Context resolver:** authenticated user, active surface/workspace, role/permissions, route, selected records, brand voice and plan entitlements.
+2. **Read tools:** search campaigns/posts/assets/analytics/inbox/listening/suppliers/orders/calendar, all server-side and RLS-equivalent.
+3. **Draft tools:** create campaign brief, content variants, report, task plan, automation draft, supplier brief or reply draft.
+4. **Mutation tools:** narrowly typed server actions with validation, idempotency and audit. Always show an action preview.
+5. **Approval service:** required for publish/send, paid-media changes, supplier acceptance, refunds/transfers and bulk changes; support two-person approval where risk warrants it.
+6. **Grounding/RAG:** workspace documents, brand guidelines and connected data with source links and freshness timestamps.
+7. **Conversation/memory:** workspace-scoped threads; explicit saved preferences; retention/delete controls; never silently train or create cross-workspace memory.
+8. **Execution receipts:** tool called, records affected, success/failure, links and undo/repair path.
+9. **Evaluation/observability:** tool success, hallucination, permission-denial, prompt-injection, latency, cost and human-override metrics.
+
+Anthropic's MCP documentation defines MCP as a standard way to connect models with data sources and tools ([Anthropic MCP documentation](https://docs.anthropic.com/en/docs/agents-and-tools/mcp)). MCP can be an integration boundary, but every Caption Fox tool still needs local auth, workspace scoping, schemas, approvals and audit; the protocol does not supply those controls automatically.
+
+Recommended Fox jobs:
+
+- strategist: campaign plan, audience/message/offer and channel mix;
+- creator: captions, scripts, email/ad variants and repurposing;
+- campaign operator: status, blockers, dates, tasks, approvals and supplier work;
+- analyst: grounded performance explanation, anomaly investigation and recommended experiment;
+- community assistant: classify and draft inbox replies/escalations;
+- automation assistant: convert a plain-language request into a disabled, testable workflow draft.
+
+Fox should never autonomously publish, send a public reply/email, change ad spend, release/refund money, accept legal terms or resolve a dispute.
+
+### 23.7 Data model additions
+
+Do not bolt each new module onto `campaigns` JSON. Add shared primitives plus adapter tables:
+
+- `campaign_workstreams`, `campaign_objectives`, `campaign_channels`, `campaign_metrics`;
+- `campaign_budgets`, `budget_lines`, `campaign_tracking_links`, `conversion_events`;
+- `experiments`, `experiment_variants`, `attribution_touchpoints`;
+- `ad_accounts`, `ad_campaign_refs`, `ad_groups`, `ads`, `ad_creatives`, `audiences`, `ad_daily_metrics`;
+- `contact_lists`, `contacts`, `consent_events`, `segments`, `email_campaigns`, `email_variants`, `journeys`, `message_deliveries`, `suppressions`;
+- `influencer_profiles`, `influencer_campaign_members`, `creator_contracts`, `deliverables`, `usage_rights`, `tracking_codes`;
+- `partner_programs`, `partners`, `partner_links`, `commissions`, `commission_events`, `partner_payouts`;
+- `automation_definitions`, `automation_versions`, `automation_nodes`, `automation_edges`, `automation_runs`, `automation_step_runs`, `automation_secrets`;
+- `marketplace_order_events`, `marketplace_messages`, `marketplace_deliverables`, `marketplace_milestones`, `marketplace_evidence`, `marketplace_financial_events`;
+- `agent_threads`, `agent_messages`, `agent_tool_calls`, `agent_approvals`, `agent_action_receipts`.
+
+All operational tables need `workspace_id` or an unambiguous parent that enforces workspace ownership, `created_by`, timestamps, version/concurrency strategy, indexes, audit events, retention policy and tested RLS. Financial/provider-derived tables need immutable event records and reconciliation, not editable balance columns.
+
+### 23.8 Recommended buyer workspace navigation
+
+Keep the sidebar compact and let Campaigns own the channel breadth:
+
+```text
+OVERVIEW
+  Home
+
+PLAN & CREATE
+  Studio
+  Calendar
+
+CAMPAIGNS
+  Campaigns            all campaign types and workstreams
+  Paid Media           only when the Ads add-on is enabled
+  Partners & Creators  UGC + influencer + affiliate programmes
+
+ENGAGE
+  Inbox
+
+MEASURE & OPTIMISE
+  Analytics            includes Listening/Competitors as gated sub-areas
+
+AUTOMATE
+  Automations
+
+MANAGE
+  Settings
+```
+
+- Link in Bio becomes a Studio/Web tool rather than a permanent primary destination.
+- Listening and Competitors sit under Analytics/Insights.
+- Giveaways and Competitions remain campaign mechanics/templates, not primary destinations.
+- Email appears as a campaign workstream at first; only promote it to a top-level Lifecycle area after it has enough operational depth and usage.
+- Marketplace access belongs in the surface switcher/global menu, not mixed into the campaign sidebar.
+
+### 23.9 Priority order and release gates
+
+#### P0 - correct unsafe or misleading foundations
+
+1. Remove/feature-flag escrow and payout claims; disable fake checkout.
+2. Replace client order insertion with a server endpoint/RPC deriving listing, supplier, amount, currency and initial status.
+3. Repair and test marketplace RLS/state transitions; add admin-only dispute/refund controls.
+4. Reconcile marketplace migrations into canonical schema/types.
+5. Fix active-workspace semantics everywhere before the `/campaign-manager` migration.
+6. Update Sections 19-22 status statements during implementation so the audit does not remain internally contradictory.
+
+#### P1 - finish the marketing spine
+
+1. Real social account OAuth, publishing workers, queue/retries and ingestion.
+2. Billing/entitlements, usage metering, plan/add-on gates and observability.
+3. Media library/DAM, approvals/client portal, real inbox and scheduled reports.
+4. Route migration `/app/*` -> `/campaign-manager/*` only after route registry, redirects and tests are ready.
+
+#### P2 - supplier marketplace beta
+
+1. Supplier onboarding, Connect/KYC/capabilities and public shopfront.
+2. Buyer order room, messaging, deliverables, revisions and transaction timeline.
+3. Payment authorisation/transfer lifecycle, refunds, disputes, reviews and admin operations.
+4. Private beta with capped categories/countries/GMV and manual support playbooks.
+
+#### P3 - campaign operating depth
+
+1. Universal campaign/workstream model and portfolio timeline.
+2. Paid Media observe/plan phases.
+3. Influencer + UGC workflow consolidation around deliverables/rights.
+4. Customer affiliate/partner programmes, clearly separate from Caption Fox Affiliates.
+5. Email/lifecycle provider integrations.
+
+#### P4 - automation and agentic differentiation
+
+1. Durable event/queue engine and recipe library.
+2. Visual automation canvas with test/run history.
+3. Fox context resolver + read tools, then draft tools.
+4. Approval-gated mutation tools and execution receipts.
+5. Calendar automation, cross-channel optimisation and supplier/order recipes.
+
+#### P5 - selective breadth and enterprise
+
+SEO/Search Console, web/CRO, messaging, events, PR, loyalty/referral, public API/webhooks, SSO/SCIM, advanced data governance and compliance. Add each only when it has a real owner, integration path, entitlement, schema, RLS/tests and measurable customer demand.
+
+### 23.10 Build-vs-integrate guardrails
+
+Do **not** initially build:
+
+- an email-delivery network/MTA;
+- a Google-scale SEO crawler or backlink index;
+- a native ad exchange/bidding engine;
+- self-custodied escrow, lending or supplier financing;
+- native webinar/video hosting;
+- every ad network's full editor at once;
+- autonomous publishing, spend control or money movement.
+
+Caption Fox should own the **campaign system of record, workflow, creative, approvals, automation, supplier coordination and cross-channel measurement**. Use provider adapters for delivery, money movement, identity verification, ad serving and specialist data. This is the shortest path to broad marketing coverage without creating an unmaintainable collection of shallow tools.
+
+### 23.11 Revised commercial conclusion
+
+The strongest expanded positioning is:
+
+> **Caption Fox is the campaign operating system that brings planning, content, channels, creators, suppliers, approvals, automation and performance into one workspace.**
+
+The supplier marketplace can become a defensible supply-side moat, and paid media/email/influencer/affiliate coverage can make the campaign record genuinely cross-channel. However, the present commercial priority remains **truth and execution depth**: real publishing, consistent workspace context, safe transactions, provider integrations and a permissioned agent. More menu items without those foundations would increase perceived breadth while reducing trust.

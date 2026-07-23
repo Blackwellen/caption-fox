@@ -34,7 +34,7 @@ export default function MarketplaceLayout({ children }: { children: React.ReactN
       <footer className="border-t border-slate-200 mt-12">
         <div className="max-w-7xl mx-auto px-4 py-8 text-sm text-slate-500 flex flex-wrap items-center justify-between gap-3">
           <span>© {new Date().getFullYear()} Caption Fox Marketplace</span>
-          <span className="flex items-center gap-1.5"><Store size={13} /> Payments held in escrow · protected by dispute resolution</span>
+          <span className="flex items-center gap-1.5"><Store size={13} /> Secure supplier bookings · dispute support is being rolled out</span>
         </div>
       </footer>
     </div>

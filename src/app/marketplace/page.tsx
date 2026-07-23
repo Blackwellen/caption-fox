@@ -66,7 +66,7 @@ export default function MarketplaceBrowsePage() {
       <section className="bg-gradient-to-b from-slate-50 to-white border-b border-slate-100">
         <div className="max-w-3xl mx-auto px-4 py-12 text-center">
           <h1 className="text-3xl md:text-4xl font-bold text-slate-900 tracking-tight">Hire the best social & marketing talent</h1>
-          <p className="text-slate-500 mt-2">UGC creators, ads managers, freelancers, agencies and influencers — booked with escrow protection.</p>
+          <p className="text-slate-500 mt-2">UGC creators, ads managers, freelancers, agencies and influencers — discover the right support for your next campaign.</p>
           <div className="mt-6 flex items-center gap-2 p-1.5 bg-white border border-slate-200 rounded-full shadow-sm max-w-xl mx-auto">
             <Search size={18} className="text-slate-400 ml-3" />
             <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search for a service, skill or supplier…" className="flex-1 py-2.5 text-sm bg-transparent focus:outline-none" />
@@ -100,7 +100,7 @@ export default function MarketplaceBrowsePage() {
         </div>
 
         <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-xs text-slate-500 mb-5">
-          <span className="flex items-center gap-1"><ShieldCheck size={13} className="text-emerald-500" /> Escrow-protected payments</span>
+          <span className="flex items-center gap-1"><ShieldCheck size={13} className="text-emerald-500" /> Secure supplier booking flow (beta)</span>
           <span className="flex items-center gap-1"><MapPin size={13} className="text-blue-500" /> UK & remote suppliers</span>
           <span className="text-slate-400">{listings.length} results</span>
         </div>

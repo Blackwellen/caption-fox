@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
   Home, Wand2, Calendar, Inbox, Menu, X,
-  Megaphone, Video, Link2, BarChart2, Radio, Settings,
+  Megaphone, Video, Link2, BarChart2, Radio, Settings, Store,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -21,6 +21,7 @@ const more = [
   { label: 'Campaigns', href: '/app/campaigns', icon: Megaphone },
   { label: 'UGC', href: '/app/ugc', icon: Video },
   { label: 'Link in Bio', href: '/app/links', icon: Link2 },
+  { label: 'Marketplace', href: '/marketplace', icon: Store },
   { label: 'Analytics', href: '/app/analytics', icon: BarChart2 },
   { label: 'Listening', href: '/app/listening', icon: Radio },
   { label: 'Settings', href: '/app/settings', icon: Settings },

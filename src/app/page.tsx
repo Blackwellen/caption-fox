@@ -32,6 +32,7 @@ function PublicNav() {
           {/* Desktop nav */}
           <nav className="hidden md:flex items-center gap-8">
             <Link href="/features" className="text-sm text-slate-600 hover:text-slate-900 font-medium transition-colors">Features</Link>
+            <Link href="/marketplace" className="text-sm text-slate-600 hover:text-slate-900 font-medium transition-colors">Marketplace</Link>
             <Link href="/pricing" className="text-sm text-slate-600 hover:text-slate-900 font-medium transition-colors">Pricing</Link>
             <Link href="#use-cases" className="text-sm text-slate-600 hover:text-slate-900 font-medium transition-colors">Use Cases</Link>
             <Link href="#resources" className="text-sm text-slate-600 hover:text-slate-900 font-medium transition-colors">Resources</Link>
@@ -67,6 +68,7 @@ function PublicNav() {
         {open && (
           <div className="md:hidden border-t border-slate-100 py-4 space-y-1">
             <Link href="/features" className="block px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 rounded-lg">Features</Link>
+            <Link href="/marketplace" className="block px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 rounded-lg">Marketplace</Link>
             <Link href="/pricing" className="block px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 rounded-lg">Pricing</Link>
             <Link href="#use-cases" className="block px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 rounded-lg">Use Cases</Link>
             <Link href="#resources" className="block px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 rounded-lg">Resources</Link>

@@ -26,6 +26,7 @@ const quickCreateItems = [
 interface TopNavProps {
   workspaces?: WorkspaceLite[]
   activeWorkspaceId?: string | null
+  supplier?: { display_name: string; verified?: boolean | null } | null
   userName?: string | null
   userEmail?: string | null
   isAdmin?: boolean
@@ -35,6 +36,7 @@ interface TopNavProps {
 export default function TopNav({
   workspaces = [],
   activeWorkspaceId,
+  supplier,
   userName,
   userEmail,
   isAdmin,
@@ -60,7 +62,7 @@ export default function TopNav({
       <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
 
       {/* Workspace switcher */}
-      <WorkspaceSwitcher workspaces={workspaces} activeId={activeWorkspaceId} />
+      <WorkspaceSwitcher workspaces={workspaces} activeId={activeWorkspaceId} supplier={supplier} />
 
       {/* Search → command palette */}
       <div className="flex-1 max-w-md">

@@ -48,14 +48,14 @@ export default function SupplierPayoutsPage() {
           <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center shrink-0"><Wallet size={20} className="text-blue-600" /></div>
           <div className="flex-1">
             <p className="text-sm font-semibold text-slate-900">Connect payouts with Stripe</p>
-            <p className="text-sm text-slate-500 mt-0.5">Caption Fox uses Stripe Connect to hold buyer payments in escrow and pay you out automatically when an order completes.</p>
+            <p className="text-sm text-slate-500 mt-0.5">Stripe Connect payouts will be enabled after supplier verification and payment webhooks are configured.</p>
             <button disabled className="mt-3 px-4 py-2 bg-slate-200 text-slate-500 text-sm font-semibold rounded-lg cursor-not-allowed flex items-center gap-1.5"><Lock size={14} /> Connect Stripe</button>
             <p className="text-[11px] text-slate-400 mt-2">Enabled once the platform&apos;s Stripe Connect keys are configured.</p>
           </div>
         </div>
       </div>
 
-      <p className="text-xs text-slate-400 flex items-center gap-1.5"><ShieldCheck size={13} className="text-emerald-500" /> Funds are protected by escrow and only released after the buyer approves delivery.</p>
+      <p className="text-xs text-slate-400 flex items-center gap-1.5"><ShieldCheck size={13} className="text-emerald-500" /> Payouts are currently shown as a demo balance until Stripe Connect is enabled.</p>
     </div>
   )
 }

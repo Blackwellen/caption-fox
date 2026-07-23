@@ -19,7 +19,7 @@ const DEMO_REVIEWS: Review[] = [
   { id: '2', name: 'Daniel O.', rating: 5, body: 'Professional, on-brand and easy to work with. Will book again.' },
   { id: '3', name: 'Aisha M.', rating: 4, body: 'Great quality. Needed one small revision which was handled quickly.' },
 ]
-const ESCROW_STEPS = ['Payment held in escrow', 'Supplier delivers the work', 'You approve', 'Funds released']
+const ORDER_STEPS = ['Request recorded', 'Supplier confirms availability', 'Work is delivered', 'Payment integration completes']
 
 export default function ListingDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
@@ -77,7 +77,7 @@ export default function ListingDetailPage({ params }: { params: Promise<{ id: st
       buyer_id: user.id,
       amount_cents: listing.priceCents,
       currency: listing.currency,
-      status: 'escrow_held', // payment capture stubbed until Stripe Connect
+      status: 'pending', // Payment capture is intentionally disabled until Stripe Connect is configured.
     })
     setPlacing(false)
     if (error) { setError(error.message); return }
@@ -162,7 +162,7 @@ export default function ListingDetailPage({ params }: { params: Promise<{ id: st
               <div className="text-center py-2">
                 <div className="w-11 h-11 rounded-2xl bg-emerald-50 flex items-center justify-center mx-auto mb-2"><PartyPopper size={20} className="text-emerald-500" /></div>
                 <p className="text-sm font-semibold text-slate-900">Order placed</p>
-                <p className="text-xs text-slate-500 mt-1">Your payment is held in escrow. The supplier has been notified and will start the work.</p>
+                <p className="text-xs text-slate-500 mt-1">Your booking request is recorded. Payment capture will be enabled after Stripe Connect is configured.</p>
                 <Link href="/marketplace" className="inline-block mt-3 text-sm font-medium text-blue-600 hover:underline">Browse more services</Link>
               </div>
             ) : !checkout ? (
@@ -174,8 +174,8 @@ export default function ListingDetailPage({ params }: { params: Promise<{ id: st
                   <MessageSquare size={15} /> Message supplier
                 </button>
                 <div className="mt-4 p-3 bg-emerald-50 rounded-lg">
-                  <p className="text-xs font-semibold text-emerald-800 flex items-center gap-1.5 mb-1.5"><ShieldCheck size={14} /> Escrow protected</p>
-                  <p className="text-[11px] text-emerald-700">Your payment is held securely and only released when you approve the delivered work.</p>
+                  <p className="text-xs font-semibold text-emerald-800 flex items-center gap-1.5 mb-1.5"><ShieldCheck size={14} /> Secure booking flow (beta)</p>
+                  <p className="text-[11px] text-emerald-700">Your request is recorded for supplier coordination. Payment protection will be enabled with Stripe Connect.</p>
                 </div>
               </>
             ) : (
@@ -187,15 +187,15 @@ export default function ListingDetailPage({ params }: { params: Promise<{ id: st
                   <div className="border-t border-slate-100 pt-2"><Row label="Total" value={formatPrice(Math.round(listing.priceCents * 1.05), listing.currency)} bold /></div>
                 </div>
                 <ol className="space-y-1.5 mb-4">
-                  {ESCROW_STEPS.map((s, i) => (
+                  {ORDER_STEPS.map((s, i) => (
                     <li key={s} className="flex items-center gap-2 text-xs text-slate-600"><span className="w-4 h-4 rounded-full bg-slate-100 text-[10px] font-bold text-slate-500 flex items-center justify-center">{i + 1}</span> {s}</li>
                   ))}
                 </ol>
                 {error && <p className="text-xs text-red-600 mb-2">{error}</p>}
                 <button onClick={placeOrder} disabled={placing || !listing.supplierId} className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white font-semibold rounded-lg text-sm flex items-center justify-center gap-1.5">
-                  {placing ? <Loader2 size={14} className="animate-spin" /> : <Lock size={14} />} Place order (hold in escrow)
+                  {placing ? <Loader2 size={14} className="animate-spin" /> : <Lock size={14} />} Request booking
                 </button>
-                <p className="text-[11px] text-slate-400 mt-2 text-center">{listing.supplierId ? 'Card payment settles via Stripe Connect once keys are configured — your order is recorded and held in escrow now.' : 'Demo listing — ordering enabled on live supplier listings.'}</p>
+                <p className="text-[11px] text-slate-400 mt-2 text-center">{listing.supplierId ? 'Demo booking request — payment capture will be added with Stripe Connect.' : 'Demo listing — booking requests are unavailable.'}</p>
                 <button onClick={() => setCheckout(false)} className="w-full mt-2 text-xs text-slate-500 hover:text-slate-700">← Back</button>
               </div>
             )}

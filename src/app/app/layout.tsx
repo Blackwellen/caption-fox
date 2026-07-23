@@ -5,12 +5,15 @@ import Sidebar from '@/components/layout/Sidebar'
 import TopNav from '@/components/layout/TopNav'
 import MobileNav from '@/components/layout/MobileNav'
 import FoxAIBubble from '@/components/fox-ai/FoxAIBubble'
+import { ensureDemoWorkspaces } from '@/lib/demo-workspaces'
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
   if (!user) redirect('/login')
+
+  await ensureDemoWorkspaces(user.id, user.email)
 
   const { data: profile } = await supabase
     .from('profiles')
@@ -19,6 +22,12 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     .single()
 
   const { active, workspaces } = await getActiveWorkspace(supabase, user.id)
+
+  const { data: supplier } = await supabase
+    .from('marketplace_suppliers')
+    .select('display_name, verified')
+    .eq('user_id', user.id)
+    .maybeSingle()
 
   const { data: notifications } = await supabase
     .from('notifications')
@@ -40,6 +49,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         <TopNav
           workspaces={workspaces}
           activeWorkspaceId={active?.id ?? null}
+          supplier={supplier}
           userName={profile?.full_name ?? null}
           userEmail={user.email ?? null}
           isAdmin={isAdmin}

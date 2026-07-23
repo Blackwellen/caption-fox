@@ -46,7 +46,7 @@ export default function SupplierOrdersPage() {
 
   return (
     <div className="p-6 lg:p-8 max-w-4xl mx-auto space-y-6">
-      <div><h1 className="text-xl font-bold text-slate-900">Orders</h1><p className="text-sm text-slate-500">Manage incoming orders and their escrow status.</p></div>
+      <div><h1 className="text-xl font-bold text-slate-900">Orders</h1><p className="text-sm text-slate-500">Manage incoming orders and their payment status (beta).</p></div>
 
       <div className="flex items-center gap-2">
         {FILTERS.map(f => (
@@ -83,7 +83,7 @@ export default function SupplierOrdersPage() {
           })}
         </div>
       )}
-      <p className="text-xs text-slate-400">Escrow release & payouts settle via Stripe Connect once connected. Marking an order complete signals the buyer to release funds.</p>
+      <p className="text-xs text-slate-400">Payment capture and payouts are being connected to Stripe. Order status changes are currently for workspace demo flows.</p>
     </div>
   )
 }
