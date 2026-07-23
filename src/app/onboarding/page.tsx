@@ -38,6 +38,7 @@ export default function OnboardingPage() {
   const router = useRouter()
   const [step, setStep] = useState(1)
   const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
   const [calendarGenerating, setCalendarGenerating] = useState(false)
   const [calendarGenerated, setCalendarGenerated] = useState(false)
 
@@ -57,12 +58,25 @@ export default function OnboardingPage() {
 
   async function saveWorkspace() {
     setSaving(true)
+    setSaveError(null)
     const sb = createClient()
     const { data: { user } } = await sb.auth.getUser()
     if (!user) { router.push('/login'); return }
     const slug = form.workspaceName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
-    await sb.from('workspaces').insert({ name: form.workspaceName, slug: `${slug}-${Date.now()}`, type: form.workspaceType.toLowerCase().replace(' ', '_'), plan: form.plan, owner_id: user.id })
+    const { data: workspace, error } = await sb
+      .from('workspaces')
+      .insert({ name: form.workspaceName, slug: `${slug}-${Date.now()}`, type: form.workspaceType.toLowerCase().replace(' ', '_'), plan: form.plan, owner_id: user.id })
+      .select('id')
+      .single()
     setSaving(false)
+    if (error || !workspace) {
+      setSaveError(error?.message ?? 'We couldn’t create your workspace. Please try again.')
+      return
+    }
+    // The on_workspace_created DB trigger adds the owner membership row that all
+    // in-workspace RLS relies on. Remember this workspace as the active one.
+    document.cookie = `cf_workspace=${workspace.id}; path=/; max-age=31536000; samesite=lax`
+    setSaveError(null)
     next()
   }
 
@@ -179,6 +193,7 @@ export default function OnboardingPage() {
                   </button>
                 ))}
               </div>
+              {saveError && <p role="alert" className="mb-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{saveError}</p>}
               <div className="flex gap-3"><button onClick={back} className="px-5 py-2.5 border border-slate-300 rounded-xl text-sm font-medium text-slate-600 hover:bg-slate-50">Back</button><button onClick={saveWorkspace} disabled={saving} className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white font-semibold rounded-xl text-sm transition-colors">{saving ? 'Saving…' : 'Continue'}</button></div>
             </div>
           )}
