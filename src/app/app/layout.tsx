@@ -13,7 +13,13 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   if (!user) redirect('/login')
 
-  await ensureDemoWorkspaces(user.id, user.email)
+  // Provisioning is a convenience, never a hard dependency of the shell — a
+  // failure here must not take down every /app route.
+  try {
+    await ensureDemoWorkspaces(user.id, user.email)
+  } catch {
+    // Non-fatal: the workspace shell renders from whatever already exists.
+  }
 
   const { data: profile } = await supabase
     .from('profiles')

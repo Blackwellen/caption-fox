@@ -1,18 +1,9 @@
 import { redirect } from 'next/navigation'
-import { Package, ShoppingBag, CalendarDays, UserCircle2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { getActiveWorkspace } from '@/lib/workspace'
 import SupplierSidebar from '@/components/supplier/SupplierSidebar'
-import TopNav, { type QuickCreateItem } from '@/components/layout/TopNav'
+import TopNav from '@/components/layout/TopNav'
 import type { SupplierType } from '@/lib/marketplace/types'
-
-// Supplier-context create actions (the marketer defaults link out of this workspace).
-const supplierQuickCreate: QuickCreateItem[] = [
-  { label: 'New Listing', href: '/supplier/listings?action=new', icon: Package },
-  { label: 'View Orders', href: '/supplier/orders', icon: ShoppingBag },
-  { label: 'Set Availability', href: '/supplier/availability', icon: CalendarDays },
-  { label: 'Edit Profile', href: '/supplier/profile', icon: UserCircle2 },
-]
 
 // Standalone supplier/seller WORKSPACE shell (a supplier logs into their own
 // workspace — not a portal controlled from a marketer workspace). Requires the
@@ -63,7 +54,7 @@ export default async function SupplierLayout({ children }: { children: React.Rea
           activeWorkspaceId={active?.id ?? null}
           supplier={supplier}
           supplierActive
-          quickCreate={supplierQuickCreate}
+          variant="supplier"
           userName={profile?.full_name ?? null}
           userEmail={user.email ?? null}
           isAdmin={profile?.is_platform_admin ?? false}

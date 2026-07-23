@@ -5,6 +5,7 @@ import Link from 'next/link'
 import {
   Search, HelpCircle, Plus,
   FileText, Megaphone, CalendarPlus, Upload, Video, UserPlus, BarChart2,
+  Package, ShoppingBag, CalendarDays, UserCircle2,
 } from 'lucide-react'
 import CommandPalette from '@/components/command/CommandPalette'
 import WorkspaceSwitcher from '@/components/layout/WorkspaceSwitcher'
@@ -23,7 +24,15 @@ const quickCreateItems = [
   { label: 'Create Report',        href: '/app/analytics?action=report',     icon: BarChart2 },
 ]
 
-export type QuickCreateItem = { label: string; href: string; icon: typeof FileText }
+// Supplier-context create actions. Defined here (client side) because lucide
+// icon components are functions and cannot be serialised across the
+// Server -> Client Component boundary as props.
+const supplierCreateItems = [
+  { label: 'New Listing',      href: '/supplier/listings?action=new', icon: Package },
+  { label: 'View Orders',      href: '/supplier/orders',              icon: ShoppingBag },
+  { label: 'Set Availability', href: '/supplier/availability',        icon: CalendarDays },
+  { label: 'Edit Profile',     href: '/supplier/profile',             icon: UserCircle2 },
+]
 
 interface TopNavProps {
   workspaces?: WorkspaceLite[]
@@ -31,8 +40,8 @@ interface TopNavProps {
   supplier?: { display_name: string; verified?: boolean | null } | null
   /** True when the shell is currently rendering the supplier workspace. */
   supplierActive?: boolean
-  /** Context-specific create actions; defaults to the marketer workspace set. */
-  quickCreate?: QuickCreateItem[]
+  /** Selects the create-menu set. Serialisable so it can cross the RSC boundary. */
+  variant?: 'workspace' | 'supplier'
   userName?: string | null
   userEmail?: string | null
   isAdmin?: boolean
@@ -44,13 +53,13 @@ export default function TopNav({
   activeWorkspaceId,
   supplier,
   supplierActive = false,
-  quickCreate,
+  variant = 'workspace',
   userName,
   userEmail,
   isAdmin,
   notifications = [],
 }: TopNavProps) {
-  const createItems = quickCreate ?? quickCreateItems
+  const createItems = variant === 'supplier' ? supplierCreateItems : quickCreateItems
   const [quickOpen, setQuickOpen] = useState(false)
   const [paletteOpen, setPaletteOpen] = useState(false)
 
