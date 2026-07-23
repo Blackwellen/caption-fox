@@ -19,11 +19,20 @@ export default function WorkspaceSwitcher({
   const active = workspaces.find(w => w.id === activeId) ?? workspaces[0]
 
   function choose(id: string) {
+    const workspace = workspaces.find(item => item.id === id)
     // The browser cookie is the server-rendered workspace preference.
     // eslint-disable-next-line react-hooks/immutability
     window.document.cookie = `${ACTIVE_WORKSPACE_COOKIE}=${id}; path=/; max-age=31536000; samesite=lax`
     setOpen(false)
-    router.refresh()
+    const routeByType: Record<string, string> = {
+      creator: '/creator',
+      small_business: '/business',
+      brand: '/brand',
+      agency: '/agency',
+    }
+    const route = workspace?.type ? routeByType[workspace.type] : undefined
+    if (route) router.push(route)
+    else router.refresh()
   }
 
   return (

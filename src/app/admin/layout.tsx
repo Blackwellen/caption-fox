@@ -7,15 +7,16 @@ const adminNav = [
   { label: 'Admin Home',          href: '/admin',                    icon: LayoutDashboard },
   { label: 'Workspaces',          href: '/admin/workspaces',         icon: Building2 },
   { label: 'Users',               href: '/admin/users',              icon: Users },
-  { label: 'Plans & Billing',     href: '/admin/plans',              icon: CreditCard },
-  { label: 'Content & AI',        href: '/admin/content-ai',         icon: Brain },
-  { label: 'Social Connections',  href: '/admin/social-connections', icon: Wifi },
-  { label: 'UGC Oversight',       href: '/admin/ugc-oversight',      icon: Video },
+  { label: 'Plans & Billing',     href: '/admin/billing',            icon: CreditCard },
+  { label: 'Content & AI',        href: '/admin/ai',                 icon: Brain },
+  { label: 'Connections',         href: '/admin/connections',        icon: Wifi },
+  { label: 'Marketplace Ops',     href: '/admin/suppliers',          icon: Video },
   { label: 'Support Inbox',       href: '/admin/support',            icon: Headphones },
-  { label: 'Compliance & Abuse',  href: '/admin/compliance',         icon: ShieldAlert },
-  { label: 'System Settings',     href: '/admin/system-settings',    icon: Settings },
+  { label: 'Compliance & Data',   href: '/admin/compliance',         icon: ShieldAlert },
+  { label: 'Feature Flags',       href: '/admin/flags',              icon: Settings },
+  { label: 'Automations Ops',     href: '/admin/automation-ops',     icon: Settings },
   { label: 'Platform Analytics',  href: '/admin/platform-analytics', icon: BarChart2 },
-  { label: 'Audit Logs',          href: '/admin/audit-logs',         icon: ScrollText },
+  { label: 'Audit & System',      href: '/admin/audit',              icon: ScrollText },
 ]
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {

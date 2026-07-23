@@ -44,6 +44,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         userEmail={user.email}
         userName={profile?.full_name ?? undefined}
         isAdmin={isAdmin}
+        workspaceType={active?.type}
       />
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         <TopNav
@@ -59,7 +60,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           {children}
         </main>
       </div>
-      <MobileNav />
+      <MobileNav workspaceType={active?.type} />
       <FoxAIBubble />
     </div>
   )

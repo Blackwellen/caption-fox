@@ -1,1550 +1,670 @@
-# Caption Fox — Full Implementation Plan
-## 9 Levels · 56 Steps · Zero Arm-and-a-Leg APIs
+# Caption Fox — Unified Product, Information Architecture & Modularisation Plan
 
-**Version:** 1.0 | **Date:** 2026-06-10 | **Author:** Claude Code
+**Version:** 2.0 · **Updated:** 2026-07-23 · **Status:** authoritative delivery plan
 
----
+This supersedes the prior 56-step technical plan. It combines the build-grade audit, the enterprise sidebar audit, the current supplier/marketplace work, and the full marketing-operating-system roadmap. It is a product plan, not a claim that every item below has been shipped.
 
-## Core Principles
+## 1. Product model and delivery rules
 
-1. **Never break what works.** Every step is additive. Each level can ship independently.
-2. **Zero-cost APIs first.** If a feature requires an expensive API, we build it so the user provides their own credentials — we provide the UI, they provide the keys.
-3. **Simulate before integrate.** Every data-dependent feature has a demo/seed mode so it works immediately without real API keys.
-4. **AI = Claude Haiku only** (cheapest Anthropic model — ~$0.0004/1K tokens). Never call a paid third-party AI unless the user explicitly enables it.
-5. **Supabase Edge Functions** for all background processing. Never block the UI.
-6. **Resend** for all outbound email. Free tier: 3,000 emails/month, 100/day — sufficient for launch.
+Caption Fox is a multi-workspace marketing operating system. It manages the complete chain:
 
----
+`Business objective → marketing strategy → campaign → channel plan → deliverable → publication → conversion → revenue`
 
-## Free API Strategy (What We Actually Use)
+### Status key
 
-| Service | Cost | What We Use It For | Limit |
-|---|---|---|---|
-| **Reddit API** | Free (OAuth) | Brand mention search | 1,000 posts/min |
-| **YouTube Data API v3** | Free | Video/comment keyword search | 10,000 units/day |
-| **Google News RSS** | Free (no key) | News mention feed | ~100 articles/keyword |
-| **Hugging Face Inference** | Free | Image generation (FLUX.1-schnell) | Rate-limited |
-| **Pexels API** | Free | Stock photos & video | 20,000 req/month |
-| **Pixabay API** | Free | Stock images (commercial licence) | 5,000 req/hour |
-| **Unsplash API** | Free | Curated stock photos | 50 req/hr (production: 5K) |
-| **Telegram Bot API** | Fully free | Notifications + DM inbox | No limit |
-| **Resend** | Free | Transactional + report emails | 3,000/mo, 100/day |
-| **Slack Webhooks** | Free | Team notifications | No limit |
-| **Google Analytics 4** | Free | Embedded analytics | No limit |
-| **Canva Design Button** | Free (approval) | In-editor design tool | No limit |
-
-**Paid APIs — User Provides Their Own Keys (We Build the UI):**
-- **WhatsApp Cloud API** (Meta) — user connects their own Business account
-- **X/Twitter API** — user provides their own developer credentials (pay-per-use, their cost)
-- **Stability AI** — user provides key if they want premium image gen
-- **Stripe** — user provides own keys (already planned)
-
----
-
-## Level Overview
-
-| Level | Theme | Steps | Estimated Build Time |
-|---|---|---|---|
-| 1 | Platform Hardening & Infrastructure | 1–6 | 1 week |
-| 2 | Social Listening Engine | 7–13 | 2 weeks |
-| 3 | AI Content Intelligence | 14–20 | 2 weeks |
-| 4 | Inbox & Messaging Expansion | 21–27 | 2 weeks |
-| 5 | Analytics & Automated Reporting | 28–33 | 1.5 weeks |
-| 6 | Team, Permissions & Agency | 34–39 | 1.5 weeks |
-| 7 | Integrations & Webhooks | 40–45 | 1.5 weeks |
-| 8 | Link-in-Bio & Commerce | 46–50 | 1 week |
-| 9 | Platform Polish & Launch | 51–56 | 1 week |
-| | **Total** | **56 steps** | **~14 weeks** |
-
----
-
-## LEVEL 1: Platform Hardening & Infrastructure
-### Theme: Make the platform bulletproof before adding more features
-
----
-
-### Step 1 — Error Boundary System
-**What:** Add React Error Boundaries to every major page section so a broken component doesn't crash the whole page.
-
-**Files to create:**
-- `src/components/ui/ErrorBoundary.tsx` — class component with fallback UI
-- `src/components/ui/PageErrorFallback.tsx` — styled "something went wrong" card with retry button
-
-**Implementation:**
-- Wrap every tab panel in `<ErrorBoundary>`
-- Wrap every modal body in `<ErrorBoundary>`
-- Log caught errors to `audit_logs` (resource_type: 'client_error')
-- Show user: "This section had an error. Our team has been notified." with a retry button
-
-**Why first:** Every feature we add can fail. Without error boundaries, a bad API response crashes the whole dashboard.
-
-**Cost:** Zero.
-
----
-
-### Step 2 — Environment Variables Audit & `.env.local.example` Cleanup
-**What:** Audit all API keys, document required vs optional env vars, add runtime validation.
-
-**Files:**
-- `.env.local.example` — complete list of all env vars with descriptions
-- `src/lib/env.ts` — runtime check: on startup, log warnings for missing optional vars, throw for missing required vars
-
-**Required vars:**
-```
-NEXT_PUBLIC_SUPABASE_URL
-NEXT_PUBLIC_SUPABASE_ANON_KEY
-SUPABASE_SERVICE_ROLE_KEY
-ANTHROPIC_API_KEY
-NEXT_PUBLIC_APP_URL
-```
-
-**Optional vars (feature flags — missing = feature disabled gracefully):**
-```
-REDDIT_CLIENT_ID + REDDIT_CLIENT_SECRET        → Social Listening (Reddit)
-YOUTUBE_API_KEY                                  → Social Listening (YouTube)
-HUGGING_FACE_API_KEY                             → AI Image Generation
-PEXELS_API_KEY                                   → Stock Media Library
-PIXABAY_API_KEY                                  → Stock Media Library
-UNSPLASH_ACCESS_KEY                              → Stock Media Library
-RESEND_API_KEY                                   → Email Reports + Transactional
-TELEGRAM_BOT_TOKEN                               → Telegram Inbox Channel
-STABILITY_API_KEY                                → Premium Image Generation (user's key)
-STRIPE_SECRET_KEY + STRIPE_WEBHOOK_SECRET        → Billing
-SLACK_WEBHOOK_URL                                → Team Notifications
-```
-
-**In-app:** Settings > Integrations tab shows which integrations are connected vs missing keys.
-
-**Cost:** Zero.
-
----
-
-### Step 3 — Supabase Edge Functions Setup
-**What:** Create the Supabase Edge Functions infrastructure for background processing (social listening ingestion, email sends, alert triggers).
-
-**Functions to scaffold (empty stubs, filled in later steps):**
-- `supabase/functions/ingest-mentions/index.ts` — pulls mentions from Reddit/YouTube/News RSS
-- `supabase/functions/send-report/index.ts` — generates and emails scheduled reports
-- `supabase/functions/trigger-alerts/index.ts` — checks brand_mentions for alert conditions
-- `supabase/functions/process-webhook/index.ts` — handles incoming webhooks
-
-**Deployment:** `supabase functions deploy` — runs on Supabase's infrastructure, no server needed.
-
-**Cron schedule (via Supabase Dashboard → Edge Functions → Schedules):**
-- `ingest-mentions`: every 30 minutes
-- `trigger-alerts`: every hour
-- `send-report`: daily at 07:00 UTC
-
-**Cost:** Zero (included in Supabase free tier: 500K invocations/month).
-
----
-
-### Step 4 — API Route Rate Limiting
-**What:** Prevent abuse of AI generation endpoints. Add per-workspace rate limiting.
-
-**Implementation:**
-- Use Supabase to store request counts in a `rate_limits` table
-- Each AI route checks: workspace has made < N requests in last hour
-- Limits by plan: Free=10/hr, Starter=50/hr, Pro=200/hr, Team=500/hr, Agency=unlimited
-
-**Files:**
-- `src/lib/rate-limit.ts` — `checkRateLimit(workspaceId, action, limit)` utility
-- Apply to: `/api/ai/generate`, `/api/ai/chat`, `/api/ai/image`
-
-**Schema addition:**
-```sql
-create table if not exists public.rate_limits (
-  id uuid primary key default gen_random_uuid(),
-  workspace_id uuid references public.workspaces(id) on delete cascade,
-  action text not null,
-  window_start timestamptz default now(),
-  request_count integer default 1
-);
-create index on public.rate_limits(workspace_id, action, window_start);
-```
-
-**Cost:** Zero.
-
----
-
-### Step 5 — In-App Notification System (Real-Time)
-**What:** Real-time toast notifications powered by Supabase Realtime (free). When Fox AI finishes, when a post is approved, when a giveaway winner is picked — user sees a notification instantly.
-
-**Implementation:**
-- Subscribe to `notifications` table inserts for the current user using `supabase.channel()`
-- `src/components/ui/NotificationToast.tsx` — slides in from bottom-right, auto-dismisses
-- `src/components/layout/NotificationBell.tsx` — bell icon in top nav with unread count badge
-- `src/app/app/notifications/page.tsx` — full notification history page
-
-**Notification types to wire:**
-- Post approved/rejected
-- Campaign status changed
-- Giveaway winner selected
-- New UGC submission received
-- Mention alert triggered
-- Scheduled report sent
-- Team member joined
-
-**Cost:** Zero (Supabase Realtime is free tier).
-
----
-
-### Step 6 — Global Search
-**What:** `Cmd+K` / `Ctrl+K` command palette that searches across posts, campaigns, creators, briefs, inbox threads.
-
-**Implementation:**
-- `src/components/ui/CommandPalette.tsx` — modal with search input, results grouped by type
-- Keyboard shortcut: `useEffect` listening for `metaKey+k` or `ctrlKey+k`
-- Search: Supabase full-text search using `tsquery` on content_posts.title, campaigns.name, ugc_creators.name, inbox_threads.author_handle
-- Results: Post (→ studio), Campaign (→ campaign detail), Creator (→ creator CRM), Thread (→ inbox), Setting (→ settings tab)
-- Recent items: stored in localStorage, shown when search is empty
-
-**Cost:** Zero.
-
----
-
-## LEVEL 2: Social Listening Engine
-### Theme: Real brand monitoring using free APIs only
-
----
-
-### Step 7 — Google News RSS Mention Ingestion
-**What:** Pull brand mentions from Google News RSS feeds for each listening keyword. No API key required.
-
-**Edge Function: `ingest-mentions/news.ts`**
-
-```
-URL pattern: https://news.google.com/rss/search?q={keyword}&hl=en-GB&gl=GB&ceid=GB:en
-Parse RSS XML → extract title, link, source, pubDate
-For each article: INSERT into brand_mentions if URL not already seen
-Sentiment: send content to Claude Haiku (5 words: "Rate sentiment: positive/neutral/negative")
-```
-
-**In-app display:**
-- Mentions show "News" platform badge with globe icon
-- Link opens original article in new tab
-- Author = publication name (BBC, Guardian, etc.)
-
-**Setup:** No API key needed. Works immediately on first deploy.
-
-**Cost:** Zero. Claude Haiku sentiment: ~$0.002 per 1,000 mentions.
-
----
-
-### Step 8 — Reddit Mention Ingestion
-**What:** Pull Reddit posts and comments mentioning brand keywords.
-
-**Setup required:** User adds Reddit API credentials in Settings > Integrations:
-- `REDDIT_CLIENT_ID` + `REDDIT_CLIENT_SECRET` (free Reddit app registration)
-- Registration: https://www.reddit.com/prefs/apps — takes 5 minutes
-
-**Edge Function: `ingest-mentions/reddit.ts`**
-```
-OAuth2 token → GET /search.json?q={keyword}&sort=new&limit=100
-Parse posts → INSERT into brand_mentions
-Subreddit = platform metadata
-Author = author_handle
-Content = post title + selftext (truncated 500 chars)
-```
-
-**In-app display:**
-- Platform badge: "Reddit" (Hash icon)
-- Upvote count as engagement_count
-- Link to original Reddit thread
-
-**Rate limit:** 60 req/min — ingestion runs every 30 min, well within limits.
-
-**Cost:** Zero.
-
----
-
-### Step 9 — YouTube Mention Ingestion
-**What:** Search YouTube for videos mentioning brand keywords. Pull comments from those videos.
-
-**Setup:** `YOUTUBE_API_KEY` in Settings > Integrations (free Google Cloud project, 10K units/day).
-
-**Edge Function: `ingest-mentions/youtube.ts`**
-```
-GET /search?part=snippet&q={keyword}&type=video&order=date&maxResults=10  (100 units)
-For each video: GET /commentThreads?videoId=X (1 unit each)
-INSERT brand_mention for the video itself + top 5 comments
-```
-
-**In-app display:**
-- Platform badge: "YouTube" (PlayCircle icon)
-- author_followers = video channel subscriber count (if available)
-- Link to video
-- Comment content as the mention text
-
-**Quota management:** 10K units/day ÷ ~110 units/keyword = 90 keywords/day max. For Team plan (100 keywords): run in batches, rotate through keywords over 24 hours.
-
-**Cost:** Zero (Google Cloud free tier covers it).
-
----
-
-### Step 10 — Manual Mention Import (URL → Scrape)
-**What:** Users can paste any public URL and we import it as a brand mention. Handles platforms we don't have official API access to (TikTok, Facebook, LinkedIn, Pinterest).
-
-**Implementation:**
-- "Import URL" button in Social Listening > Feed tab
-- POST to `/api/listening/import` with `{ url, keyword_id }`
-- Server: fetch the URL (Next.js server side, no CORS issues), extract:
-  - OpenGraph title + description
-  - `og:image` for thumbnail
-  - Domain as platform name
-  - Page title as content
-- INSERT into brand_mentions with platform derived from domain
-- Claude Haiku: analyse content for sentiment
-
-**Use case:** User finds a TikTok video mentioning their brand → pastes URL → appears in listening feed with correct sentiment.
-
-**Cost:** Zero (URL fetch is free; Claude Haiku ~$0.001 per import).
-
----
-
-### Step 11 — Sentiment Analysis Pipeline
-**What:** Every mention ingested gets a sentiment score via Claude Haiku. Build a proper, consistent pipeline.
-
-**Implementation:**
-- `src/lib/sentiment.ts` → `analyseSentiment(content: string): Promise<{ label: 'positive'|'neutral'|'negative', score: number }>`
-- Uses Claude Haiku with a consistent system prompt:
-  ```
-  You are a sentiment classifier. Given text, return JSON: {"sentiment": "positive|neutral|negative", "score": 0.0-1.0}
-  Score: 1.0 = strongly positive, 0.5 = neutral, 0.0 = strongly negative.
-  ```
-- Batch processing: collect 10 mentions → 1 API call (send all as array) → parse back
-- Cache: if same content hash already scored → reuse score (saves API calls)
-
-**In-app:**
-- Sentiment score shown as a mini progress bar on each mention card
-- Aggregate scores drive the Sentiment Analysis tab charts
-
-**Cost:** ~$0.004 per 1,000 mentions (batch mode). For 10,000 mentions/month = $0.04.
-
----
-
-### Step 12 — Alert Trigger System
-**What:** The Edge Function that checks listening data and fires alerts.
-
-**Edge Function: `trigger-alerts/index.ts`**
-
-Runs hourly. Checks each active workspace with listening keywords:
-
-**Alert Types:**
-1. **Volume Spike:** mentions in last 2 hours > 2× daily average → INSERT listening_alert type='volume_spike'
-2. **Negative Spike:** >30% of mentions in last 4 hours are negative → type='negative_sentiment'
-3. **Viral Mention:** single mention has engagement_count > 1,000 → type='viral'
-4. **New Competitor Mention:** mention matches a keyword flagged as competitor → type='competitor_mention'
-5. **First Mention:** first ever mention found for a keyword → type='new_mention'
-
-**Delivery:**
-- INSERT into `listening_alerts` → triggers Supabase Realtime → in-app notification bell
-- If `alert_enabled + email notifications on`: send via Resend to workspace owner
-- Rate limiting: same alert type for same keyword max 1 per 4 hours
-
-**Cost:** Zero (Edge Function free tier; Resend free tier covers alert emails).
-
----
-
-### Step 13 — Listening Demo/Seed Mode
-**What:** If no API keys are configured, Social Listening shows realistic demo data so users understand the value before setting up.
-
-**Implementation:**
-- `src/lib/listening-demo.ts` — generates 50 plausible-looking mock mentions:
-  - Random platforms (Reddit/YouTube/News), plausible author handles, realistic content
-  - Mix of sentiments (60% positive, 25% neutral, 15% negative)
-  - Timestamps spread across last 30 days
-- Shown only to workspaces with 0 real brand_mentions AND 0 listening_keywords configured
-- Yellow banner: "Showing example data. Add keywords to start real monitoring." with "Set Up Now →" link
-- Demo data never saved to DB — generated client-side on demand
-
-**Cost:** Zero.
-
----
-
-## LEVEL 3: AI Content Intelligence
-### Theme: Make Fox AI the most capable AI in any social tool at this price point
-
----
-
-### Step 14 — Hugging Face Image Generation (Free)
-**What:** Replace the Stability AI image generation with Hugging Face's free FLUX.1-schnell model.
-
-**Files:**
-- Update `src/app/api/ai/image/route.ts`
-
-**Implementation:**
-```typescript
-// Primary: Hugging Face (free)
-const hfKey = process.env.HUGGING_FACE_API_KEY // free to get at huggingface.co
-const resp = await fetch(
-  'https://api-inference.huggingface.co/models/black-forest-labs/FLUX.1-schnell',
-  {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${hfKey}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ inputs: optimizedPrompt })
-  }
-)
-// Returns: binary image blob
-const blob = await resp.blob()
-// Store in Supabase Storage (media bucket), return public URL
-```
-
-**Fallback chain:**
-1. Hugging Face (FLUX.1-schnell) — free, good quality
-2. Stability AI — if user has their own `STABILITY_API_KEY` in Settings
-3. Prompt-only mode — returns the optimised prompt for use in Midjourney/DALL-E
-
-**In-app (Studio > Posts > [id] > AI Assist tab):**
-- "Generate Image" section with text prompt input
-- Platform selector: Instagram Square / Story / YouTube Thumbnail / etc. → sets aspect ratio
-- Style presets: Photo-realistic / Illustration / Minimal / Bold graphic
-- Shows generated image with "Use This Image" (adds to post media)
-- Shows "Copy Prompt" (for use in Midjourney/DALL-E)
-
-**Cost:** Zero (Hugging Face free tier). If rate-limited: shows "Try again in a moment."
-
----
-
-### Step 15 — Stock Media Library (Pexels + Pixabay + Unsplash)
-**What:** Search 10M+ free-to-use images and videos directly inside Studio without leaving Caption Fox.
-
-**Files:**
-- `src/app/api/media/search/route.ts` — unified search across all 3 providers
-- `src/app/app/studio/media/page.tsx` — full media library page (update existing)
-
-**API routes:**
-```typescript
-// GET /api/media/search?q=coffee&type=photo&source=pexels
-// Calls Pexels: GET https://api.pexels.com/v1/search?query={q}&per_page=20
-// Calls Pixabay: GET https://pixabay.com/api/?key={key}&q={q}&per_page=20
-// Calls Unsplash: GET https://api.unsplash.com/search/photos?query={q}&per_page=20
-// Merges results, deduplicates, returns unified format
-```
-
-**Unified result format:**
-```typescript
-interface StockMedia {
-  id: string; source: 'pexels'|'pixabay'|'unsplash'
-  preview_url: string; download_url: string
-  photographer: string; photographer_url: string
-  width: number; height: number; type: 'photo'|'video'
-}
-```
-
-**In-app:**
-- Search box with source filter tabs (All / Pexels / Pixabay / Unsplash)
-- Masonry grid layout
-- "Use in Post" → downloads file → uploads to Supabase Storage → attaches to post
-- "Save to Library" → saves to media_assets with rights_status = 'stock_free'
-- Attribution auto-appended if required (Unsplash requires credit)
-
-**Cost:** Zero (all three have free tiers covering normal usage).
-
----
-
-### Step 16 — AI Post Scoring (Predict Before Publishing)
-**What:** Before a post is scheduled, Fox AI scores it across 5 dimensions and suggests improvements.
-
-**Files:**
-- `src/app/api/ai/score/route.ts`
-- Integrate into `src/app/app/studio/posts/[id]/page.tsx` — "Score My Post" button in AI Assist tab
-
-**Scoring prompt (Claude Haiku):**
-```
-Analyse this social media post for {platform}. Score 1-10 on:
-1. Hook Strength: Does the first line grab attention?
-2. Clarity: Is the message clear?
-3. Call to Action: Is there a clear CTA?
-4. Hashtag Effectiveness: Are hashtags relevant and appropriate count?
-5. Length: Is it optimal for {platform}?
-
-Return JSON: { hook: 7, clarity: 8, cta: 5, hashtags: 9, length: 7, overall: 7.2,
-  improvements: ["Add a question in the first line", "Move CTA to end"] }
-```
-
-**In-app:**
-- 5 circular progress indicators (one per dimension) with colour coding
-- Overall score badge (red/amber/green)
-- Expandable "Suggestions" list with "Apply" button on each
-- Score updates live as user edits the caption
-
-**Cost:** ~$0.001 per score. Negligible.
-
----
-
-### Step 17 — Content Calendar AI Suggestions
-**What:** Fox AI proactively suggests content ideas based on trending topics, upcoming dates, and the workspace's brand voice.
-
-**Files:**
-- `src/app/api/ai/calendar-suggestions/route.ts`
-- Integrate into `src/app/app/calendar/page.tsx` — "AI Suggestions" panel (sidebar or modal)
-
-**Logic:**
-1. Fetch upcoming dates: UK/US bank holidays + user-added events from calendar
-2. Fetch brand voice profile for the workspace
-3. Fetch recent top-performing posts (most engagement)
-4. Send to Claude Haiku:
-   ```
-   Brand: {brand_name}, Voice: {tone}, Industry: {industry}
-   Upcoming dates: {next 14 days of holidays/events}
-   Top content recently: {titles of 3 best posts}
-   Suggest 5 post ideas for the next 7 days. For each: ideal day, platform, hook, content_type.
-   ```
-5. Return as content idea cards in the calendar
-
-**In-app:**
-- "Get Suggestions" button in calendar header
-- Slides in a "Fox AI Ideas" panel showing 5 cards
-- Each card: day badge, platform, post type icon, hook text
-- "Add to Calendar" → opens NewPostModal pre-filled with that idea
-- "Dismiss" → removes idea
-
-**Cost:** ~$0.003 per suggestion run. Run max once per day per workspace.
-
----
-
-### Step 18 — Brand Voice Fine-Tuning
-**What:** Let users teach Fox AI their brand voice with real examples, banned words, and approved phrases — then enforce this across all generations.
-
-**What already exists:** `brand_voice_profiles` table with tone[], banned_phrases[], approved_phrases[], style_rules, example_copy.
-
-**What to add:**
-
-**Files:**
-- Enhance `src/app/app/settings/page.tsx` → Brand Voice tab with:
-  - "Voice Examples" section: paste 3–5 real posts you've written → AI learns your style
-  - "Banned Words" tag input (already exists — enhance UI)
-  - "Required Phrases" tag input
-  - "Tone Sliders": Formal ←→ Casual, Short ←→ Long, Serious ←→ Playful (store as 3 numbers 1-10)
-  - "Voice Preview": type a topic → generate a test caption → shows how AI will write
-
-**API route update: `src/app/api/ai/generate/route.ts`**
-- Always fetch brand_voice_profile before generating
-- Include in system prompt:
-  ```
-  Brand voice rules:
-  - Tone: {tone_description from sliders}
-  - Style: {style_rules}
-  - Never use: {banned_phrases.join(', ')}
-  - Always include: {approved_phrases.join(', ')}
-  - Examples of our writing: {example_copy}
-  ```
-
-**Cost:** Zero (adds tokens to existing Haiku calls — small increase).
-
----
-
-### Step 19 — Competitor Content Spy (AI Analysis)
-**What:** User pastes a competitor's recent post URLs → Fox AI analyses their content strategy and suggests ways to compete.
-
-**Files:**
-- `src/app/api/ai/competitor-analyse/route.ts`
-- Integrate into `src/app/app/analytics/competitors/page.tsx` → new "AI Analysis" tab
-
-**Flow:**
-1. User pastes 3–5 competitor post URLs
-2. Server fetches each URL → extracts OG title + description + image alt text
-3. Sends to Claude Haiku:
-   ```
-   Analyse these competitor posts and identify:
-   1. Their content themes (what do they talk about most?)
-   2. Their tone and voice
-   3. Their CTAs (what do they want people to do?)
-   4. Content gaps (what are they NOT covering that we could own?)
-   5. Suggested counter-strategy for {our_brand_name}
-   ```
-4. Returns structured analysis
-
-**In-app:**
-- "Analyse Competitor Posts" card in Competitor Analysis page
-- URL input (add up to 5)
-- Shows analysis report with themed sections
-- "Create Competing Post" button → opens Studio with AI-suggested counter-post
-
-**Cost:** ~$0.005 per analysis run. Negligible.
-
----
-
-### Step 20 — AI Content Recycler
-**What:** Take high-performing old posts and repurpose them for new platforms/formats using Fox AI.
-
-**Files:**
-- `src/app/api/ai/recycle/route.ts`
-- Feature in `src/app/app/studio/page.tsx` — "Recycle Top Posts" section
-
-**Logic:**
-1. Fetch top 10 posts by engagement from last 90 days
-2. User selects a post + target platform + new format
-3. Claude Haiku rewrites it:
-   ```
-   Original post (Instagram caption, performed well): {original_content}
-   Rewrite this for {target_platform} as a {format}. 
-   Keep the core message. Adapt for {platform}'s audience and character limits.
-   ```
-4. Returns 3 variations
-
-**Use cases:**
-- Top Instagram post → LinkedIn article intro
-- Best tweet → Instagram caption
-- Long YouTube script → 3 TikTok hooks
-
-**Cost:** ~$0.002 per recycle run.
-
----
-
-## LEVEL 4: Inbox & Messaging Expansion
-### Theme: One inbox for every channel — free channels first
-
----
-
-### Step 21 — Telegram Inbox Channel (Fully Free)
-**What:** Connect a Telegram Bot to Caption Fox inbox. Receive DMs and group mentions in the unified inbox.
-
-**Setup flow (user):**
-1. User creates a Telegram Bot via @BotFather (takes 2 minutes, free)
-2. Pastes bot token in Settings > Channels > Add Channel > Telegram
-3. Caption Fox registers a webhook: `POST https://api.telegram.org/bot{token}/setWebhook?url={APP_URL}/api/webhooks/telegram`
-
-**Webhook handler: `src/app/api/webhooks/telegram/route.ts`**
-```typescript
-// Receives: { message: { from, chat, text, date } }
-// → INSERT into inbox_threads (platform='telegram', author_handle=from.username)
-// → INSERT into inbox_messages with content
-// → Supabase Realtime fires → inbox shows new thread
-```
-
-**Reply flow:**
-- User types reply in Inbox → POST to `/api/inbox/reply`
-- Server calls `POST https://api.telegram.org/bot{token}/sendMessage`
-- Confirmation modal ("Are you sure you want to send this reply?") — required by AI safety rules
-
-**Cost:** Zero. Telegram Bot API is completely free with no limits.
-
----
-
-### Step 22 — WhatsApp Inbox Channel (User's Own WABA Account)
-**What:** Connect WhatsApp Business to Caption Fox. We build the UI and webhook handler. User provides their own Meta Business/WhatsApp credentials.
-
-**Setup flow (user):**
-1. User has a Meta Business account + WhatsApp Business API (WABA)
-2. In Settings > Channels > Add Channel > WhatsApp:
-   - Paste: Phone Number ID, WABA ID, Permanent Access Token, Verify Token
-3. Caption Fox registers their webhook with Meta
-
-**Webhook handler: `src/app/api/webhooks/whatsapp/route.ts`**
-```typescript
-// GET: verify token challenge (Meta requirement)
-// POST: receive messages → INSERT inbox_threads/messages
-// Message types: text, image, document, audio, video
-// Sent back via: POST https://graph.facebook.com/v19.0/{phoneNumberId}/messages
-```
-
-**UI in Inbox:**
-- WhatsApp threads show green badge
-- Full conversation view
-- Reply composer with character count
-- Media attachment support (image/document)
-- Mandatory confirmation modal before sending
-- Note shown: "Marketing messages cost money via your Meta account. This tool only sends replies to messages you received (free service conversations)."
-
-**Cost to Caption Fox:** Zero. User pays Meta for any marketing messages they initiate. Replies to incoming messages are free (service conversations).
-
----
-
-### Step 23 — Email Inbox Channel
-**What:** Parse inbound emails into Caption Fox inbox (support@, hello@, info@ etc.).
-
-**Implementation using Resend Inbound (or manual forwarding):**
-
-**Option A — Resend Inbound (if available in their region):**
-- User adds a forwarding rule in their email provider → `inbound@resend.dev`
-- Resend fires a webhook to `POST /api/webhooks/email`
-
-**Option B — Forwarding to unique address:**
-- Caption Fox generates a unique address per workspace: `{workspace-slug}@inbox.captionfox.com`
-- User sets up email forwarding in their provider to this address
-- Use Supabase email inbound (via Resend catch-all forwarding)
-
-**Webhook handler: `src/app/api/webhooks/email/route.ts`**
-```typescript
-// Parse: from, subject, text/html body, attachments
-// → INSERT inbox_threads (platform='email', author_handle=from_email)
-// → Claude Haiku: classify email (support/sales/press/spam/other)
-// → auto-assign to team member based on classification
-// → notify assigned member via Supabase Realtime
-```
-
-**Reply:** send via Resend API using `from: workspace@captionfox.com` (or their custom domain).
-
-**Cost:** Resend free: 3,000 emails/month. For most workspaces, sufficient.
-
----
-
-### Step 24 — Inbox Smart Routing
-**What:** Auto-assign inbox threads to the right team member based on rules.
-
-**Files:**
-- `src/app/app/inbox/routing/page.tsx` — routing rules builder
-- Applied in webhook handlers and ingest functions
-
-**Rule types:**
-- **Keyword → Assignee**: "if message contains 'refund' → assign to {billing_member}"
-- **Platform → Assignee**: "all Twitter threads → assign to {social_manager}"
-- **Sentiment → Priority**: "if sentiment=negative → mark as urgent, notify owner"
-- **Time of day → Queue**: "outside 9–5 UK → mark as 'after hours', no auto-assign"
-- **Language detect**: "if non-English → flag for translation"
-
-**Schema addition:**
-```sql
-create table public.inbox_routing_rules (
-  id uuid primary key default gen_random_uuid(),
-  workspace_id uuid references public.workspaces(id) on delete cascade,
-  rule_type text not null, -- keyword/platform/sentiment/time
-  condition jsonb not null, -- flexible: { keyword: 'refund' } or { platform: 'email' }
-  action jsonb not null,   -- { assign_to: uuid, priority: 'urgent', tag: 'billing' }
-  sort_order integer default 0,
-  is_active boolean default true,
-  created_at timestamptz default now()
-);
-```
-
-**Cost:** Zero (Claude Haiku used for language detection only, ~$0.0001/thread).
-
----
-
-### Step 25 — Inbox SLA Tracking
-**What:** Track first response time and resolution time. Show SLA health in inbox.
-
-**Schema additions:**
-```sql
-alter table public.inbox_threads add column if not exists
-  first_response_at timestamptz,
-  resolved_at timestamptz,
-  sla_breach boolean default false,
-  sla_target_hours integer default 24;
-```
-
-**SLA defaults by plan:**
-- Free/Starter: No SLA tracking
-- Pro: 24-hour target
-- Team: 8-hour target (configurable)
-- Agency: Custom per client (configurable per thread)
-
-**In-app:**
-- Each thread shows: "Awaiting response — 3h 22m" with green/amber/red colour
-- Red = SLA breached
-- Inbox overview: SLA health strip showing % threads within SLA
-- Notification: "Thread from @handle is approaching SLA breach (1h remaining)"
-
-**Cost:** Zero.
-
----
-
-### Step 26 — Auto-Reply Templates
-**What:** Save, organise and deploy canned responses for common questions. With variable substitution.
-
-**Schema addition:**
-```sql
-create table public.inbox_reply_templates (
-  id uuid primary key default gen_random_uuid(),
-  workspace_id uuid references public.workspaces(id) on delete cascade,
-  category text default 'general', -- support/sales/ugc/giveaway/general
-  title text not null,
-  content text not null, -- supports {{author_name}}, {{brand_name}}, {{date}}
-  platforms text[] default '{}',
-  usage_count integer default 0,
-  created_by uuid references public.profiles(id),
-  created_at timestamptz default now()
-);
-```
-
-**In-app (Inbox thread view — reply composer):**
-- "Templates" button opens a popover with searchable template list
-- Categories: Support / Sales / UGC / Giveaway / General
-- Click a template: fills reply box with content
-- Variables auto-substituted: `{{author_name}}` → `@handle`, `{{brand_name}}` → workspace brand name
-- "Save as Template" button from any reply draft
-
-**Cost:** Zero.
-
----
-
-### Step 27 — Unified Thread View (All Channels)
-**What:** One conversation view that shows the full history across platforms when the same person messages on multiple channels.
-
-**Implementation:**
-- Match threads by `author_handle` similarity or exact email match
-- "Also messaged on" badge on thread detail: "This contact also has 2 threads on Email"
-- Link to related threads
-- "Merge Contact" feature: mark two handles as the same person, merge their thread history
-
-**Schema addition:**
-```sql
-alter table public.inbox_threads add column if not exists
-  contact_id uuid; -- optional linkage to a contact record
-
-create table public.inbox_contacts (
-  id uuid primary key default gen_random_uuid(),
-  workspace_id uuid references public.workspaces(id) on delete cascade,
-  name text,
-  email text,
-  handles jsonb default '{}', -- { instagram: '@handle', twitter: '@handle', email: 'x@y.com' }
-  notes text,
-  tags text[] default '{}',
-  created_at timestamptz default now()
-);
-```
-
-**Cost:** Zero.
-
----
-
-## LEVEL 5: Analytics & Automated Reporting
-### Theme: Sprout Social-level reporting at zero extra cost
-
----
-
-### Step 28 — Resend Email Reports (Real Implementation)
-**What:** Wire the scheduled_reports system to actually send real emails via Resend.
-
-**Edge Function: `supabase/functions/send-report/index.ts`**
-
-Runs daily at 07:00 UTC. For each `scheduled_reports` where `is_active=true` and `next_send_at <= now()`:
-
-1. Build the report data (queries against Supabase from the Edge Function)
-2. Generate HTML email using a template (see below)
-3. POST to Resend API: `POST https://api.resend.com/emails`
-4. INSERT into `report_history` with status
-5. UPDATE `scheduled_reports SET last_sent_at=now(), next_send_at={next_calculated}`
-
-**Email template structure:**
-```html
-<!-- Branded HTML email -->
-Header: Caption Fox logo + Report name + Date range
-KPI Cards: 4 top metrics (formatted numbers)
-Chart Section: Simple SVG bar chart (no canvas needed in email)
-Top Posts Table: Title | Platform | Engagement | CTA
-Campaign Status: Active campaigns + their progress
-Footer: Unsubscribe link | "Made with Caption Fox"
-```
-
-**Cost:** Resend free: 3,000 emails/month, 100/day. Sufficient for most workspaces at launch.
-
----
-
-### Step 29 — PDF Report Generation
-**What:** "Download PDF" on any report generates a real PDF — not just window.print().
-
-**Implementation using React → PDF (no external service needed):**
-- Install: `npm install @react-pdf/renderer` (MIT licence, free)
-- `src/components/reports/ReportPDF.tsx` — React component using @react-pdf/renderer primitives
-- `/api/reports/generate-pdf` — server route that renders the PDF and returns as blob
-
-**PDF sections:**
-- Cover page: brand logo, report name, date range, workspace name
-- KPI summary page: large number cards
-- Charts page: recharts → SVG → embedded in PDF
-- Top posts table
-- Campaign breakdown
-- Footer with Caption Fox branding
-
-**In-app:** "Download PDF" button on any report preview → triggers download.
-
-**Cost:** Zero (@react-pdf/renderer is free and open source).
-
----
-
-### Step 30 — Custom Dashboard Builder
-**What:** Let users build their own analytics dashboard by dragging widgets onto a canvas.
-
-**Implementation (no drag library needed — use click-to-add):**
-- `src/app/app/analytics/dashboard/page.tsx` — custom dashboard builder
-- `src/app/api/analytics/widgets/route.ts` — serves widget data
-
-**Widget types:**
-- KPI Card (single number: followers, posts, engagement rate)
-- Line Chart (metric over time)
-- Bar Chart (comparison)
-- Donut Chart (breakdown)
-- Top Posts List
-- Recent Mentions (from listening)
-- Campaign Progress Bar
-- Team Activity Feed
-
-**Schema:**
-```sql
-create table public.custom_dashboards (
-  id uuid primary key default gen_random_uuid(),
-  workspace_id uuid references public.workspaces(id) on delete cascade,
-  name text not null,
-  widgets jsonb default '[]', -- array of { type, config, position: { col, row } }
-  is_default boolean default false,
-  created_by uuid references public.profiles(id),
-  created_at timestamptz default now()
-);
-```
-
-**Grid system:** 12-column grid, widgets have col-span 3/4/6/12 options. User adds widgets via a palette, drags via sort_order (same click-up/down pattern as link builder).
-
-**Cost:** Zero.
-
----
-
-### Step 31 — Goal Tracking & ROI Calculator
-**What:** Set marketing goals, track progress, calculate ROI.
-
-**Files:**
-- `src/app/app/analytics/goals/page.tsx`
-
-**Schema:**
-```sql
-create table public.marketing_goals (
-  id uuid primary key default gen_random_uuid(),
-  workspace_id uuid references public.workspaces(id) on delete cascade,
-  campaign_id uuid references public.campaigns(id),
-  goal_type text, -- followers/engagement/reach/leads/revenue/ugc_submissions
-  target_value numeric not null,
-  current_value numeric default 0,
-  start_date date,
-  end_date date,
-  status text default 'active',
-  created_at timestamptz default now()
-);
-```
-
-**In-app:**
-- Goals page: cards per goal showing progress bar, % complete, days remaining
-- ROI calculator: "Spent: £{budget} / Revenue attributed: £{revenue} / ROI: {%}"
-- Breakdown by campaign, channel, content type
-- "Goal achieved!" celebration state (confetti animation — CSS only)
-
-**Cost:** Zero.
-
----
-
-### Step 32 — Slack Notifications (Free)
-**What:** Send Caption Fox alerts to a Slack channel using Slack's free Incoming Webhooks.
-
-**Setup:**
-1. User creates Incoming Webhook in their Slack workspace (free, 5 minutes)
-2. Pastes webhook URL in Settings > Integrations > Slack
-
-**Notification types to Slack:**
-- Post approved/rejected
-- Campaign went live
-- Giveaway winner selected
-- Brand mention alert (volume spike / negative)
-- Scheduled report sent
-- Team member invited
-
-**Implementation:**
-- `src/lib/notify-slack.ts` → `sendSlackMessage(webhookUrl, payload)`
-- Called from relevant Supabase Edge Functions and API routes
-- Slack message format: rich blocks with icon, title, detail, link button
-
-**Cost:** Zero. Slack Incoming Webhooks are completely free.
-
----
-
-## LEVEL 6: Team, Permissions & Agency Features
-### Theme: Make Caption Fox the platform agencies actually want
-
----
-
-### Step 33 — Enforce Permissions Across All Routes
-**What:** The permissions system exists but isn't yet checked in API routes. Every API route that mutates data must check the user's permissions.
-
-**Files:**
-- `src/lib/auth-check.ts` → `requirePermission(userId, workspaceId, permission)` utility
-- Apply to all API routes: `/api/posts/*`, `/api/campaigns/*`, `/api/ugc/*`, `/api/inbox/*`
-
-**Pattern:**
-```typescript
-// In every mutating API route:
-const permitted = await requirePermission(user.id, workspace_id, 'publish_post')
-if (!permitted) return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 })
-```
-
-**In-app:** Buttons/actions that the user lacks permission for should be:
-- Greyed out with a lock icon (not hidden — users should know the feature exists)
-- Tooltip on hover: "You need {permission_label} permission. Contact your workspace admin."
-
-**Cost:** Zero.
-
----
-
-### Step 34 — Client Portal (Read-Only Access for Clients)
-**What:** Agency clients can log in to see their campaign progress, analytics, and post approvals — without seeing other clients' data.
-
-**Implementation:**
-- `client` role already exists in WORKSPACE_ROLES
-- Create `/app/client/` route group with restricted layout (no sidebar, clean header)
-- `src/app/app/client/layout.tsx` — minimal shell, shows only client's brand data
-- `src/app/app/client/page.tsx` — client dashboard: campaign progress, scheduled posts awaiting approval, recent analytics
-- `src/app/app/client/posts/page.tsx` — posts the client can approve/reject
-
-**RLS:** `client` role members can only see records where `brand_id` matches their assigned brand.
-
-**Invite flow:**
-- Agency sends invite → client gets email → creates account → lands in client portal
-- Cannot access full app (`/app/*` routes redirect to `/app/client/` if role=client)
-
-**Cost:** Zero.
-
----
-
-### Step 35 — White-Label Domain Support
-**What:** Agency plan users can serve Caption Fox under their own domain/subdomain.
-
-**Implementation:**
-- Workspace setting: `custom_domain` field in workspaces table
-- When a request comes in on a custom domain, resolve the workspace from the domain
-- `src/middleware.ts` — check `request.headers.get('host')` against `custom_domains` table
-
-**Schema:**
-```sql
-create table public.custom_domains (
-  id uuid primary key default gen_random_uuid(),
-  workspace_id uuid references public.workspaces(id) on delete cascade,
-  domain text not null unique,
-  verified boolean default false,
-  ssl_provisioned boolean default false,
-  created_at timestamptz default now()
-);
-```
-
-**Setup flow (in Settings > White Label for Agency plan):**
-1. User adds their domain (e.g., `social.theiragency.com`)
-2. We show CNAME record to add: `social.theiragency.com CNAME captionfox.com`
-3. We verify (check DNS resolution), mark `verified=true`
-4. They access Caption Fox on their domain — looks like their product
-
-**Logo/branding:** Agency can upload their logo, set their colour scheme — replaces Caption Fox branding.
-
-**Cost:** Zero (Next.js handles custom domains; Vercel/hosting handles SSL).
-
----
-
-### Step 36 — Team Performance Dashboard
-**What:** See which team members are most active, what they're producing, and their approval rates.
-
-**Files:**
-- `src/app/app/settings/team/performance/page.tsx`
-
-**Metrics per team member:**
-- Posts created (last 30 days)
-- Posts approved vs rejected
-- Avg time to publish (draft → published)
-- AI generations used
-- UGC submissions reviewed
-- Inbox threads handled
-- Last active at
-
-**Queries:** Aggregate from `content_posts.created_by`, `ai_generations.user_id`, `ugc_submissions` (reviewed_by), `inbox_threads` (assignee_id).
-
-**In-app:** Table with member cards, sortable by each metric. Clicking a member shows their full activity timeline.
-
-**Cost:** Zero.
-
----
-
-### Step 37 — Multi-Workspace Switcher (Agency)
-**What:** Agency admins can manage multiple workspaces from one account and switch between them instantly.
-
-**Implementation:**
-- User can be a member of multiple workspaces (already supported by `workspace_members`)
-- `src/components/layout/WorkspaceSwitcher.tsx` — dropdown in sidebar header showing all workspaces the user belongs to
-- Selecting a workspace: sets `workspace_id` cookie → page reloads with new workspace context
-- "Create New Workspace" option at bottom
-
-**Schema:** No change needed — workspace_members already supports M:M.
-
-**In-app:**
-- Sidebar shows current workspace name + logo at top
-- Click → dropdown shows all workspaces with role badges
-- Keyboard: `Cmd+[` previous workspace, `Cmd+]` next workspace
-
-**Cost:** Zero.
-
----
-
-### Step 38 — Bulk Team Actions
-**What:** Manage multiple team members at once — bulk role change, bulk remove, bulk permission reset.
-
-**In Settings > Team page:**
-- Checkboxes on each team member row
-- Bulk action bar appears when any selected: "Change Role" / "Reset Permissions" / "Remove" / "Invite to Another Workspace"
-- All bulk actions require ConfirmModal
-- "Export Team CSV" — downloads member list with role, joined date, last active
-
-**Cost:** Zero.
-
----
-
-### Step 39 — Approval Workflow Engine (Real Implementation)
-**What:** When a post is in "pending approval" status, the configured approvers receive a notification and can approve/reject with comments.
-
-**Flow:**
-1. Creator submits post for review → status = 'pending_review'
-2. System: INSERT into `approvals` table with reviewer_ids from approval config
-3. Each approver: gets in-app notification + email (via Resend)
-4. Approver opens post → sees Approvals tab → clicks Approve or Reject + comment
-5. If approved: status = 'approved', creator notified
-6. If rejected: status = 'changes_requested', creator notified with comment
-7. Multi-approver option: "All must approve" vs "Any one can approve"
-8. Approval reminder: if no action after 24h → send reminder via Resend
-
-**Cost:** Zero (Resend free tier).
-
----
-
-## LEVEL 7: Integrations & Webhooks
-### Theme: Connect Caption Fox to the tools teams already use
-
----
-
-### Step 40 — Zapier/Make Webhook Receiver
-**What:** Accept incoming webhooks from Zapier and Make.com — enabling connections to 5,000+ apps without native integrations.
-
-**Files:**
-- `src/app/api/webhooks/zapier/route.ts` — validates signature, processes payload
-- `src/app/app/settings/integrations/zapier/page.tsx` — setup guide + webhook URL
-
-**In-app Setup:**
-1. User copies their unique webhook URL from Settings > Integrations > Zapier
-2. In Zapier: "Webhooks by Zapier" → their Caption Fox URL
-3. Payload maps to Caption Fox actions:
-   - `action: 'create_post'` → INSERT content_posts
-   - `action: 'create_campaign'` → INSERT campaigns
-   - `action: 'add_mention'` → INSERT brand_mentions
-   - `action: 'trigger_report'` → schedule immediate report send
-
-**Outgoing webhooks:**
-- Users can configure webhook URLs to receive events FROM Caption Fox
-- Events: `post.published`, `giveaway.winner_selected`, `mention.alert`, `approval.requested`
-
-**Cost:** Zero (Zapier free plan works for basic connections).
-
----
-
-### Step 41 — Google Analytics 4 Integration
-**What:** Embed GA4 tracking into link-in-bio pages and track conversions back to social posts.
-
-**Implementation:**
-- `src/app/app/settings/integrations/analytics/page.tsx` — input GA4 Measurement ID
-- Store `ga4_measurement_id` in workspace settings
-- Public link pages (`/l/[slug]`) inject GA4 script if configured
-- Track events: `page_view`, `link_click` (with link title as label)
-
-**Bonus:** UTM parameter auto-builder in Studio post editor:
-- Toggle "Add UTM tracking" → auto-appends `?utm_source={platform}&utm_medium=social&utm_campaign={campaign_name}` to any URL in the post
-
-**Cost:** Zero (GA4 is free).
-
----
-
-### Step 42 — Canva Design Button Integration
-**What:** Embed Canva's editor inside Studio so users can design without leaving Caption Fox.
-
-**Implementation:**
-- Register at https://www.canva.dev/docs/design-button/ (free, requires approval)
-- `src/components/studio/CanvaDesignButton.tsx`:
-  ```typescript
-  // Loads Canva's SDK script
-  // Creates a design with preset dimensions for the selected platform
-  // On publish: receives the image blob → uploads to Supabase Storage → attaches to post
-  ```
-- Shown in Studio > Posts > [id] > Media tab as "Design in Canva" button
-
-**Fallback:** If Canva API not configured, show "Open Canva" link that opens canva.com in new tab with the correct template size pre-selected.
-
-**Cost:** Zero (Canva is free for users with Canva accounts; API is free for the integration).
-
----
-
-### Step 43 — Stripe Billing (Real Implementation)
-**What:** Connect Stripe to actually process plan upgrades and downgrades.
-
-**Files:**
-- `src/app/api/billing/create-checkout/route.ts` — create Stripe Checkout session
-- `src/app/api/billing/portal/route.ts` — redirect to Stripe Customer Portal
-- `src/app/api/webhooks/stripe/route.ts` — handle subscription events
-- Update `src/app/app/settings/billing/page.tsx`
-
-**Webhook events to handle:**
-- `checkout.session.completed` → UPDATE workspace plan
-- `customer.subscription.updated` → plan change
-- `customer.subscription.deleted` → downgrade to free
-- `invoice.payment_failed` → notify + show banner
-
-**Plan enforcement:** On every API route, check workspace.plan against the feature being used. If exceeded: return 402 with upgrade prompt.
-
-**User provides:** Their own Stripe API keys in `.env.local` (`STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_*` IDs).
-
-**Cost:** Stripe takes 1.4% + 20p per transaction (UK). No monthly fee.
-
----
-
-### Step 44 — HubSpot / CRM Webhook Output
-**What:** When a lead comes in via inbox or a giveaway entry is collected, push it to HubSpot.
-
-**Implementation:**
-- `src/app/app/settings/integrations/hubspot/page.tsx` — connect HubSpot (OAuth)
-- `src/lib/crm-push.ts` → `pushContact(email, name, source, workspaceId)`
-- POST to HubSpot Contacts API
-- Triggered: giveaway entry with email, inbox thread from new contact, UGC submission with email
-
-**Also supports:** Any generic CRM via webhook URL (same pattern as Zapier receiver).
-
-**Cost:** Zero (HubSpot has a free tier with API access).
-
----
-
-### Step 45 — Content Approval API (External Approvers)
-**What:** External stakeholders (e.g., legal, client) can approve posts via email link without needing a Caption Fox account.
-
-**Flow:**
-1. Post sent for review → system generates a secure token
-2. Email sent to external approver via Resend: "Please review this post" + secure link
-3. Link opens `/review/{token}` — no login required, shows post content + Approve/Reject buttons
-4. Action recorded in `approvals` table
-5. Creator notified of decision
-
-**Security:** Token is UUID, 7-day expiry, single-use.
-
-**Files:**
-- `src/app/review/[token]/page.tsx` — public review page (minimal UI, no sidebar)
-- `src/app/api/review/[token]/route.ts` — GET: fetch post, POST: record decision
-
-**Cost:** Zero (Resend free tier).
-
----
-
-## LEVEL 8: Link-in-Bio & Commerce
-### Theme: Make link pages a revenue driver for creators
-
----
-
-### Step 46 — Link Page Public Analytics
-**What:** Track real view and click data on link pages — not simulated counts.
-
-**Schema additions:**
-```sql
-create table public.link_page_views (
-  id uuid primary key default gen_random_uuid(),
-  page_id uuid references public.link_pages(id) on delete cascade,
-  workspace_id uuid references public.workspaces(id),
-  referrer text, -- which platform sent them (extracted from UTM/referer header)
-  country_code text, -- from CF-IPCountry header if on Cloudflare/Vercel
-  device_type text, -- 'mobile'|'desktop'|'tablet' from User-Agent
-  created_at timestamptz default now()
-);
-
-create table public.link_page_clicks (
-  id uuid primary key default gen_random_uuid(),
-  page_id uuid references public.link_pages(id) on delete cascade,
-  item_id uuid references public.link_page_items(id) on delete cascade,
-  workspace_id uuid references public.workspaces(id),
-  referrer text,
-  created_at timestamptz default now()
-);
-```
-
-**In link page (`/l/[slug]`):** POST to `/api/links/track` on load (view) and on each link click.
-
-**In analytics tab of link builder:** Real charts — views by day, clicks by link, device breakdown, referrer breakdown (Instagram/TikTok/Direct/etc.).
-
-**Cost:** Zero.
-
----
-
-### Step 47 — Link Page Templates Gallery
-**What:** Pre-built link page templates that users can clone and customise.
-
-**Files:**
-- `src/app/app/links/templates/page.tsx` — gallery of 12 templates
-- Each template: a complete `link_pages` + `link_page_items` config stored as JSON
-
-**Template categories:**
-- Creator (clean white, minimal)
-- Brand (dark bold, full-width)
-- Agency (professional navy)
-- E-commerce (product-focused)
-- Music (dark gradient)
-- Fitness (energetic orange)
-
-**"Use Template" flow:** Clones the template config → creates a new link page → opens builder.
-
-**Cost:** Zero.
-
----
-
-### Step 48 — A/B Testing for Link Pages
-**What:** Test two versions of a link page — different headlines, button colours, or link order — and see which gets more clicks.
-
-**Implementation:**
-- "Create A/B Test" button in link builder
-- Duplicates the page → Page A + Page B
-- Traffic split: 50/50 by default (alternates views via cookie)
-- After X views (configurable), shows winner stats
-- "Declare Winner" → sets winning version as the primary page
-
-**Schema:**
-```sql
-alter table public.link_pages add column if not exists
-  ab_test_id uuid, -- links two pages as A/B variants
-  ab_variant text; -- 'a' or 'b'
-```
-
-**Cost:** Zero.
-
----
-
-### Step 49 — Product Showcase Block (E-commerce Links)
-**What:** A special link item type for product listings — shows product image, name, price, and a buy button.
-
-**New item_type: `product`**
-
-Fields: `product_name`, `product_price`, `product_currency`, `product_image_url`, `buy_url`
-
-**In-app (link builder):**
-- "Add Product" in the AddItemDropdown
-- Form: product name, price, currency, product image (upload or URL), buy URL
-- Renders on public page as a product card (image left, name+price right, Buy button)
-
-**Integration:** Optional Shopify connection (user pastes Shopify store URL + API key → we fetch their products to add directly).
-
-**Cost:** Zero.
-
----
-
-### Step 50 — UTM Link Builder
-**What:** Standalone UTM parameter builder integrated into posts, campaigns, and link pages.
-
-**Files:**
-- `src/components/ui/UTMBuilder.tsx` — reusable modal component
-- Accessible via: Post editor URL field, Link page item editor, Campaign settings
-
-**Features:**
-- Input: destination URL + source + medium + campaign + content + term
-- Auto-preview: shows full UTM URL
-- Save as preset: save common UTM combinations
-- QR Code: generate QR code for the URL (using `qrcode` npm package — free, MIT)
-- Copy button
-
-**Cost:** Zero.
-
----
-
-## LEVEL 9: Platform Polish & Launch
-### Theme: The details that separate a £9/mo tool from a £99/mo tool
-
----
-
-### Step 51 — Onboarding Flow Improvements
-**What:** Make the onboarding wizard smarter — skip steps that aren't relevant, pre-fill from existing data.
-
-**Improvements:**
-- Add workspace type detection: "I'm a..." (Creator / Small Business / Brand / Agency) → skips irrelevant steps
-- For Agency: jump straight to multi-brand setup
-- For Creator: skip brand guidelines, jump to content calendar setup
-- Import existing content: "Connect your Instagram/TikTok to see your existing posts in the calendar" (coming soon state)
-- Progress auto-save: if user closes mid-wizard, resumes where they left off
-- Video: 90-second onboarding video embed on the Welcome step (YouTube embed — free)
-
-**Cost:** Zero.
-
----
-
-### Step 52 — In-App Changelog & What's New
-**What:** Show users new features as they're released, inside the app.
-
-**Files:**
-- `src/app/app/changelog/page.tsx` — full changelog page
-- `src/components/ui/WhatsNewBanner.tsx` — shows once per user per release
-
-**Schema:**
-```sql
-create table public.changelog_entries (
-  id uuid primary key default gen_random_uuid(),
-  version text not null,
-  title text not null,
-  description text,
-  features jsonb default '[]', -- [{ title, description, badge: 'new'|'improved'|'fixed' }]
-  published_at timestamptz default now()
-);
-
-create table public.changelog_reads (
-  user_id uuid references public.profiles(id),
-  changelog_id uuid references public.changelog_entries(id),
-  read_at timestamptz default now(),
-  primary key (user_id, changelog_id)
-);
-```
-
-**In-app:**
-- "What's New" bell in nav → shows unread count
-- Banner on first login after release: "We shipped X new things. See what's new →"
-
-**Cost:** Zero.
-
----
-
-### Step 53 — Help Centre (In-App)
-**What:** Built-in help documentation so users never need to leave to find answers.
-
-**Files:**
-- `src/app/help/page.tsx` — searchable help centre
-- `src/app/help/[category]/[article]/page.tsx` — article pages
-- `src/components/ui/HelpButton.tsx` — floating "?" button on every app page
-
-**Content structure:**
-```
-Getting Started/
-  - Setting up your workspace
-  - Connecting social channels
-  - Creating your first post
-Campaigns/
-  - How to run a giveaway
-  - Setting up competitions
-  - UGC campaign best practices
-Fox AI/
-  - How to get the best captions
-  - AI safety rules explained
-  - Image generation guide
-Analytics/
-  - Reading your dashboard
-  - Scheduled reports setup
-  - Competitor tracking
-Agency/
-  - Setting up client workspaces
-  - Role-based permissions guide
-  - White-label configuration
-```
-
-**Search:** Full-text search across all articles using Supabase `tsquery`.
-
-**Cost:** Zero.
-
----
-
-### Step 54 — SEO & Marketing Page Optimisation
-**What:** Ensure every public page is properly SEO-optimised to drive organic traffic.
-
-**Files to update:**
-- `src/app/layout.tsx` — global metadata
-- Every marketing page: `/`, `/pricing`, `/features`, `/contact` — add `generateMetadata()`
-
-**Schema for each page:**
-```typescript
-export const metadata: Metadata = {
-  title: 'Caption Fox — Run Campaigns, Not Just Posts',
-  description: '...',
-  openGraph: { title, description, images: ['/og-image.png'] },
-  twitter: { card: 'summary_large_image', ... },
-  alternates: { canonical: 'https://captionfox.com/...' },
-}
-```
-
-**New pages to create:**
-- `/blog` — static blog (MDX files) for SEO — "How to run a giveaway on Instagram" etc.
-- `/compare/caption-fox-vs-buffer` — comparison landing page
-- `/compare/caption-fox-vs-later` — comparison landing page
-- `/compare/caption-fox-vs-hootsuite` — comparison landing page
-- `/use-cases/agencies` — agency-specific landing
-- `/use-cases/creators` — creator-specific landing
-
-**Cost:** Zero.
-
----
-
-### Step 55 — Performance Audit & Core Web Vitals
-**What:** Measure and fix page performance before launch.
-
-**Tasks:**
-- Run Lighthouse on all major pages
-- Lazy load all heavy components (recharts, Canva SDK)
-- Image optimization: ensure all uploaded images go through Next.js `<Image>`
-- Bundle analysis: `npx @next/bundle-analyzer` — identify and code-split large deps
-- Supabase query audit: add `.limit()` to every unbounded query
-- Add `loading.tsx` to every app route (Next.js built-in skeleton)
-- Add `error.tsx` to every app route (error recovery)
-
-**Target metrics:**
-- LCP < 2.5s
-- FID < 100ms
-- CLS < 0.1
-
-**Cost:** Zero (all tooling is free).
-
----
-
-### Step 56 — Production Deployment Checklist
-**What:** Everything needed to go live on a real domain.
-
-**Infrastructure checklist:**
-- [ ] Vercel deployment (or Netlify) — set env vars in dashboard
-- [ ] Supabase: enable production mode, set up backup schedule
-- [ ] Resend: verify custom sending domain (e.g., notifications@captionfox.com)
-- [ ] Stripe: live mode API keys + webhook endpoint registered
-- [ ] Error monitoring: Sentry free tier (5K errors/month) — `npm install @sentry/nextjs`
-- [ ] Uptime monitoring: Better Uptime free tier (20 monitors)
-- [ ] Domain: Set up captionfox.com with DNS → Vercel
-- [ ] SSL: auto-provisioned by Vercel
-- [ ] Rate limiting: Vercel Edge Config or Upstash Redis free tier
-
-**Security checklist:**
-- [ ] All API routes have auth checks (`supabase.auth.getUser()`)
-- [ ] All Supabase tables have RLS enabled
-- [ ] No secrets in client-side code (`NEXT_PUBLIC_` prefix only for public values)
-- [ ] CORS configured for API routes
-- [ ] CSP headers set in `next.config.js`
-- [ ] `.env.local` excluded from git (check `.gitignore`)
-
-**Launch checklist:**
-- [ ] Seed database with 5 demo accounts across all plan tiers
-- [ ] Test full user journey: signup → onboarding → create post → publish
-- [ ] Test billing: upgrade, downgrade, cancel
-- [ ] Test all AI routes with real API keys
-- [ ] Test email sending via Resend
-- [ ] Load test: simulate 100 concurrent users (use `k6` — free)
-
-**Cost:** Vercel free tier (Hobby plan) handles launch traffic. Upgrade to Pro ($20/mo) when needed.
-
----
-
-## Summary: Total Ongoing Cost at Launch
-
-| Service | Free Tier | Cost at Scale |
+| Status | Meaning | Navigation treatment |
 |---|---|---|
-| Supabase | 500MB DB, 2GB storage, 500K Edge invocations | $25/mo (Pro) |
-| Vercel | Hobby free; Pro $20/mo | $20/mo |
-| Anthropic (Claude Haiku) | Pay as you go | ~$5–50/mo depending on usage |
-| Resend | 3K emails/mo free | $20/mo (50K emails) |
-| Hugging Face | Free (rate-limited) | $0 |
-| Pexels/Pixabay/Unsplash | Free | $0 |
-| Reddit/YouTube/News RSS | Free | $0 |
-| Telegram | Free | $0 |
-| Sentry | 5K errors/mo free | $0 |
-| **Total at launch** | | **~$0–$50/mo** |
-| **Total at 1,000 customers** | | **~$200–400/mo** |
+| **Shipped** | Implemented, routed and usable in the current build | Show normally |
+| **Partial** | Route/UI exists, but integration, persistence or workflow is incomplete | Label beta; do not over-promise |
+| **Demo** | Seedable demonstration data/UI only | Keep clearly labelled demo |
+| **Planned** | Defined requirement; not yet built | Do not expose in production nav |
+| **Gate** | Requires security, payments, provider approval or data foundation | Hide behind entitlement/feature flag |
 
----
+### Non-negotiable platform gates
 
-## Build Order (Recommended)
+| Gate | Why it comes before expansion | Current status |
+|---|---|---|
+| Tenant isolation and active-workspace context | Every query, file, job and permission must be workspace-scoped | **Partial** |
+| Auth, roles, RLS and audit log coverage | Marketplace, finance, collaboration and admin are unsafe without them | **Partial** |
+| Billing, entitlements and usage metering | Required before plan-gated AI, automations and add-ons | **Partial** |
+| Real provider connections and publish state | Scheduled/published must never be simulated as live publishing | **Partial** |
+| Marketplace identity, contracts, payments and dispute policy | Required before escrow, payouts or “protected booking” claims | **Gate** |
+| Notifications, command search and error boundaries | Required operating-system behaviour | **Partial** |
 
-Priority is determined by: revenue unlock > customer retention > new customer acquisition.
+## 2. Workspace catalogue
 
-**Sprint 1 (Steps 1–6):** Platform hardening — do this before anything else
-**Sprint 2 (Steps 7–13 + 28):** Social Listening + email reports — biggest revenue unlock (Team tier)
-**Sprint 3 (Steps 14–18 + 33):** AI upgrades + permission enforcement — Pro tier justification
-**Sprint 4 (Steps 21–27):** Inbox expansion — Telegram + WhatsApp + email threads
-**Sprint 5 (Steps 34–39):** Agency features — white label, client portal, multi-workspace
-**Sprint 6 (Steps 40–45):** Integrations — Zapier, Stripe, Canva, Slack
-**Sprint 7 (Steps 46–50):** Link-in-Bio commerce — creator segment
-**Sprint 8 (Steps 51–56):** Polish + launch
+All campaign-manager workspace types share the same shell and data model; their plan, role and enabled modules determine what appears. This prevents duplicate products for creators, brands and agencies.
 
----
+| Workspace type | Primary users | Enabled at launch | Later entitlements |
+|---|---|---|---|
+| **Creator** | Independent creators and small teams | Studio, Calendar, Campaigns, Social, Link in Bio, Marketplace, basic Analytics | Brand kits, creator CRM, partnerships, paid media |
+| **Business** | Local and online businesses | Creator set + Strategy, Inbox, Email, Leads, Finance basics | SEO, web conversion, loyalty, local listings |
+| **Brand** | In-house marketing teams | Business set + UGC, Creators, approvals, paid advertising, multi-brand governance | PR, community, internationalisation, enterprise controls |
+| **Agency** | Agencies serving multiple clients | Brand set + client workspaces, client portal, supplier procurement, white-label reports | SSO, advanced permissions, margin/rebilling |
+| **Campaign Manager** | Canonical route/shell for the four types above | `/campaign-manager` entry alias; `/app` remains compatibility route during migration | Full modular workspace below |
+| **Supplier** | Agencies, freelancers, creators and marketing vendors | Separate `/supplier` workspace and marketplace shopfront | Contracts, availability, fulfilment SLAs, verified payouts |
+| **Platform Admin** | Caption Fox operations only | Separate `/admin` shell; never a normal workspace | Support, compliance, platform observability |
 
-*This document covers the complete Caption Fox build to commercial launch. Each step is self-contained and additive — no step breaks what came before. Total estimated build time with parallel agents: 14 weeks.*
+## 3. Campaign Manager workspace: target side menu
+
+### 3.1 Current navigation audit (what the code does today)
+
+| Surface | Current structure | Strength | Gap that must be planned out |
+|---|---|---|---|
+| Desktop Campaign Manager sidebar | **Home**; **Create:** Studio, Calendar; **Promote:** Campaigns, UGC, Link in Bio, Marketplace; **Engage:** Inbox; **Measure:** Analytics, Listening; **Manage:** Affiliates, Settings; Admin for platform admins | Group headers are a material improvement over a flat rail; Marketplace is now discoverable | It is still a mixture of destination types. UGC and Affiliates are collaboration programmes, not ordinary promotion tools; Listening is disconnected from Analytics/Social; all visible items have equal visual weight despite uneven maturity |
+| Mobile bottom navigation | Home, Studio, Calendar, Inbox, More. **More:** Campaigns, UGC, Link in Bio, Marketplace, Analytics, Listening, Settings | Correctly limits the bottom bar to five actions | **Affiliates is missing**, group labels disappear, and More is an unstructured grid. A user cannot predict where a desktop destination appears on mobile |
+| Workspace switcher | Workspace list, then a separately rendered supplier shortcut, then “Create workspace” | Persists workspace selection and exposes the supplier route | It does not identify the active **mode** (Campaign Manager vs Supplier), distinguish personal/client/agency workspaces, offer workspace settings, or show role/plan context |
+| Top bar | Workspace switcher; Cmd/Ctrl+K; Create; notifications; help; avatar | Global search and a single Create entry are the right patterns | Quick Create hard-codes query-string tabs (`?tab=`/`?action=`), has no Supplier or Marketplace request actions, and needs a typed action registry with permission/feature checks |
+| Supplier sidebar | Dashboard, Listings, Orders, Disputes, Profile, Payouts; public Marketplace link in footer | Separate seller experience is correct | It lacks fulfilment/deliveries, messages, availability, reviews, analytics and settings; Profile should be a Shopfront/Business group rather than a single unstructured item |
+| Admin sidebar | Admin Home, Workspaces, Users plus unbuilt plans, AI, social, UGC, compliance, settings, analytics and audit destinations | Separates platform operations from normal users | Unbuilt destinations are currently advertised. Admin needs grouped operations, active-state treatment, detail drill-downs and a build-or-hide registry |
+| Public landing navigation | Features, Marketplace, Pricing, Use Cases, Resources; Sign in and Start free trial. It is currently implemented inside the home page component | Marketplace is visible in the public top navigation | It is not a shared public layout; Use Cases and Resources currently point to page anchors rather than durable routes; no public supplier search or solution hierarchy exists |
+
+### 3.2 Navigation model: five levels with strict rules
+
+| Level | Name | Correct use | Incorrect use |
+|---|---|---|---|
+| L0 | **Mode switcher** | Change between Campaign Manager workspace, Supplier workspace and Platform Admin (if authorised) | Mixing a supplier shortcut in a generic workspace list without mode context |
+| L1 | **Primary side navigation** | Stable product areas used frequently by the current workspace type | A status, view, filter, or one-off action |
+| L2 | **Section sub-navigation** | Distinct, persistent workflows within one product area | Month/Week, Draft/Published or other transient state |
+| L3 | **Detail navigation** | Different durable aspects of one entity, such as a campaign’s Brief, Budget and Audit | Duplicating a separate top-level module or hiding creation steps |
+| L4 | **View/filter/action controls** | View switchers, search, status chips, saved views, export and Create | Horizontal tab bars masquerading as product structure |
+
+**Decision rule:** if changing a control does not change the object or workflow being managed, it is a filter, view or action at L4, never a sidebar item or L2 tab. If a page needs more than seven L2/L3 tabs, group it or move configuration to a left sub-navigation.
+
+### 3.3 Deprecated expanded-rail proposal (not approved; do not implement)
+
+This is the final information architecture. A small-plan user sees the entries marked **Core**; entitled modules appear progressively under the same group, never as a different navigation design. “More” on mobile mirrors these exact groups and order.
+
+| Group | L1 side-menu item | Visibility | L2 sub-tabs (inside the main page) | L4 views, filters and global actions | Route family |
+|---|---|---|---|---|---|
+| Command | **Home** | Core | Overview; Approvals; Ideas | Dashboard date range; widget configuration; saved dashboard; “View activity” action | `/campaign-manager/home` |
+| Plan | **Strategy** | Plan/Agency | Objectives; Audiences; Research; Positioning; Plans; Forecasts | Owner/status/timeframe; scenario selector; compare plans; New strategy | `/campaign-manager/strategy/*` |
+| Plan | **Campaigns** | Core | All campaigns; Giveaways; Competitions; Templates | Board/List/Table/Timeline; type/status/owner/brand filters; saved views; New campaign | `/campaign-manager/campaigns` |
+| Plan | **Calendar** | Core | Calendar; Publishing Queue | Month/Week/List/Timeline; channel/status/assignee filters; unscheduled drawer; Schedule item | `/campaign-manager/calendar` |
+| Create | **Studio** | Core | Compose; AI Generate; Ideas; Templates; Hashtags; Media Library | Grid/List; format/brand/right/status filters; Import; Upload; Create content | `/campaign-manager/studio/*` |
+| Create | **Brand & Assets** | Brand/Agency | Brand Kits; Asset Library; Rights; Product Library | Folder/grid/list; licence/expiry/usage filters; upload/import; New brand kit | `/campaign-manager/brand/*` |
+| Promote | **Social** | Core | Publishing; Engagement; Listening; Channel Connections | Channel/account/date/sentiment filters; saved searches; Connect channel | `/campaign-manager/social/*` |
+| Promote | **Advertising** | Add-on | Accounts; Campaigns; Creatives; Audiences; Reports | Provider/account/date/status filters; Import data; Create draft campaign | `/campaign-manager/advertising/*` |
+| Promote | **Messaging** | Add-on | Email; SMS; WhatsApp; RCS; Push; Journeys; Templates | Channel/segment/status/date filters; test send; New message/journey | `/campaign-manager/messaging/*` |
+| Promote | **Web & Conversion** | Add-on | Landing Pages; Forms; Funnels; Experiments; Tracking | Published/draft; domain; conversion/date filters; New page/form/test | `/campaign-manager/web/*` |
+| Promote | **SEO & Discovery** | Add-on | Keywords; Content Briefs; Rankings; Local; AI Search; Backlinks | Locale/search engine/device/competitor filters; New brief; Connect source | `/campaign-manager/seo/*` |
+| Promote | **Link in Bio** | Core | Pages; Links; Themes; Analytics | Published/draft; date range; preview; New link page | `/campaign-manager/links/*` |
+| Collaborate | **Creators & UGC** | Brand/Agency | Creators; Briefs; Submissions; Rights; Payments | Creator/campaign/status/platform filters; Import; New brief; Invite creator | `/campaign-manager/creators/*` |
+| Collaborate | **Marketplace** | Core | Discover; Categories; Saved Suppliers; Requests; Orders | Search, category, location, budget, delivery, availability, verification filters; New request | `/marketplace` plus `/campaign-manager/marketplace/*` |
+| Collaborate | **Partnerships** | Add-on | Affiliates; Referrals; Ambassadors; Loyalty; Resellers; Co-marketing | Programme/status/channel filters; New programme; export | `/campaign-manager/partnerships/*` |
+| Collaborate | **PR & Reputation** | Add-on | Media Lists; Pitches; Press Room; Coverage; Reviews; Crisis | Status/sentiment/date filters; New release/incident | `/campaign-manager/reputation/*` |
+| Collaborate | **Community** | Add-on | Communities; Calendar; Moderation; Members; Advocacy | Channel/health/moderation filters; New community | `/campaign-manager/community/*` |
+| Collaborate | **Events** | Add-on | Events; Webinars; Podcasts; Sponsorships; Follow-up | Event status/date/type filters; New event | `/campaign-manager/events/*` |
+| Engage | **Inbox** | Core | Unified Inbox; Assignments; Saved Views | Folder rail: comments, mentions, DMs, reviews, escalations, done; source/assignee/SLA filters; compose/reply | `/campaign-manager/inbox` |
+| Engage | **Leads & Audiences** | Add-on | Contacts; Segments; Consent; Scoring; Imports | Lifecycle/source/consent/score filters; Import; New segment | `/campaign-manager/audiences/*` |
+| Measure | **Analytics** | Core | Overview; Content; Audience; Competitors; Reports; Attribution | Date/compare/channel/campaign filters; export/share/schedule report | `/campaign-manager/analytics/*` |
+| Measure | **Finance** | Plan/Agency | Budgets; Purchase Orders; Costs; Invoices; Commissions; Profitability | Period/campaign/vendor/status filters; New budget/PO; export | `/campaign-manager/finance/*` |
+| Operate | **Automations** | Add-on | Workflows; Recipes; Runs; Connections; Logs | Status/trigger/owner filters; test run; New workflow | `/campaign-manager/automations/*` |
+| Manage | **Settings** | Core | See dedicated settings left sub-navigation in 3.6 | No horizontal 11-tab bar; account/workspace selector and search only | `/campaign-manager/settings/*` |
+
+### 3.3A Approved current-shell navigation (the implementation requirement)
+
+The current grouped Campaign Manager shell is the approved and permanent L1 navigation. Do **not** add Strategy, Social, Advertising, Messaging, Web, SEO, Creators, Partnerships, PR, Community, Events, Leads, Finance or Automations as sidebar items. They are capabilities inside the fixed sections below.
+
+| Group | Fixed L1 item | Required L2 tabs within that page | Capability ownership (not new sidebar items) | L4 views/actions |
+|---|---|---|---|---|
+| Command | **Home** | Overview; Approvals; Ideas | Command centre, activity and health widgets | Date range; widget setup; saved dashboard |
+| Create | **Studio** | Compose; AI Generate; Ideas; Brand Voice; Templates; Hashtags; Media Library; Brand Assets | Drag/drop canvas, DAM, rights, product assets and localisation | Grid/list; brand/right/status filters; Upload; Import; Create |
+| Create | **Calendar** | Calendar; Publishing Queue | Cross-channel plan, campaign milestones, event/webinar promotion and offline placement dates | Month/Week/List/Timeline; status/channel/assignee filters; Schedule |
+| Promote | **Campaigns** | All Campaigns; Strategy & Plans; Channel Plans; Giveaways; Competitions; Paid Ads; Messaging; Web & Conversion; SEO & Discovery; Events & Offline | Objectives/research, ads, email/SMS/WhatsApp/RCS/push, landing pages/forms, SEO/local/AI discovery, PR, events and offline marketing | Board/List/Table/Timeline; type/status/owner/brand/channel filters; New campaign |
+| Promote | **UGC** | Briefs; Creators; Submissions; Rights; Payments | Influencer management, creator CRM, contracts and commissioned video | Creator/campaign/status/platform filters; Invite creator; New brief |
+| Promote | **Link in Bio** | Pages; Links; Themes; Analytics | Public creator/offer pages and lightweight conversion links | Published/draft; preview; New page |
+| Promote | **Marketplace** | Discover; Categories; Saved Suppliers; Requests; Orders | Supplier procurement, agencies/freelancers/creators and offline production suppliers | Search/filter; shortlist; New request |
+| Engage | **Inbox** | Unified Inbox; Assignments; Saved Views; Inbox Settings | Social engagement, review response, two-way messaging and crisis escalation | Folder rail; source/assignee/SLA/sentiment filters; Reply; Escalate |
+| Measure | **Analytics** | Overview; Content; Audience; Competitors; Reports; Attribution; Listening | Listening, reputation, ad/email/web/SEO/event performance and profitability metrics | Date/compare/channel/campaign filters; Export; Share; Schedule |
+| Manage | **Affiliates** | Affiliate Programmes; Referrals; Ambassadors; Loyalty; Resellers; Co-marketing | Partnerships and advocacy, codes, commissions, rewards and fraud review | Programme/status filters; New programme; Export |
+| Manage | **Settings** | Workspace; Branding; Channels; Integrations; People; Billing; Account; Data; Automations | Channel/ad/messaging/SEO integrations, consent, automation connections and finance controls | Left sub-nav; scoped actions |
+
+### 3.4 Detail-page hierarchy for the primary campaign workflows
+
+| Parent detail page | L3 detail tabs | Tabs intentionally excluded and where they belong | Persistent right rail |
+|---|---|---|---|
+| **Campaign** | Overview; Brief; Content; Tasks; Budget; Assets; Results; Audit | Calendar is a Calendar view filtered to the campaign. UGC is a Creators & UGC filtered view. | Status; owner; dates; spend vs budget; approvals; next milestone |
+| **Content item** | Editor/Canvas; Variants; Approvals; Schedule; Performance; Versions; Rights | Hashtags/templates are Studio resources, not content-detail tabs. | Channel fit; brand check; approval state; publication status |
+| **Calendar publication** | Content; Channel variants; Approval; Delivery log; History | Calendar grid/list is a parent view, not a detail tab. | Scheduled time; connection health; assigned owner; retry action |
+| **Creator profile** | Profile; Campaigns; Content; Performance; Agreements; Payments | Discovery/search lives in Creators list; UGC brief is a separate entity. | Rate range; verified channels; availability; rights status |
+| **UGC brief** | Overview; Requirements; Creators; Submissions; Approvals; Rights; Payments; Audit | Scripts are an AI tool in Requirements; Samples live with submissions/rights. | Brief status; budget; deadline; owner |
+| **Supplier shopfront** | Overview; Services; Portfolio; Reviews; Policies | Orders are private authenticated rooms, never public shopfront tabs. | Verification, response rate, location, availability |
+| **Marketplace order room** | Scope; Messages; Milestones; Deliveries; Rights; Payment; Dispute; Audit | Supplier listing detail stays linked, not embedded as a mutable order tab. | Order status, SLA, hold/release state, next action |
+| **Automation workflow** | Canvas; Trigger; Actions; Versions; Test; Runs; Logs; Settings | Recipes are collection-level templates, not workflow tabs. | Active/paused, owner, last run, failure count |
+| **Ad campaign** | Overview; Targeting; Creatives; Budget; Placements; Results; Change log | Provider account connection remains under Advertising Accounts. | Spend cap, approval state, provider health |
+| **Journey** | Canvas; Audience; Content; Goals; Runs; Conversions; Settings; Audit | Templates are Messaging collection resources. | Entry count, active contacts, suppression/error rate |
+
+### 3.5 Creation entry points and standard wizard contract
+
+Every “Create” action must open a dedicated wizard/drawer or direct editor with a saved draft. Query-string-only actions are replaced by typed action identifiers so they can enforce role, plan and prerequisite checks.
+
+| Create action | Availability check | Required steps | Completion state |
+|---|---|---|---|
+| New campaign | Campaign entitlement; active brand; creator/marketer role | Goal -> audience -> channels -> deliverables -> dates -> budget -> owners/approvals -> review | Draft campaign plus linked task/content skeleton |
+| New content | Studio entitlement; optional brand/campaign | Format -> brief -> create/import -> editor/canvas -> brand/rights -> approval -> save/schedule | Versioned content draft |
+| Schedule publication | Connected channel; approved content; publish role | Channel/profile -> variant -> date/time -> compliance -> preview -> approval -> queue | Queued job with retry-safe ID |
+| New supplier request | Buyer membership; no unresolved account restriction | Need -> budget/timing -> category -> supplier shortlist -> brief/files -> submit | Request visible only to invited/matched suppliers |
+| New listing/package | Supplier profile complete; category policy pass | Category -> service -> scope -> price -> delivery/revisions -> media -> policies -> review -> publish | Moderation-ready listing |
+| New automation | Automation entitlement; action permissions | Trigger -> conditions -> actions -> approvers -> test -> activate | Versioned inactive/active workflow and test log |
+| New journey | Messaging provider and consent basis | Goal -> entry audience -> branches -> content -> frequency/suppression -> test -> activate | Active/pending journey with audit trail |
+| New landing page | Domain/brand permission | Goal -> template -> content -> form/CTA -> tracking/consent -> variants -> QA -> publish | Versioned published or draft page |
+| New report | Analytics permission | Goal -> metrics -> dimensions -> filters -> visual layout -> sharing/schedule | Saved report with metric contract |
+
+### 3.6 Settings is a left sub-navigation, not a tab bar
+
+| Settings group | Pages | Detail / action pages |
+|---|---|---|
+| Workspace | General; branding; domains; defaults | Workspace profile; domain verification; archive workspace |
+| Channels & integrations | Social channels; ad providers; messaging; webhooks; API keys | Connection detail: scopes, health, logs, reconnect/revoke |
+| People & permissions | Members; roles; teams; portal access | Member profile; custom role; invite/resend/revoke |
+| Billing & usage | Plan; add-ons; usage; invoices; payment methods | Invoice; subscription change; payment-failure recovery |
+| Account | Personal profile; security; notifications; accessibility | MFA, sessions, export/delete request |
+| Data & governance | Audit log; data export; retention; consent configuration; danger zone | Export request; retention policy; legal hold; deletion workflow |
+
+### 3.7 Desktop, mobile and top-bar parity requirements
+
+| Element | Desktop behaviour | Mobile behaviour | Required correction |
+|---|---|---|---|
+| Primary destinations | Grouped side rail | Four core destinations plus More | More sheet must preserve group headings, exact ordering and include Partnerships/Affiliates when enabled |
+| Current context | Workspace name in switcher | Same switcher in top bar | Show mode icon/name, workspace type, role and plan; Supplier is a mode, not an orphan list item |
+| Create | Top-bar menu | Top-bar menu | One action registry drives both; each action checks feature flag, role and prerequisites |
+| Search | Cmd/Ctrl+K button | Search entry in More/top bar | Search groups results by entity and never returns inaccessible records |
+| Notifications | Bell opens real notification surface | Same bell/sheet | Every notification deep-link passes resource access check and has fallback context |
+| Settings | Side rail destination | More -> Settings | Settings sections render left sub-nav at all breakpoints |
+| Responsive detail tabs | Horizontal tabs where space permits | Overflow menu/segmented navigation with sticky summary | Do not wrap 8+ tabs into two rows; preserve current detail context |
+
+### 3.8 Deprecated workspace-specific expanded rails (not approved; do not implement)
+
+This is the definitive answer to “which items are in each side nav?” A workspace type uses one ordered rail; it does not show empty future modules. Entries in parentheses are feature-gated sub-items that are revealed only after the stated module is live for that workspace.
+
+| Workspace type | Side-nav groups and ordered items | Mobile primary bar | Mobile More groups | Must not appear in this workspace |
+|---|---|---|---|---|
+| **Campaign Manager (generic / transitional)** | **Command:** Home. **Create:** Studio, Calendar. **Promote:** Campaigns, Social, Link in Bio, Marketplace. **Engage:** Inbox. **Measure:** Analytics. **Manage:** Settings. The onboarding must prompt the owner to select Creator, Business, Brand or Agency before enabling expansion modules. | Home, Studio, Calendar, Inbox, More | Promote: Campaigns, Social, Link in Bio, Marketplace. Measure: Analytics. Manage: Settings | Strategy, Finance, Ads, Messaging, Leads, supplier operations and Admin until a workspace type/entitlement is established |
+| **Creator workspace** | **Command:** Home. **Create:** Studio, Calendar. **Promote:** Campaigns, Social, Link in Bio, Marketplace. **Engage:** Inbox. **Measure:** Analytics. **Manage:** Settings. *(Creators & UGC only when managing commissions; Partnerships only when enrolled in a programme.)* | Home, Studio, Calendar, Inbox, More | Promote: Campaigns, Social, Link in Bio, Marketplace. Measure: Analytics. Manage: Settings | Finance, Ads, CRM/Leads, team administration beyond personal/basic team controls, Supplier operations, Platform Admin |
+| **Business workspace** | **Command:** Home. **Plan:** Strategy, Campaigns, Calendar. **Create:** Studio, Brand & Assets, Link in Bio. **Promote:** Social, Messaging, Web & Conversion, Marketplace. **Engage:** Inbox, Leads & Audiences. **Measure:** Analytics. **Manage:** Settings. *(Advertising, SEO & Discovery, Partnerships, Finance, Automations when entitled.)* | Home, Studio, Calendar, Inbox, More | Plan; Create; Promote; Engage; Measure; Manage in the exact desktop group order | Creator payout operations, multi-client Agency controls, Platform Admin |
+| **Brand workspace** | **Command:** Home. **Plan:** Strategy, Campaigns, Calendar. **Create:** Studio, Brand & Assets. **Promote:** Social, Advertising, Messaging, Web & Conversion, SEO & Discovery, Link in Bio. **Collaborate:** Creators & UGC, Marketplace, Partnerships, PR & Reputation, Community, Events. **Engage:** Inbox, Leads & Audiences. **Measure:** Analytics, Finance. **Operate:** Automations. **Manage:** Settings. | Home, Studio, Calendar, Inbox, More | All remaining groups in exact desktop order, with a group heading and an entitlement badge where relevant | Agency client/workspace management, Supplier fulfilment rail, Platform Admin |
+| **Agency workspace** | **Command:** Home; Clients. **Plan:** Strategy, Campaigns, Calendar. **Create:** Studio, Brand & Assets. **Promote:** Social, Advertising, Messaging, Web & Conversion, SEO & Discovery, Link in Bio. **Collaborate:** Creators & UGC, Marketplace, Partnerships, PR & Reputation, Community, Events. **Engage:** Inbox, Leads & Audiences. **Measure:** Analytics, Finance. **Operate:** Automations. **Manage:** Team & Roles, Client Access, White Label, Settings. | Home, Clients, Studio, Calendar, More | Plan; Create; Promote; Collaborate; Engage; Measure; Operate; Manage | Supplier payout/order operations (unless user switches mode), Platform Admin |
+| **Supplier workspace** | **Command:** Dashboard. **Shop:** Shopfront, Listings & Packages. **Fulfil:** Orders, Deliveries. **Engage:** Messages. **Operate:** Availability. **Trust:** Reviews, Disputes. **Finance:** Earnings & Payouts. **Measure:** Analytics. **Manage:** Settings. | Dashboard, Orders, Listings, Messages, More | Shop; Fulfil; Operate; Trust; Finance; Measure; Manage | Buyer Campaign Manager data, client CRM, ad accounts, other supplier records, Platform Admin |
+| **Platform Admin workspace** | **Command:** Dashboard. **Tenants:** Workspaces, Users. **Marketplace:** Suppliers & Marketplace Ops. **Product:** Plans/Billing/Entitlements, Content/AI/Safety, Connections/Webhooks. **Operations:** Automations Operations, Support & Disputes. **Governance:** Compliance & Data, Feature Flags & Releases. **Observe:** Platform Analytics, Audit & System. | No standard bottom navigation; responsive admin drawer only | Same groups as desktop with access-level controls | Normal client campaign data as a default view; supplier fulfilment; public marketplace management without admin audit context |
+
+### 3.8A Approved side navigation by workspace type
+
+| Workspace type | Approved L1 side navigation | Permitted differences | Explicitly prohibited |
+|---|---|---|---|
+| **Creator Campaign Manager** | **Home**. **Create:** Studio, Calendar. **Promote:** Campaigns, UGC, Link in Bio, Marketplace. **Engage:** Inbox. **Measure:** Analytics, Listening. **Manage:** Affiliates, Settings. | Tabs/actions are role and plan gated; creator-specific profile and commission views live within UGC/Affiliates/Settings. | A different Creator rail; extra L1 modules for Ads, CRM, Finance or Supplier operations. |
+| **Business Campaign Manager** | Same fixed Campaign Manager shell and group order. | Business enables campaign sub-tabs such as Strategy & Plans, Messaging, Web & Conversion, SEO & Discovery, Leads and Finance only when entitled. | Adding Strategy, Messaging, Web, SEO, Leads or Finance to the rail. |
+| **Brand Campaign Manager** | Same fixed Campaign Manager shell and group order. | Brand enables UGC, paid ads, brand assets, collaboration, reputation and automation tabs inside Studio, Campaigns, UGC, Inbox, Analytics and Settings. | Separate Brand/Assets, Social, Advertising, PR or Automations side-nav items. |
+| **Agency Campaign Manager** | Same fixed Campaign Manager shell and group order. | Agency client selector is in the workspace context; clients/team/white-label settings live in Settings. Client portals open from campaign/client sharing actions. | Client, Team, White Label or portal entries in the primary rail. |
+| **Supplier workspace** | **Dashboard**. **Shop:** Profile/Shopfront, Listings. **Fulfil:** Orders, Deliveries, Messages. **Operate:** Availability. **Trust:** Reviews, Disputes. **Finance:** Payouts. **Measure:** Analytics. **Manage:** Settings. | This is a distinct `/supplier` shell and can evolve independently. Current minimum routes stay visible while planned entries are hidden/flagged. | Campaign Manager buyer data or its L1 rail. |
+| **Platform Admin** | Current visible shell: Admin Home, Workspaces, Users, Support. Add further grouped admin destinations only on completion. | Admin is a distinct `/admin` mode with audited elevation. | Campaign Manager or Supplier rail; unbuilt admin navigation. |
+
+**Mobile rule:** Campaign Manager mobile remains `Home | Studio | Calendar | Inbox | More`. The More sheet must use the same current group headings and include **Affiliates** (currently missing). Supplier mobile has its own `Dashboard | Orders | Listings | Messages | More` pattern. Admin uses a secure drawer, not a customer bottom bar.
+
+### 3.9 Workspace switcher and mode-switcher specification
+
+The switcher becomes a controlled mode selector, not simply a list of names. It must never grant access; it only surfaces memberships/modes already authorised on the server.
+
+| Switcher area | Contents | Behaviour |
+|---|---|---|
+| Current context button | Mode icon, workspace/supplier name, workspace type, user role; optional plan badge | Opens switcher; shows active check; has accessible label such as “Switch workspace, currently Acme Brand” |
+| Campaign Manager workspaces | Grouped by **Personal**, **Client**, **Organisation**, **Agency clients**; each item shows role | Selecting writes a preference then server revalidates membership and redirects to that workspace’s last valid route/home |
+| Supplier mode | A distinct **Supplier workspace** group, showing one or more supplier businesses the user controls | Selecting changes shell to `/supplier`; never changes the active buyer workspace data scope |
+| Platform Admin mode | Separate restricted group only for platform admins | Opens `/admin`; require re-authentication/elevation for high-risk tasks |
+| Create/add actions | Create workspace; join by invite; become a supplier | Each action is permission and plan-aware; “become supplier” launches supplier onboarding, not an empty supplier shell |
+| Context controls | Workspace settings; manage memberships; leave workspace where permitted | Always presented as secondary actions, never in the selectable resource list |
+
+The approved current shell in section 3.3A is permanent, not transitional. The detailed table below is a **capability inventory only**: its first column describes ownership and must never be read as permission to create a new L1 side-menu item. Every capability maps into one of the fixed current-shell sections above; Planned/Gate capabilities remain hidden until release readiness.
+
+| Group | Main side-menu section | Status | Main-section sub-tabs | Primary detail / item / profile pages | Detail sub-tabs | Creation wizard |
+|---|---|---:|---|---|---|---|
+| Command | **Home** | Partial | Overview; Approvals; Ideas | Notification/activity centre; saved dashboard | Activity; notification preferences | Dashboard/widget setup |
+| Plan | **Strategy** | Planned | Objectives; Audiences; Research; Positioning; Plans; Forecasts | Objective; persona/ICP; competitor; strategy; channel plan | Overview; assumptions; messages; budget; risks; linked campaigns; audit | Objective → audience → insight → positioning → channels → budget → approval |
+| Plan | **Campaigns** | Partial | All campaigns; Giveaways; Competitions; Templates | Campaign; campaign template | Overview; Brief; Content; Tasks; Budget; Assets; Results; Audit | Goal → audience → channels → deliverables → budget → owners → review → launch |
+| Plan | **Calendar** | Partial | Calendar; Publishing Queue | Month; Week; List; Timeline/swimlane views; status filters/saved views | Publication / scheduled item | Content; approvals; channel variants; delivery log | Create publication → channels → date/time → compliance → approval → schedule |
+| Create | **Content Studio** | Partial | Compose; AI Generate; Ideas; Brand Voice; Templates; Hashtags; Media Library | Content item; template; brand voice; asset | Draft; variants; approvals; performance; version history; rights | Brief → format → generate/import → edit/canvas → brand/compliance → approval → schedule/export |
+| Create | **Brand & Assets** | Partial | Brand kits; DAM; Rights; Templates; Product library | Brand profile; asset; licence/release; product | Identity; rules; assets; versions; permissions; usage | Brand identity → voice → visual rules → assets → permissions → publish |
+| Promote | **Social** | Partial | Publishing; Engagement; Listening | Channel connection; conversation; mention; competitor watch | Overview; posts; audience; permissions / thread / sentiment / actions | Connect channel → authenticate → select profile → permissions → test → enable |
+| Promote | **Advertising** | Planned | Accounts; Campaigns; Creatives; Audiences; Reporting | Ad account; ad campaign; ad set/group; creative | Overview; targeting; creative; budget; results; change log | Objective → account → audience → creative → placement → budget → review → publish |
+| Promote | **Email & Messaging** | Planned | Email; SMS; WhatsApp; RCS; Push; Journeys; Templates | Message campaign; journey; subscriber segment; template | Content; audience; flow; conversions; deliverability; audit | Channel → audience/consent → message → personalisation → schedule/trigger → test → approval → activate |
+| Promote | **Web & Conversion** | Planned | Landing pages; Forms; Funnels; Experiments; Pixels | Page; form; funnel; experiment | Builder; variants; leads; analytics; settings | Goal → template → content → form/CTA → tracking → variants → QA → publish |
+| Promote | **SEO & Discovery** | Planned | Keywords; Content briefs; Rankings; Local; AI Search; Backlinks | Keyword cluster; SEO brief; location/listing; audit | Overview; opportunities; tasks; rankings; competitors | Market/location → keywords → intent → cluster → brief → assign → measure |
+| Promote | **Link in Bio** | Partial | Pages; Links; Themes; Analytics | Link page | Design; links; products; pixels; analytics | Identity → theme → links → tracking → preview → publish |
+| Promote | **Marketplace** | Partial | Discover; Categories; Saved suppliers; Requests; Orders | Supplier shopfront; listing/package; request; order room | Overview; services; portfolio; reviews; policies / scope; messages; delivery; payment; dispute | Search → shortlist → brief → quote → contract → payment hold → fulfilment → accept → review |
+| Collaborate | **Creators** | Partial | Creator CRM; UGC Briefs; Submissions; Rights; Payments | Creator profile; brief; submission; rights agreement | Profile; campaigns; content; performance / brief; submissions; approvals; rights; payments | Brief → creator shortlist → terms/rights → deliverables → invite → approval → commission |
+| Collaborate | **Partnerships & Advocacy** | Partial | Affiliates; Referrals; Ambassadors; Loyalty; Resellers; Co-marketing | Partner profile; programme; referral/reward; promo code | Overview; terms; links/codes; conversions; commissions; fraud/audit | Programme type → terms → rewards → attribution → invite → compliance → launch |
+| Collaborate | **PR & Reputation** | Planned | Media lists; Pitches; Press room; Coverage; Reviews; Crisis | Journalist; press release; coverage item; review; incident | Details; assets; approvals; distribution; mentions; timeline | Objective → narrative → media list → assets → approvals → distribute → monitor |
+| Collaborate | **Community** | Planned | Communities; Calendar; Moderation; Members; Advocacy | Community; member; discussion/challenge | Overview; content; moderation; health; permissions | Community type → channels → rules → roles → onboarding → launch |
+| Collaborate | **Events & Sponsorships** | Planned | Events; Webinars; Podcasts; Sponsorships; Follow-up | Event/webinar; speaker; sponsor; registration | Overview; promotion; registrations; run-of-show; sponsors; attribution | Format → dates → audience → speakers/sponsors → registration → promotion → follow-up |
+| Engage | **Inbox** | Partial | Unified inbox; Assignments; saved views | Thread; contact; review | Conversation; contact; activity; tasks; internal notes | Connect channel → routing → saved replies → escalation rules → enable |
+| Engage | **Leads & Audiences** | Planned | Contacts; Segments; Consent; Scoring; Imports | Contact; segment; consent record | Profile; activity; memberships; consent; score; journeys | Source/import → mapping → consent → dedupe → segment → score → activate |
+| Measure | **Analytics** | Partial | Overview; Content; Audience; Competitors; Reports | Report; metric definition; attribution view | Dashboard; sources; methodology; exports; schedule | Report goal → metrics → dimensions → filters → visualise → share/schedule |
+| Measure | **Finance** | Planned | Budgets; Purchase orders; Costs; Invoices; Commissions; Profitability | Budget; PO; invoice; commission statement | Overview; lines; approvals; documents; audit | Budget → line items → approval → PO/contract → actuals → reconcile → close |
+| Operate | **Automations** | Planned | Recipes; Workflows; Runs; Connections; Logs | Workflow; automation run; connector | Canvas; triggers; actions; branches; versions; run history; errors | Trigger → conditions → actions → test data → approvals → activate → monitor |
+| Manage | **Settings** | Partial | Workspace; Branding; Channels; Integrations; People; Billing; Account; Data | Member; role; integration; API key; plan/invoice | Permissions; connection scopes; usage; audit; export/danger zone | Workspace setup → brand → channels → roles → integrations → billing → confirm |
+
+### Navigation rules
+
+- Keep no more than eight frequently used primary destinations visible for a small plan. Less-used modules sit in **More** or are activated from the relevant campaign.
+- Listening is an Analytics/Social sub-area until ingestion is reliable; it should not be promoted as a mature standalone product.
+- Calendar statuses are filters and saved views, never a seven-tab status bar.
+- Inbox sources are folders/filters; Saved Replies belongs in Inbox settings.
+- Templates, hashtags, brand voices and media are Studio/Brand sub-routes, not duplicate top-level destinations.
+- Route migration: canonical new routes use `/campaign-manager/...`; `/app/...` remains a redirect-compatible alias until analytics and links have migrated.
+
+## 4. Supplier workspace: target side menu
+
+### 4.1 Supplier navigation taxonomy
+
+Current supplier navigation is Dashboard, Listings, Orders, Disputes, Profile and Payouts. This is a good minimum shell, but Profile must become the public shopfront management area and fulfilment must not be hidden inside Orders.
+
+| Group | L1 side-menu item | L2 sub-tabs | L4 collection controls | Detail page tabs | Required route family |
+|---|---|---|---|---|---|
+| Command | **Dashboard** | Overview; Tasks; Performance | Period; listing/order filter; customise dashboard | Saved dashboard: metrics, tasks, alerts | `/supplier` |
+| Shop | **Shopfront** | Public Profile; Portfolio; Policies; Verification; Team | Preview public profile; completeness checklist; submit verification | Supplier profile: overview, services, portfolio, reviews, policies, credentials | `/supplier/shopfront/*` |
+| Shop | **Listings & Packages** | Services; Packages; Add-ons; Drafts; Archived | Category/status/price/delivery filters; duplicate; new listing | Listing: description, scope, pricing, delivery, media, FAQs, revisions, performance, audit | `/supplier/listings/*` |
+| Fulfil | **Orders** | Requests; Quotes; Active; Delivered; Completed; Cancelled | Client/status/date/SLA filters; saved views | Order: scope, messages, milestones, deliveries, rights, payment, dispute, audit | `/supplier/orders/*` |
+| Fulfil | **Deliveries** | In Progress; Awaiting Approval; Revisions; Accepted; Archive | Due-date/status/order filters; upload delivery | Deliverable: files, revisions, rights, acceptance, activity | `/supplier/deliveries/*` |
+| Engage | **Messages** | All; Unread; Requests; Order Threads; Saved Replies | Client/order/unread filters; compose | Conversation: thread, order context, attachments, internal notes | `/supplier/messages/*` |
+| Operate | **Availability** | Calendar; Capacity; Blackout Dates; Service SLAs | Date/service/capacity filters; set availability | Rule: schedule, service capacity, lead time, booking rules | `/supplier/availability/*` |
+| Trust | **Reviews** | Reviews; Responses; Appeals | Rating/date/listing filters; reply/appeal | Review: content, response, evidence, moderation history | `/supplier/reviews/*` |
+| Trust | **Disputes** | Open; Evidence Requested; Resolution; Closed | Deadline/status/order filters; open case | Case: timeline, evidence, messages, outcome, audit | `/supplier/disputes/*` |
+| Finance | **Earnings & Payouts** | Balance; Statements; Payouts; Tax | Date/status/currency filters; download statement | Payout: line items, fees, status, documents, audit | `/supplier/payouts/*` |
+| Measure | **Analytics** | Shopfront; Listings; Enquiries; Orders; Conversion | Period/source/listing filters; export report | Listing/order analytics: traffic, enquiry, conversion, review trends | `/supplier/analytics/*` |
+| Manage | **Settings** | Business; Team; Notifications; Integrations; Security | Left sub-navigation and settings search | Team member, integration, security session | `/supplier/settings/*` |
+
+**Supplier side-menu release rule:** only Dashboard, Listings, Orders, Disputes, Shopfront/Profile and Payouts may be visible now. Deliveries, Messages, Availability, Reviews, Analytics and Settings appear only with usable routes and data. Until then, orders should own the relevant delivery/message state rather than create a dead navigation destination.
+
+The table below defines the complete professional supplier workspace. Payments/escrow must remain unavailable until the payment gate is complete.
+
+| Group | Main side-menu section | Status | Main-section sub-tabs | Detail / profile pages | Detail sub-tabs | Creation wizard |
+|---|---|---:|---|---|---|---|
+| Command | **Dashboard** | Partial | Overview; Tasks; Performance | Dashboard saved view | Metrics; tasks; alerts | Dashboard setup |
+| Shop | **Shopfront & Profile** | Partial | Public profile; About; Portfolio; Policies; Verification | Public supplier shopfront; team member | Overview; services; work; reviews; policies; credentials | Business identity → categories → profile → portfolio → policies → verification submit |
+| Shop | **Listings & Packages** | Partial | Services; Packages; Add-ons; Availability | Listing/package | Description; scope; pricing; media; FAQs; revisions; performance | Category → service → scope → pricing → delivery → media → policies → publish |
+| Fulfil | **Orders** | Partial | New; Active; Delivered; Completed; Cancelled | Order room; quote/request | Scope; messages; milestones; files; approvals; payment; audit | Respond → clarify scope → quote → terms → customer approval → start |
+| Fulfil | **Deliveries** | Planned | In progress; Awaiting approval; Revisions; Archive | Deliverable | Files; revisions; rights; acceptance; activity | Upload → rights declaration → submit → revision loop → acceptance |
+| Engage | **Messages** | Planned | All; Unread; Requests; Order threads | Conversation | Thread; order context; internal notes; attachments | Routing/auto-reply setup |
+| Operate | **Availability** | Planned | Calendar; Capacity; Blackout dates; SLA | Availability rule | Schedule; service capacity; booking rules | Hours → capacity → lead time → blackout → publish |
+| Trust | **Reviews & Reputation** | Planned | Reviews; Responses; Appeals | Review | Review; response; evidence; moderation status | Review-response / appeal flow |
+| Trust | **Disputes** | Partial | Open; Evidence requested; Resolution; Closed | Dispute case | Timeline; messages; evidence; proposed resolution; audit | Open case → evidence → response → mediation → resolution → review |
+| Finance | **Earnings & Payouts** | Partial | Balance; Statements; Payouts; Tax | Payout; statement | Line items; fees; status; documents | Identity/KYC → bank account → tax → verification → payout preference |
+| Measure | **Analytics** | Planned | Shopfront; Listings; Orders; Conversion | Listing analytics | Traffic; enquiries; conversion; reviews | Report setup |
+| Manage | **Settings** | Planned | Team; Notifications; Integrations; Security | Team member/integration | Role; scopes; audit | Team invite → role → permissions → confirmation |
+
+## 5. Portal catalogue
+
+Portals are constrained experiences for external participants. They are not separate full workspaces and must inherit a campaign/order-specific permission envelope.
+
+| Portal type | Main portal sections / tabs | Detail pages and nested tabs | Multistep wizard | Status |
+|---|---|---|---|---:|
+| **Client & Approver Portal** | Home; Approvals; Calendar; Deliverables; Reports; Files; Messages | Campaign: Overview, brief, content approvals, timeline, budget snapshot, results; approval item: preview, feedback, version history | Invite → choose campaigns → permission level → branding → send | Planned |
+| **Creator / Influencer Portal** | Opportunities; Briefs; Deliverables; Rights; Payments; Profile | Brief: overview, requirements, submissions, feedback, rights, payment; creator profile: portfolio, rates, channels, tax | Profile → channel verification → rates → eligibility → submit deliverable → rights → payout | Planned |
+| **Affiliate / Partner Portal** | Programme; Links & codes; Assets; Conversions; Commissions; Support | Programme: terms, assets, links, performance, payouts; conversion: attribution, status, adjustment | Apply → compliance/tax → accept terms → receive link/code → promote → payout | Partial |
+| **Buyer Order Portal** | Requests; Quotes; Active orders; Deliveries; Payments; Disputes | Order room: scope, messages, milestones, files, approval, payment, dispute | Brief → shortlist → quote → contract → payment hold → delivery → accept → review | Planned |
+| **Supplier Public Shopfront** | Overview; Services; Packages; Portfolio; Reviews; Policies | Listing: scope, pricing, samples, delivery, reviews, FAQs; supplier: credentials/team | Enquiry/booking request → scope → contact → submit | Partial |
+| **Public Link / Campaign Microsite** | Landing content; links/offers; form; legal | Page: variants, analytics, conversion settings (owner-only) | Template → content → consent/tracking → preview → publish | Partial |
+
+## 6. Platform Admin: target side menu
+
+### 6.1 Admin navigation taxonomy and visibility policy
+
+The current admin nav shows more destinations than are built. Until each row is ready, show only **Admin Home**, **Workspaces**, **Users** and **Support**. Every other row is admin-only feature-flagged and hidden rather than a 404/empty screen.
+
+| Admin group | L1 menu item | L2 tabs | Detail-page tabs | High-risk actions requiring confirmation/audit |
+|---|---|---|---|---|
+| Command | Dashboard | Health; Queues; Incidents; Usage | Incident: timeline, tenants, mitigation, audit | Acknowledge/resolve incident; disable provider/job |
+| Tenants | Workspaces | All; Trials; Suspended; Risk | Overview; members; plan; usage; connections; billing; audit; support | Suspend, archive, entitlement override, support access |
+| Tenants | Users | All; Admins; Risk/Review | Profile; memberships; security; usage; support history; audit | Change admin role, revoke session, account restriction |
+| Marketplace | Suppliers & Marketplace Ops | Suppliers; Listings; Orders; Verification; Payouts; Disputes | Identity; shopfront; risk; orders; payments; audit | Verify/reject/suspend, moderation decision, payout/dispute resolution |
+| Product | Plans, Billing & Entitlements | Plans; Subscriptions; Invoices; Usage; Coupons | Features; limits; history; adjustment; audit | Change price/entitlement, issue credit/refund |
+| Product | Content, AI & Safety | Generations; Moderation; Prompts; Usage; Flags | Input/output; policy; cost; actions; audit | Remove content, block prompt/tool, policy rollout |
+| Product | Connections & Webhooks | Providers; Tenant Connections; Events; Health | Scopes; logs; retries; security; audit | Disable provider, replay webhook, revoke connection |
+| Operations | Automations Operations | Runs; Failures; Queues; Recipes | Input; steps; errors; retry; audit | Replay/cancel job, disable workflow |
+| Operations | Support & Disputes | Tickets; Marketplace Disputes; Incidents; Macros | Conversation; tenant context; evidence; actions; audit | Support elevation, case outcome, account restriction |
+| Governance | Compliance & Data | Reports; Consent; Retention; Exports; Legal Holds | Evidence; timeline; approvals; audit | Approve export, legal hold, retention override |
+| Governance | Feature Flags & Releases | Flags; Cohorts; Experiments; Releases | Rules; tenants; metrics; rollback; audit | Enable/rollback cohort or production flag |
+| Observe | Platform Analytics | Growth; Revenue; Activation; Reliability | Definition; segments; source; schedule | Metric definition change, share/export sensitive report |
+| Observe | Audit & System | Audit Log; Configuration; Jobs; Security | Event data; related records; immutable history | Controlled system setting change |
+
+**Admin layout requirement:** group headings must be rendered in the sidebar, an active item must be visually clear, every detail page must have a breadcrumb back to its collection, and destructive/elevated actions must show target, consequence, reason field and immutable audit ID.
+
+| Group | Admin side-menu section | Status | Main-section sub-tabs | Detail pages | Detail sub-tabs | Admin wizard |
+|---|---|---:|---|---|---|---|
+| Command | **Dashboard** | Partial | Health; queues; incidents; usage | Alert/incident | timeline; affected tenants; actions; audit | Incident triage → owner → mitigation → resolution |
+| Tenants | **Workspaces** | Partial | All; trials; suspended; risk | Workspace | overview; members; plan; usage; connections; billing; audit; support | Provision/demo → plan → owner → entitlements → confirm |
+| Tenants | **Users** | Partial | All; admins; risk/review | User | profile; memberships; security; usage; support history; audit | Invite admin → role → MFA requirement → send |
+| Marketplace | **Suppliers & Marketplace Ops** | Planned | Suppliers; listings; orders; verification; payouts; disputes | Supplier; listing; order; dispute | identity; shopfront; risk; orders; payments; audit | Verification review → evidence → decision → notify |
+| Product | **Plans, Billing & Entitlements** | Planned | Plans; subscriptions; invoices; usage; coupons | Plan; subscription; invoice | features; limits; history; adjustments; audit | Plan → entitlements → price → tax → publish |
+| Product | **Content, AI & Safety** | Planned | Generation; moderation; prompts; usage; flags | Generation/flag | input; output; policy; cost; action; audit | Policy → rules → rollout → monitor |
+| Product | **Connections & Webhooks** | Planned | Providers; tenant connections; webhook events; health | Connection; webhook event | scopes; logs; retries; security; audit | Provider → credentials → scopes → callback → test → enable |
+| Operations | **Automations Operations** | Planned | Runs; failures; queues; recipes | Run/job | input; steps; errors; retry; audit | Replay → scope → confirm → run |
+| Operations | **Support & Disputes** | Partial | Tickets; marketplace disputes; incidents; macros | Ticket/case | conversation; tenant context; evidence; actions; audit | Case intake → classification → owner → resolution → CSAT |
+| Governance | **Compliance & Data** | Planned | Reports; consent; retention; exports; legal holds | Compliance case; export | evidence; timeline; approvals; audit | Request → validate → scope → approve → execute → retain proof |
+| Governance | **Feature Flags & Releases** | Planned | Flags; cohorts; experiments; releases | Flag/release | rules; tenants; metrics; rollback; audit | Flag → audience → guardrails → staged rollout → observe → complete |
+| Observe | **Platform Analytics** | Planned | Growth; revenue; activation; reliability | Metric/report | definition; segments; source; schedule | Report → metric contract → access → schedule |
+| Observe | **Audit Logs & System Settings** | Planned | Audit; configuration; jobs; security | Audit record; system setting | event data; related entities; immutable history | Controlled setting change → approval → apply → verify |
+
+## 7. Public product navigation and search
+
+### 7.1 Public navigation hierarchy
+
+Replace the current home-page-local navigation with a shared `PublicNav` and shared public layout. The top navigation must use real routes, not `#use-cases` and `#resources` anchors, so links work from every public page and can be indexed.
+
+| Top-level item | Dropdown / sub-navigation | Search/filter behaviour | Detail pages | Primary conversion |
+|---|---|---|---|---|
+| **Product** | Overview; Studio; Calendar; Campaigns; Social; Analytics; Automations; Integrations | No global search necessary at MVP | Feature page; integration detail | Start free trial |
+| **Solutions** | Creators; Businesses; Brands; Agencies; Suppliers; Industries; Local marketing | Solution/industry filter later | Solution; customer story | Choose use case / book demo |
+| **Marketplace** | Discover; Search suppliers; Categories; How it works; Become a supplier | Category, service, location, budget, delivery, availability, verified, rating | Category; supplier; listing/package | Submit request / become supplier |
+| **Pricing** | Plans; Add-ons; Enterprise; Marketplace fees; FAQ | Plan comparison filters | Plan comparison; enterprise contact | Start trial / contact sales |
+| **Resources** | Blog; Guides; Templates; Help Centre; Changelog; Status | Topic/product/role search | Article; template preview; help article | Read, download or sign up |
+| **Company** | About; Contact; Careers; Trust & Security; Legal | None | Contact, terms, privacy, DPA | Contact / request demo |
+| **Sign in** | Account login | None | Password/MFA/recovery | Authenticate |
+| **Get started** | Signup/onboarding | Workspace-type choice | Signup; onboarding; invite | Create workspace |
+
+### 7.2 Public marketplace search requirements
+
+| Search element | Requirement |
+|---|---|
+| Result unit | A card always links to a public supplier shopfront or listing; no private order information is included. |
+| Facets | Category, service, location/service area, remote/on-site, budget band, delivery time, availability, verified status, rating, language and accessibility needs. |
+| Sort | Recommended, relevance, rating, response time, price, delivery time and newest. “Recommended” must disclose the basis and never silently prefer paid placement. |
+| Trust signals | Verification label only with a documented state; review count; completed-order eligibility; response-time window; clear policy link. |
+| Empty state | Explain loosened filters, offer saved search/brief request and provide a clear no-results path. |
+| SEO | Index category/supplier/listing pages that are publish-approved; canonical tags, structured data and no indexing of filtered-result combinations that create thin duplicates. |
+
+| Public top-nav item | Destination / sub-navigation | Public detail pages | Public wizard / conversion path | Status |
+|---|---|---|---|---:|
+| **Product** | Overview; Studio; Calendar; Campaigns; Social; Analytics; Automations | Feature page; integration page | Feature → use case → CTA → onboarding | Shipped/Partial |
+| **Solutions** | Creator; Business; Brand; Agency; Supplier; industry/local use cases | Solution page; customer story | Solution → plan → signup | Planned |
+| **Marketplace** | Discover; Categories; How it works; Become a supplier | Supplier shopfront; listing/package; category search | Search → supplier/listing → enquiry or booking request | Partial |
+| **Supplier Search** | Search, category, service, location, budget, availability, verified filters | Supplier/listing comparison and saved list | Search → filters → shortlist → brief → request quotes | Planned |
+| **Pricing** | Plans; add-ons; enterprise; marketplace fees | Plan comparison; billing FAQ | Select plan → account → workspace setup → checkout | Partial |
+| **Resources** | Blog; guides; templates; help; status | Article; template preview; help article | Resource → signup/download | Planned |
+| **Company** | About; contact; careers; trust/security | Legal; contact; status | Contact/demo request | Partial |
+| **Sign in / Get started** | Login; registration; onboarding | Workspace chooser | Account → workspace type → brand → channels → invite → first campaign | Shipped/Partial |
+
+## 8. Modularisation plan
+
+### 8.1 Domain modules and ownership
+
+| Module | Owns | Must not own | Key dependencies |
+|---|---|---|---|
+| Identity & Tenancy | profiles, memberships, roles, active workspace, entitlements | campaign/business data | Supabase Auth, RLS, audit |
+| Strategy | objectives, ICPs, research, plans, channel strategy | publications or ad-provider state | Campaigns, Finance, Analytics |
+| Campaigns | campaign hierarchy, briefs, tasks, deliverables, approvals | raw media files, payment settlement | Calendar, Studio, UGC, Finance |
+| Studio & DAM | drafts, templates, brand kits, media, versions, licences | campaign strategy and ad accounts | Storage, Brand, AI |
+| Social & Inbox | channel connections, publication jobs, conversations, mentions | customer master record | Provider adapters, Automations |
+| Ads | ad account mappings, sync snapshots, creative/ad workflow | raw attribution truth | Provider adapters, Analytics, Finance |
+| Messaging & Journeys | consent-aware sends, templates, segments, workflow runs | global contact identity source | Leads, provider adapters, Automations |
+| Web & Conversion | pages/forms, experiment variants, conversion events | general site builder | Leads, Analytics, Consent |
+| SEO & Discovery | keyword/workflow data, listings, rank snapshots | crawler infrastructure replacement | Search/local integrations, Marketplace |
+| Creators & UGC | creator records, briefs, submissions, rights, payments requests | supplier settlement | Campaigns, Marketplace, Finance |
+| Marketplace & Supplier | supplier identity, shopfront, listings, order workflow, reviews/disputes | payment processor ledger | Payments, contracts, messaging, verification |
+| Partnerships | programmes, attribution links/codes, rewards/commissions | core billing | Leads, Finance, Analytics |
+| PR, Community & Events | media, communities, events, sponsorship promotion | event operational delivery | Campaigns, Gala Dock connector, Analytics |
+| Leads & Audiences | contacts, consent, segments, scores | Orbas CRM master record | Orbas connector, Messaging, Web |
+| Finance & Attribution | budgets, costs, POs, invoices, commission records, attribution models | payment token storage | Payments, Ads, Analytics |
+| Automations & Fox Copilot | triggers, actions, run history, tool permissions, approvals | direct bypass of module permissions | Every module's typed service API |
+| Analytics & Reporting | metric contracts, aggregate marts, reports | source-of-truth operational mutation | Events, warehouses/providers |
+
+### 8.2 Code and integration boundaries
+
+| Boundary | Required implementation rule |
+|---|---|
+| Routes | Organise by domain under `src/app/campaign-manager`, `src/app/supplier`, `src/app/portal`, `src/app/admin` and `src/app/marketplace`; retain redirects from legacy `/app` paths during migration. |
+| UI | Reusable primitives in `src/components/ui`; domain components in `src/components/<domain>`; shells own navigation only. Avoid page-local copies of cards, tabs, tables and status badges. |
+| Services | Each domain exposes typed server-side service functions. Pages and agents call services, never issue unrestricted table writes. |
+| Data | Every tenant table includes workspace ownership, timestamps and an audit relation. Cross-workspace sharing uses explicit grants, never guessed access. |
+| Provider adapters | One adapter per provider (`publish`, `fetch`, `validate`, `webhook`) behind a shared interface; provider data is a synchronised snapshot with source timestamps. |
+| Jobs | Long-running imports, publishing, reporting, AI and automations run in queue/edge workers with idempotency keys, retries and run logs. |
+| Events | Emit typed events (`campaign.created`, `asset.approved`, `lead.converted`, `order.delivered`) to power notifications, automations and analytics. |
+| Permissions | RBAC plus resource-level grants for client, creator, supplier and portal access. Copilot gets the caller's least privilege, never service-role authority. |
+| Feature flags | Each new module has entitlement, rollout cohort and kill switch. Nav only renders a feature after its flag and release checklist pass. |
+
+### 8.3 Fox Copilot / agent contract
+
+Fox is an accountable campaign copilot, not a chat-only widget. It needs: context retrieval from the active workspace; explicit tool permissions; preview-before-write; approval gates for publishing, spend, external messages and contract/payment actions; run/audit history; citations to source records; cost/usage limits; and human escalation. Initial tools: create brief, generate campaign plan, create content variants, prepare calendar draft, summarise analytics, identify missing approvals and draft—not send—supplier/client messages.
+
+## 9. Full progress tracker
+
+| Workstream | Deliverable | Current state | Phase | Required before release |
+|---|---|---:|---|---|
+| Foundation | Active workspace, RLS review, role model, audit events | Partial | P0 | Security test suite and tenant-isolation audit |
+| Foundation | Error boundaries, real notifications, command search | Partial | P0 | Functional route/control audit |
+| Foundation | Entitlements, usage metering, billing lifecycle | Partial | P0 | Stripe/webhook reconciliation and support paths |
+| Navigation | Grouped compact Campaign Manager sidebar | Shipped | P0 | Keep routes accurate; add feature gating |
+| Navigation | `/campaign-manager` canonical migration | Partial | P0 | Redirect map, telemetry, link migration |
+| Navigation | Workspace switcher incl. supplier | Partial | P0 | Persisted selection and real membership tests |
+| Strategy | Objectives, research, ICPs, positioning, plans | Planned | P1 | Strategy schema and campaign relationships |
+| Campaigns | Campaign detail consolidation and approvals | Partial | P1 | Real persistence, role checks and audit |
+| Calendar | Views, filters, publishing queue, scheduling truth | Partial | P1 | Provider jobs and failure/retry state |
+| Studio | Composer, AI, canvas/drag-drop, DAM, brand grounding | Partial | P1–P2 | Versioning, rights, AI safety, usability testing |
+| Social | Connected publishing, engagement and listening | Partial | P1–P2 | Provider approval, scopes, ingestion, rate limits |
+| Marketplace | Public discover/search, supplier profiles/listings | Partial | P1 | Search, verification policy and honest copy |
+| Supplier | Dashboard, listings, orders, profile, payouts/disputes | Partial | P1 | Supplier RLS, fulfilment and KYC/payment gate |
+| Marketplace | Quotes, contracts, escrow, payout, reviews/disputes | Gate | P2 | Stripe Connect/legal policy/KYC/webhooks/ops runbook |
+| Creators | CRM, briefs, submissions, rights and creator portal | Partial | P2 | Rights contracts, payments, portal grants |
+| Ads | Paid social/search/display/video management | Planned | P2 | Provider adapters, spend controls, approvals |
+| Email/Messaging | Email, SMS, WhatsApp, RCS, push and deliverability | Planned | P2 | Consent/suppression, provider contracts and compliance |
+| Leads | Contacts, segments, consent, scoring, Orbas connector | Planned | P2 | Source-of-truth agreement and data processing terms |
+| Automations | Visual drag/drop canvas, recipes, runs, monitoring | Planned | P3 | Typed events, queue, idempotency, permission model |
+| Fox Copilot | Tool-using agent with approval rails | Partial | P3 | Tool registry, audit, cost caps and evaluations |
+| Web Conversion | Landing pages, forms, funnels, A/B tests | Planned | P3 | Consent, analytics event contract, secure publishing |
+| SEO & Local | Keywords, briefs, listings, rankings, AI-search visibility | Planned | P4 | Integration-first MVP and data-quality policy |
+| Partnerships | Affiliates, referrals, ambassadors, loyalty, resellers | Partial | P4 | Attribution, reward rules, fraud and tax controls |
+| PR/Reputation | Press, media, reviews, crisis and coverage | Planned | P4 | Moderation/escalation policy and listening feeds |
+| Community | Groups, moderation, health, advocacy | Planned | P4 | Community permissions and moderation workflow |
+| Events | Webinars, sponsorships, launches, Gala Dock connector | Planned | P4 | Registration/attribution contract and connector |
+| Offline | Print, OOH, radio, TV, field and QR campaigns | Planned | P4 | Supplier briefs, evidence capture and measurement model |
+| Localisation | Markets, translations, regional approvals/compliance | Planned | P4 | Locale/currency/timezone and approval model |
+| Finance | Budget, POs, invoice/commission and profitability | Planned | P4 | Accounting/payment integrations and approval policy |
+| Analytics | Attribution, ROAS, ROMI, CAC/LTV, reports | Partial | P4 | Metric dictionary and source reconciliation |
+| Enterprise | SSO, SCIM, advanced roles, retention, legal holds | Planned | P5 | Security review and enterprise support model |
+| Admin | Build-or-hide admin destinations and drill-downs | Partial | P0–P5 | Each route has operational owner, actions and audit |
+| Public | Product/Solutions/Marketplace/Search/Resources IA | Partial | P1 | SEO copy, no false claims and conversion measurement |
+
+## 10. Release sequence
+
+1. **P0 — Trust and navigation:** close tenant, permission, billing, notification, search and navigation truth gaps; hide unbuilt admin/modules.
+2. **P1 — Campaign operating system and supplier beta:** Strategy, clean campaign/calendar/studio workflow, DAM basics, marketplace discovery, supplier shopfront/listings/orders, real demo provisioning.
+3. **P2 — Acquisition and collaboration:** creators/UGC portal, safe marketplace transaction preparation, paid advertising, email/messaging, leads/audiences.
+4. **P3 — Intelligent operation:** drag-and-drop content canvas, automation builder, workflow jobs, permissioned Fox agent, landing pages/forms.
+5. **P4 — Full marketing coverage:** SEO/local/AI search, partnerships, PR, community, events, offline, localisation, finance and attribution.
+6. **P5 — Enterprise scale:** SSO/SCIM, governance, regional controls, advanced observability and platform administration.
+
+## 11. Definition of done for every module
+
+A module only changes from Planned/Partial to Shipped when it has: a named owner; routes and responsive UI; schema and RLS tests; permission and feature-gate checks; empty/loading/error states; audit events; analytics events; accessibility checks; realistic demo data; documentation; provider/webhook retry behaviour where applicable; and marketing copy that reflects the real capability.
+
+## 12. Canonical route contract and migration map
+
+The product must have one canonical route per resource. This is important for deep links, notifications, Copilot citations, public sharing, analytics and access control. Existing `/app` URLs remain supported redirects until migration completes; they are not a second product.
+
+| Domain | Canonical collection route | Canonical detail route | Nested routes / actions | Legacy compatibility |
+|---|---|---|---|---|
+| Campaign Manager shell | `/campaign-manager` | n/a | `/home`, `/settings`, `/notifications`, `/search` | `/app` redirects to `/campaign-manager`; `/app/home` remains supported |
+| Strategy | `/campaign-manager/strategy/{objectives,audiences,research,plans}` | `/campaign-manager/strategy/plans/[planId]` | `/messages`, `/budget`, `/risks`, `/campaigns`, `/audit` | New |
+| Campaigns | `/campaign-manager/campaigns` | `/campaign-manager/campaigns/[campaignId]` | `/brief`, `/content`, `/tasks`, `/budget`, `/assets`, `/results`, `/audit` | `/app/campaigns/**` |
+| Calendar | `/campaign-manager/calendar` | `/campaign-manager/calendar/items/[publicationId]` | `/content`, `/approvals`, `/history`, `/delivery` | `/app/calendar/**` |
+| Studio | `/campaign-manager/studio/{compose,generate,ideas,templates,hashtags,media}` | `/campaign-manager/studio/content/[contentId]` | `/variants`, `/canvas`, `/approvals`, `/versions`, `/rights` | `/app/studio/**`; no duplicate template/hashtag homes |
+| Brand & assets | `/campaign-manager/brand/{kits,assets,rights}` | `/campaign-manager/brand/assets/[assetId]` | `/versions`, `/usage`, `/licence`, `/audit` | Existing brand detail can redirect |
+| Social | `/campaign-manager/social/{publishing,engagement,listening}` | `/campaign-manager/social/connections/[connectionId]` | `/posts`, `/audience`, `/scopes`, `/health`, `/logs` | Existing publishing/listening routes redirect |
+| Advertising | `/campaign-manager/advertising/{accounts,campaigns,creatives,audiences}` | `/campaign-manager/advertising/campaigns/[adCampaignId]` | `/targeting`, `/creative`, `/budget`, `/results`, `/changes` | New |
+| Messaging | `/campaign-manager/messaging/{email,sms,whatsapp,rcs,push,journeys}` | `/campaign-manager/messaging/journeys/[journeyId]` | `/canvas`, `/audience`, `/runs`, `/conversions`, `/settings` | New |
+| Web & conversion | `/campaign-manager/web/{pages,forms,funnels,experiments}` | `/campaign-manager/web/pages/[pageId]` | `/builder`, `/variants`, `/forms`, `/analytics`, `/settings` | New |
+| Marketplace | `/marketplace` and `/marketplace/search` | `/marketplace/[supplierSlug]`; `/marketplace/listings/[listingSlug]` | `/services`, `/portfolio`, `/reviews`, `/policies`; authenticated request/order room | Current public marketplace routes retained |
+| Supplier workspace | `/supplier` | `/supplier/orders/[orderId]`; `/supplier/listings/[listingId]` | `/scope`, `/messages`, `/deliveries`, `/payment`, `/dispute`, `/audit` | Current supplier paths retained |
+| Portals | `/portal/[portalToken]` | `/portal/[portalToken]/campaigns/[campaignId]` | Content is scoped by signed grant, not a workspace cookie | New |
+| Admin | `/admin/{workspaces,users,support}` | `/admin/workspaces/[workspaceId]`; `/admin/users/[userId]` | Other admin routes appear only after shipped | Current built routes retained |
+
+### Route and link rules
+
+1. A resource identifier is never inferred from its display name. Use an immutable ID internally and a unique public slug only where public discovery is intended.
+2. Every redirect preserves the query string and provides a redirect telemetry event. Retire a legacy route only after its traffic is below an agreed threshold.
+3. Detail pages must resolve the caller's workspace or portal grant on the server before loading data. A client-selected workspace cookie is a preference, not authorisation.
+4. Public supplier and listing pages expose only publish-approved information. Payout status, buyer details, disputes, private files and internal notes never cross into public payloads.
+
+## 13. Permission matrix and access model
+
+### 13.1 Internal workspace roles
+
+| Capability | Owner | Admin | Marketer | Creator | Analyst | Approver | Viewer |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| Manage workspace, billing and roles | Yes | Yes | No | No | No | No | No |
+| Create/edit strategy and campaigns | Yes | Yes | Yes | Limited assigned work | No | Comment only | No |
+| Create/edit content and schedule drafts | Yes | Yes | Yes | Yes | No | Review only | No |
+| Approve content or budget | Yes | Configurable | Configurable | No | No | Yes | No |
+| Connect channels or ad accounts | Yes | Configurable | No | No | No | No | No |
+| Publish/send/spend | Yes | Configurable | Configurable | No | No | No | No |
+| View analytics and reports | Yes | Yes | Yes | Assigned only | Yes | Shared only | Shared only |
+| View/edit finance | Yes | Configurable | Budget-limited | No | Read only | No | No |
+| Use Fox write tools | Yes | Configurable | Configurable | Limited drafts | Read-only analysis | No | No |
+
+### 13.2 External and operational roles
+
+| Role | Minimum access envelope | Forbidden actions |
+|---|---|---|
+| Client portal user | Explicit campaigns, approval items, shared reports/files | Workspace members, other clients, raw billing, channel credentials |
+| Creator/influencer | Invited brief, own submission, granted rights/payment data | Other creators, campaign budget, unpublished strategy |
+| Supplier | Own shopfront, listings, assigned order rooms, own payouts | Buyer workspace data, other supplier records, payment holds not assigned to them |
+| Affiliate/partner | Own programme assets, links, attributed conversions and commissions | Customer PII beyond permitted aggregation, programme configuration |
+| Platform support | Time-bounded support case context with every action audited | Silent impersonation, unrestricted export, payment override |
+| Platform admin | Just-in-time elevated operations with immutable audit | Routine day-to-day workspace use, unlogged service-role writes |
+
+### 13.3 Approval policies
+
+| Action | Default policy | Required evidence |
+|---|---|---|
+| Publish social post | Draft author plus approver where campaign requires it | Final asset/version, channel, scheduled time, approval record |
+| Send marketing message | Consent check plus authorised sender | Audience count, suppression result, content version, test result |
+| Launch/alter paid spend | Budget owner approval | Account, targeting, creative, budget cap, effective dates |
+| Accept supplier delivery | Buyer/order owner | Delivered files, scope comparison, rights declaration, acceptance/revision decision |
+| Release supplier funds | Payment policy + dispute/hold check | Payment provider event, accepted milestone, no open hold |
+| Fox external action | Human approval by default | Tool preview, affected records, policy result, approver identity |
+
+## 14. Core entities, lifecycles and data contracts
+
+### 14.1 Entity ownership
+
+| Entity | Owner module | Required relationships | Lifecycle states |
+|---|---|---|---|
+| Workspace / membership | Identity & Tenancy | owner profile, members, entitlement | active, suspended, archived |
+| Brand kit | Brand & Assets | workspace, voice, asset library, rules | draft, active, archived |
+| Objective / strategy plan | Strategy | workspace, audience, messages, channel plans, campaigns | draft, in-review, approved, active, closed |
+| Campaign | Campaigns | strategy, budget, tasks, deliverables, channels, results | draft, planned, active, paused, completed, cancelled, archived |
+| Content item | Studio | campaign optional, asset versions, approval, publication | idea, draft, in-review, approved, scheduled, published, failed, archived |
+| Publication job | Social/Calendar | content version, connection, provider record, audit | queued, processing, published, failed, cancelled |
+| Lead/contact | Leads | consent, source, segment, score, journey membership | prospect, marketing-qualified, customer, suppressed, deleted |
+| Supplier/listing | Marketplace | verified supplier, package, availability, reviews | draft, review, published, paused, rejected, archived |
+| Request/quote/order | Marketplace | buyer workspace, supplier, scope, milestones, payment references | requested, quoted, contracted, active, delivered, revision, accepted, disputed, closed, cancelled |
+| Rights grant | Creators/Assets | creator/supplier, asset/deliverable, territory, duration, usage | proposed, pending, active, expired, revoked |
+| Automation workflow/run | Automations | trigger, actions, workspace, version, actor | draft, testing, active, paused, archived / queued, running, succeeded, failed, cancelled |
+| Attribution event | Analytics | source/UTM, campaign, contact anonymous ID, conversion | received, validated, attributed, reconciled, excluded |
+
+### 14.2 Required audit event examples
+
+| Domain | Event names that must be captured |
+|---|---|
+| Permission/security | `membership.invited`, `role.changed`, `portal.grant.created`, `portal.grant.revoked`, `connection.authorised` |
+| Campaign/content | `campaign.created`, `brief.approved`, `content.submitted`, `content.approved`, `publication.requested`, `publication.failed` |
+| Marketplace | `supplier.verified`, `listing.published`, `quote.accepted`, `order.delivered`, `delivery.accepted`, `dispute.opened`, `payout.released` |
+| Messaging/ads | `audience.activated`, `message.sent`, `consent.withdrawn`, `ad.launch.requested`, `ad.budget.changed` |
+| Automations/Fox | `workflow.activated`, `workflow.run.failed`, `copilot.tool.previewed`, `copilot.tool.approved`, `copilot.tool.executed` |
+| Data/governance | `export.requested`, `export.completed`, `retention.applied`, `legal_hold.created`, `admin.elevation.used` |
+
+## 15. Detailed delivery backlog by phase
+
+### P0 - release integrity and information architecture
+
+| ID | Build item | Exact output | Dependencies | Acceptance evidence |
+|---|---|---|---|---|
+| P0.1 | Workspace security audit | Inventory every table, API route, storage bucket and action against workspace/role policy | Schema and routes | Automated cross-tenant denial tests; documented exceptions = zero |
+| P0.2 | Navigation truth pass | Hide/flag every unbuilt sidebar/admin item; build a route registry and redirects | Feature flags | No nav 404s; every visible link has loading/error/empty state |
+| P0.3 | Canonical workspace migration | `/campaign-manager` shell, redirect map, active workspace resolver | P0.1 | Legacy links work; server authorisation ignores forged cookie |
+| P0.4 | Operational UX | Notification centre, command search, page error boundaries, activity log | Event model | Keyboard search works; notification deep links resolve; errors are recoverable |
+| P0.5 | Billing/usage baseline | Entitlements, rate limits, usage events, webhook reconciliation | Payments provider | Upgrade/downgrade and failed payment are safely handled |
+| P0.6 | Demo provisioning | Idempotent demo workspace/supplier seed with explicit demo flag | Schema deployed, verified test user | Re-running never duplicates; demo data is isolated and removable |
+
+### P1 - campaign system and supplier marketplace beta
+
+| ID | Build item | Exact output | Dependencies | Acceptance evidence |
+|---|---|---|---|---|
+| P1.1 | Strategy module | Objectives, persona, research, positioning, channel-plan and risk records | P0.1 | A strategy can create/link campaigns and budget assumptions |
+| P1.2 | Campaign detail redesign | Seven-tab detail surface with persistent campaign summary | P1.1 | Brief, tasks, assets, budget, approvals and audit are navigable without duplicate calendar/UGC tabs |
+| P1.3 | Calendar and queue | Month/week/list/timeline views, saved filters and real job states | Provider adapter base | No fake published state; failed work explains retry path |
+| P1.4 | Studio/DAM foundation | Content model, media library, brand kit grounding, version/approval history | Storage/RLS | Asset usage and rights visibility work from content/campaign context |
+| P1.5 | Marketplace discovery | Category/service/location search, public supplier/listing/profile model, enquiry request | Marketplace schema/RLS | Public results contain only approved data and search filters are deterministic |
+| P1.6 | Supplier beta workflow | Shopfront, package creation, quote/order room, delivery and basic dispute intake | P1.5 | Buyer and supplier see only their own shared order context |
+
+### P2 - acquisition, collaboration and controlled transactions
+
+| ID | Build item | Exact output | Dependencies | Acceptance evidence |
+|---|---|---|---|---|
+| P2.1 | Creator CRM and UGC | Creator profiles, briefs, submissions, rights and creator portal grants | P1.2/P1.4 | Submission version, feedback and rights trail is complete |
+| P2.2 | Marketplace transaction rails | Contracts, milestones, payment hold/release, payouts, reviews and disputes | Legal, KYC, Stripe Connect | Webhooks are idempotent; disputes halt release; operations runbook tested |
+| P2.3 | Paid advertising MVP | Read/report first; then guarded draft creation for selected providers | Provider approval, Finance | Spend cap, account role, approval and change log enforced |
+| P2.4 | Email/messaging MVP | Email templates, consent segments, suppression, campaign send and reports | Consent model, provider | Test send, unsubscribe, bounce and complaint flows verified |
+| P2.5 | Leads/audiences | Contact source, consent, segments, import/dedupe and basic scoring | P2.4 | Consent provenance visible; delete/export request path works |
+
+### P3 - visual orchestration and agentic operation
+
+| ID | Build item | Exact output | Dependencies | Acceptance evidence |
+|---|---|---|---|---|
+| P3.1 | Drag-and-drop creative canvas | Layered canvas, reusable blocks, media dropzone, resize/undo/version/export | P1.4 | Keyboard and mobile fallback; asset licensing shown before export |
+| P3.2 | Automation builder | Trigger/condition/action canvas, templates, test mode, run log and retry | Typed events/jobs | A failed action is visible, retryable and never silently duplicates |
+| P3.3 | Fox tool agent | Tool registry, workspace retrieval, source citations, preview/approval and cost controls | P0.1, P3.2 | Evaluation suite proves it cannot cross tenant/role/approval boundary |
+| P3.4 | Conversion MVP | Landing pages, forms, tracking, experiment variants and lead handoff | Consent/analytics | Every conversion has source, consent and campaign linkage |
+
+### P4/P5 - full marketing coverage and enterprise maturity
+
+| ID | Build item | Exact output | Dependencies | Acceptance evidence |
+|---|---|---|---|---|
+| P4.1 | SEO/local/AI discovery | Workflow-first keyword, content brief, listing and visibility reporting | Provider integrations | Data source/time stated with every metric |
+| P4.2 | Partnerships and reputation | Referrals/loyalty/ambassadors plus PR/reviews/crisis workflows | Attribution, moderation | Reward and disclosure audit trails are complete |
+| P4.3 | Community/events/offline | Community moderation, event promotion/attribution and supplier-managed offline work | Portal/supplier/analytics | Campaign result joins digital and offline evidence |
+| P4.4 | Finance and attribution | Forecast/actual, POs, commissions, ROAS/ROMI and reconciliation | Provider data, accounting decisions | Metric definitions prevent double-counting |
+| P5.1 | Enterprise controls | SSO/SCIM, custom roles, retention, legal holds, regional controls | Security/compliance review | Enterprise tenant acceptance suite passes |
+
+## 16. Marketplace safety and transaction operating model
+
+### 16.1 Booking and fulfilment state machine
+
+`draft request -> submitted -> supplier clarification -> quote issued -> buyer accepts -> contract accepted -> payment authorised/held -> active -> delivery submitted -> buyer accepts OR revision requested -> funds released -> closed -> review`
+
+At any active stage a permitted party may open a dispute. `disputed` freezes the affected milestone; resolution can release, partially release, refund or cancel according to the signed policy. No UI copy may use **escrow**, **protected payment**, **guaranteed payout** or **verified** until the underlying policy and provider state are operational.
+
+### 16.2 Required marketplace controls
+
+| Control | Minimum implementation |
+|---|---|
+| Supplier verification | Clear status taxonomy: unverified, pending, verified, rejected, suspended; evidence and reviewer decision are auditable. |
+| Listing moderation | Draft/review/published state, category policy checks, prohibited-service enforcement and revision path. |
+| Contracting | Versioned scope, deliverables, revisions, rights, confidentiality, cancellation and tax responsibilities accepted by both sides. |
+| Payments | Provider-owned tokenisation only; store provider IDs/statuses, never card data; webhook signature verification and idempotency required. |
+| Disputes | Neutral evidence timeline, response deadlines, internal case owner, hold/release restrictions and outcome notice. |
+| Reviews | Only completed eligible orders can review; appeal/moderation rules and rating recalculation are auditable. |
+| Privacy | Buyer contact details are minimised until a legitimate order stage; public shopfront never exposes private documents. |
+
+## 17. Test, observability and rollout plan
+
+### Shell implementation comment (2026-07-23)
+
+The workspace and portal structural-shell pass is now represented by the shared `CaptionFoxShell` configuration and tracker. Every configured workspace/portal navigation item has: a route-backed collection surface; its specified main-page tabs; collection/filter/action shell; fixture detail links and detail-page shell; detail-tab contract; a Create wizard with the item-specific step contract; and empty, loading, error, restricted, upgrade and archived states. The type-first demo routes are `/creator`, `/business`, `/brand`, `/agency`, `/affiliate-portal`, `/publisher-portal`, `/client-portal`, `/creator-portal`, `/buyer-portal` and `/link-page`; Supplier remains `/supplier` while its existing authenticated operational shell is migrated. These are structural shells and must not be described as live integrations, payment, publishing, provider or portal-grant workflows until their module gates pass.
+
+| Test layer | Mandatory coverage |
+|---|---|
+| Unit | State machines, money calculations, consent suppression, permissions, route parsers, Copilot tool schemas |
+| Integration | RLS tenant denial, provider webhook signature/idempotency, job retry, payment state transitions, storage access |
+| End-to-end | Onboarding, workspace switch, campaign-to-publication, supplier request-to-delivery, approval, portal access, admin support case |
+| Accessibility | Keyboard navigation, focus restoration in drawers/modals, labelled controls, contrast, mobile table alternatives |
+| Performance | Dashboard/query budgets, pagination/search, media upload limits, background job throughput and failure alert thresholds |
+| Security | OWASP route review, signed portal links, rate limiting, secrets scan, dependency updates, admin elevation audit |
+| AI quality | Prompt/tool evaluation set, policy refusal tests, grounding/citation checks, cost and latency budgets, human feedback loop |
+
+### Rollout rules
+
+1. Build behind a feature flag, internal-test it, seed realistic demo data, then enable for a named pilot cohort.
+2. Define a success metric and a rollback condition before enabling a production cohort.
+3. Never migrate critical data without a reversible migration, backup/recovery procedure and a measured maintenance window.
+4. A public marketing page may only claim the exact enabled capability; beta, provider limitations and manual-review steps must be visible where material.

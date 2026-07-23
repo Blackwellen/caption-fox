@@ -1,0 +1,40 @@
+'use client'
+
+import Link from 'next/link'
+import { useState } from 'react'
+import { ChevronDown, MoreHorizontal, Plus, Search, X } from 'lucide-react'
+import { cn } from '@/lib/utils'
+import { getShellItem, shellConfigs, type ShellSurface } from '@/lib/shell/caption-fox-shell'
+
+export default function IntegratedFeatureShell({ section, path = [], surface = 'brand', basePath = '/app' }: { section: string; path?: string[]; surface?: ShellSurface; basePath?: string }) {
+  const config = shellConfigs[surface]
+  const item = getShellItem(config, section)
+  const detail = path[0]?.startsWith('detail-')
+  const wizardRoute = path[0] === 'new'
+  const activeTab = item.tabs.find(tab => tab.toLowerCase().replaceAll(' ', '-') === path[0]) ?? item.tabs[0]
+  const [wizardOpen, setWizardOpen] = useState(wizardRoute)
+  const [step, setStep] = useState(0)
+  const href = (tab?: string) => `${basePath}/${item.id}${tab ? `/${tab.toLowerCase().replaceAll(' ', '-')}` : ''}`
+
+  return <div className="mx-auto max-w-7xl p-5 sm:p-7 lg:p-8">
+    <nav className="mb-3 flex items-center gap-1 text-xs text-slate-500"><Link href={basePath} className="hover:text-slate-800">{config.label}</Link><span>/</span><span className="font-medium text-slate-700">{item.label}</span>{detail && <><span>/</span><span>Fixture detail</span></>}</nav>
+    <div className="mb-5 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between"><div><span className="rounded-full bg-violet-50 px-2 py-1 text-xs font-medium text-violet-700">Shell preview</span><h1 className="mt-3 text-2xl font-bold tracking-tight text-slate-900">{detail ? `North Star ${item.label.replace(/s$/, '')}` : item.label}</h1><p className="mt-1 max-w-2xl text-sm text-slate-500">This route is a complete structural surface in the existing Campaign Manager shell. Live data, external providers and transactional actions are intentionally not connected here yet.</p></div><div className="flex gap-2"><button className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm">Export</button><button onClick={() => setWizardOpen(true)} className="inline-flex items-center gap-1 rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white"><Plus size={15} />Create</button><button className="rounded-lg border border-slate-200 bg-white p-2" aria-label="More actions"><MoreHorizontal size={17} /></button></div></div>
+    {detail ? <DetailTabs tabs={item.detailTabs ?? ['Overview', 'Activity', 'Files', 'Audit']} /> : <SectionTabs tabs={item.tabs} active={activeTab} href={href} />}
+    <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">{['Open items', 'Awaiting approval', 'Upcoming', 'Performance'].map((label, index) => <div key={label} className="rounded-xl border border-slate-200 bg-white p-4"><p className="text-xs font-medium text-slate-500">{label}</p><p className="mt-2 text-2xl font-bold text-slate-900">{index === 3 ? '4.8%' : index + 2}</p><p className="mt-1 text-xs text-slate-400">Fixture-only shell metric</p></div>)}</div>
+    <div className="mt-6 grid gap-6 xl:grid-cols-[minmax(0,1.6fr)_340px]"><section className="overflow-hidden rounded-xl border border-slate-200 bg-white"><div className="flex flex-col gap-3 border-b border-slate-100 p-4 sm:flex-row sm:items-center sm:justify-between"><div><h2 className="font-semibold text-slate-900">{detail ? 'Related records and activity' : activeTab}</h2><p className="text-xs text-slate-500">Table/card collection shell with search, filters, saved views, sort and bulk actions.</p></div><button className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-600"><Search size={14} />Search</button></div><div className="divide-y divide-slate-100">{['North Star record', 'Campaign operating workflow', 'Approval and delivery item'].map((name, index) => <Link key={name} href={`/app/${item.id}/detail-${index + 1}`} className="flex items-center justify-between gap-4 px-4 py-4 transition hover:bg-slate-50"><div><p className="text-sm font-medium text-slate-800">{name}</p><p className="mt-1 text-xs text-slate-500">Fixture record · owner Jamahl Thomas · updated today</p></div><span className="rounded-full bg-slate-100 px-2 py-1 text-xs text-slate-600">Draft</span></Link>)}</div></section><aside className="rounded-xl border border-slate-200 bg-white p-5"><h2 className="font-semibold">What belongs here</h2><p className="mt-2 text-sm text-slate-500">{item.tabs.join(' · ')}</p><div className="mt-5 border-t border-slate-100 pt-4"><p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Available states</p><div className="mt-2 flex flex-wrap gap-1">{['empty', 'loading', 'error', 'restricted', 'upgrade', 'archived'].map(state => <Link key={state} href={`/app/${item.id}/${state}`} className="rounded bg-slate-100 px-2 py-1 text-xs text-slate-600 hover:bg-slate-200">{state}</Link>)}</div></div></aside></div>
+    {wizardOpen && <Wizard itemLabel={item.label} steps={item.wizard ?? ['Details', 'Options', 'Review', 'Submit']} step={step} onStep={setStep} onClose={() => setWizardOpen(false)} />}
+  </div>
+}
+
+function SectionTabs({ tabs, active, href }: { tabs: string[]; active: string; href: (tab?: string) => string }) {
+  return <div className="overflow-x-auto border-b border-slate-200"><div className="flex min-w-max">{tabs.map(tab => <Link key={tab} href={href(tab)} className={cn('border-b-2 px-3 py-3 text-sm font-medium', tab === active ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-900')}>{tab}</Link>)}</div></div>
+}
+
+function DetailTabs({ tabs }: { tabs: string[] }) {
+  return <div className="overflow-x-auto border-b border-slate-200"><div className="flex min-w-max">{tabs.map((tab, index) => <button key={tab} className={cn('border-b-2 px-3 py-3 text-sm font-medium', index === 0 ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-900')}>{tab}</button>)}</div></div>
+}
+
+function Wizard({ itemLabel, steps, step, onStep, onClose }: { itemLabel: string; steps: string[]; step: number; onStep: (value: number) => void; onClose: () => void }) {
+  const current = steps[Math.min(step, steps.length - 1)]
+  return <div className="fixed inset-0 z-[70] flex items-end justify-center bg-slate-950/40 sm:items-center sm:p-6" role="dialog" aria-modal="true" aria-label={`Create ${itemLabel}`}><div className="w-full max-w-2xl rounded-t-2xl bg-white shadow-2xl sm:rounded-2xl"><div className="flex items-center justify-between border-b p-5"><div><h2 className="font-semibold">Create {itemLabel.replace(/s$/, '')}</h2><p className="text-xs text-slate-500">Shell-only wizard; no data is saved.</p></div><button onClick={onClose} className="rounded-lg p-2 hover:bg-slate-100" aria-label="Close wizard"><X size={18} /></button></div><div className="p-5"><ol className="flex overflow-x-auto">{steps.map((label, index) => <li key={label} className={cn('min-w-28 border-t-2 pt-2 text-xs', index <= step ? 'border-blue-600 text-blue-700' : 'border-slate-200 text-slate-400')}>{index + 1}. {label}</li>)}</ol><h3 className="mt-6 text-lg font-semibold">{current}</h3><p className="mt-2 text-sm text-slate-500">Required/optional fields, validation, draft recovery and an error state are represented by this step.</p><div className="mt-5 grid gap-3 sm:grid-cols-2"><div className="h-10 rounded-lg border border-slate-200 bg-slate-50" /><div className="h-10 rounded-lg border border-slate-200 bg-slate-50" /></div></div><div className="flex items-center justify-between border-t p-5"><button onClick={onClose} className="text-sm text-slate-600">Save draft and close</button><div className="flex gap-2"><button disabled={step === 0} onClick={() => onStep(Math.max(step - 1, 0))} className="rounded-lg border px-3 py-2 text-sm disabled:opacity-40">Previous</button>{step < steps.length - 1 ? <button onClick={() => onStep(step + 1)} className="rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white">Next</button> : <button onClick={onClose} className="rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white">Submit mock</button>}</div></div></div></div>
+}

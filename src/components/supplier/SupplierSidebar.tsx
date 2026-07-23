@@ -5,7 +5,7 @@ import Image from 'next/image'
 import { usePathname, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { cn } from '@/lib/utils'
-import { LayoutDashboard, Package, ShoppingBag, Scale, UserCircle2, Wallet, Store, LogOut, BadgeCheck } from 'lucide-react'
+import { LayoutDashboard, Package, ShoppingBag, Scale, UserCircle2, Wallet, Store, LogOut, BadgeCheck, MessageSquare, CalendarDays, Star, BarChart2, Settings } from 'lucide-react'
 import { typeLabel } from '@/lib/marketplace/types'
 import type { SupplierType } from '@/lib/marketplace/types'
 
@@ -13,9 +13,15 @@ const nav = [
   { label: 'Dashboard', href: '/supplier', icon: LayoutDashboard, exact: true },
   { label: 'Listings', href: '/supplier/listings', icon: Package },
   { label: 'Orders', href: '/supplier/orders', icon: ShoppingBag },
+  { label: 'Deliveries', href: '/supplier/deliveries', icon: Package },
+  { label: 'Messages', href: '/supplier/messages', icon: MessageSquare },
+  { label: 'Availability', href: '/supplier/availability', icon: CalendarDays },
+  { label: 'Reviews', href: '/supplier/reviews', icon: Star },
   { label: 'Disputes', href: '/supplier/disputes', icon: Scale },
   { label: 'Profile', href: '/supplier/profile', icon: UserCircle2 },
   { label: 'Payouts', href: '/supplier/payouts', icon: Wallet },
+  { label: 'Analytics', href: '/supplier/analytics', icon: BarChart2 },
+  { label: 'Settings', href: '/supplier/settings', icon: Settings },
 ]
 
 export default function SupplierSidebar({
