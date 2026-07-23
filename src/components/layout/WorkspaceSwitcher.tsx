@@ -9,10 +9,13 @@ export default function WorkspaceSwitcher({
   workspaces,
   activeId,
   supplier,
+  supplierActive = false,
 }: {
   workspaces: WorkspaceLite[]
   activeId?: string | null
   supplier?: { display_name: string; verified?: boolean | null } | null
+  /** True when the shell is currently rendering the supplier workspace. */
+  supplierActive?: boolean
 }) {
   const router = useRouter()
   const [open, setOpen] = useState(false)
@@ -32,6 +35,9 @@ export default function WorkspaceSwitcher({
     }
     const route = workspace?.type ? routeByType[workspace.type] : undefined
     if (route) router.push(route)
+    // Leaving the supplier workspace must navigate into the workspace shell —
+    // refreshing would just reload the supplier page and appear to do nothing.
+    else if (supplierActive) router.push('/app/home')
     else router.refresh()
   }
 
@@ -41,10 +47,18 @@ export default function WorkspaceSwitcher({
         onClick={() => setOpen(o => !o)}
         className="flex items-center gap-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50 rounded-lg px-2 py-1 transition-colors max-w-[200px]"
       >
-        <span className="w-5 h-5 rounded bg-fox-gradient flex items-center justify-center text-[10px] font-bold text-white shrink-0">
-          {(active?.name ?? 'W')[0].toUpperCase()}
+        {supplierActive && supplier ? (
+          <span className="w-5 h-5 rounded bg-violet-100 flex items-center justify-center shrink-0">
+            <Store size={12} className="text-violet-600" />
+          </span>
+        ) : (
+          <span className="w-5 h-5 rounded bg-fox-gradient flex items-center justify-center text-[10px] font-bold text-white shrink-0">
+            {(active?.name ?? 'W')[0].toUpperCase()}
+          </span>
+        )}
+        <span className="truncate">
+          {supplierActive && supplier ? supplier.display_name : active?.name ?? 'My Workspace'}
         </span>
-        <span className="truncate">{active?.name ?? 'My Workspace'}</span>
         <ChevronsUpDown size={13} className="text-slate-400 shrink-0" />
       </button>
 
@@ -64,7 +78,7 @@ export default function WorkspaceSwitcher({
                     {w.name[0].toUpperCase()}
                   </span>
                   <span className="flex-1 text-left truncate">{w.name}</span>
-                  {w.id === active?.id && <Check size={14} className="text-blue-600 shrink-0" />}
+                  {!supplierActive && w.id === active?.id && <Check size={14} className="text-blue-600 shrink-0" />}
                 </button>
               ))}
               {workspaces.length === 0 && (
@@ -81,7 +95,9 @@ export default function WorkspaceSwitcher({
                     <Store size={13} className="text-violet-600" />
                   </span>
                   <span className="flex-1 text-left truncate">{supplier.display_name}</span>
-                  <span className="text-[10px] text-violet-600 font-medium">Supplier</span>
+                  {supplierActive
+                    ? <Check size={14} className="text-violet-600 shrink-0" />
+                    : <span className="text-[10px] text-violet-600 font-medium">Supplier</span>}
                 </button>
               </div>
             )}

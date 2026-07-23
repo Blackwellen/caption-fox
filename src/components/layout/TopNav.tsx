@@ -23,10 +23,16 @@ const quickCreateItems = [
   { label: 'Create Report',        href: '/app/analytics?action=report',     icon: BarChart2 },
 ]
 
+export type QuickCreateItem = { label: string; href: string; icon: typeof FileText }
+
 interface TopNavProps {
   workspaces?: WorkspaceLite[]
   activeWorkspaceId?: string | null
   supplier?: { display_name: string; verified?: boolean | null } | null
+  /** True when the shell is currently rendering the supplier workspace. */
+  supplierActive?: boolean
+  /** Context-specific create actions; defaults to the marketer workspace set. */
+  quickCreate?: QuickCreateItem[]
   userName?: string | null
   userEmail?: string | null
   isAdmin?: boolean
@@ -37,11 +43,14 @@ export default function TopNav({
   workspaces = [],
   activeWorkspaceId,
   supplier,
+  supplierActive = false,
+  quickCreate,
   userName,
   userEmail,
   isAdmin,
   notifications = [],
 }: TopNavProps) {
+  const createItems = quickCreate ?? quickCreateItems
   const [quickOpen, setQuickOpen] = useState(false)
   const [paletteOpen, setPaletteOpen] = useState(false)
 
@@ -62,7 +71,7 @@ export default function TopNav({
       <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
 
       {/* Workspace switcher */}
-      <WorkspaceSwitcher workspaces={workspaces} activeId={activeWorkspaceId} supplier={supplier} />
+      <WorkspaceSwitcher workspaces={workspaces} activeId={activeWorkspaceId} supplier={supplier} supplierActive={supplierActive} />
 
       {/* Search → command palette */}
       <div className="flex-1 max-w-md">
@@ -90,7 +99,7 @@ export default function TopNav({
             <>
               <div className="fixed inset-0 z-30" onClick={() => setQuickOpen(false)} />
               <div className="absolute right-0 top-full mt-2 w-56 bg-white border border-slate-200 rounded-xl shadow-lg z-40 py-1.5">
-                {quickCreateItems.map(item => (
+                {createItems.map(item => (
                   <Link
                     key={item.label}
                     href={item.href}

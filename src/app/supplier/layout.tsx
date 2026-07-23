@@ -1,11 +1,24 @@
 import { redirect } from 'next/navigation'
+import { Package, ShoppingBag, CalendarDays, UserCircle2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
+import { getActiveWorkspace } from '@/lib/workspace'
 import SupplierSidebar from '@/components/supplier/SupplierSidebar'
+import TopNav, { type QuickCreateItem } from '@/components/layout/TopNav'
 import type { SupplierType } from '@/lib/marketplace/types'
+
+// Supplier-context create actions (the marketer defaults link out of this workspace).
+const supplierQuickCreate: QuickCreateItem[] = [
+  { label: 'New Listing', href: '/supplier/listings?action=new', icon: Package },
+  { label: 'View Orders', href: '/supplier/orders', icon: ShoppingBag },
+  { label: 'Set Availability', href: '/supplier/availability', icon: CalendarDays },
+  { label: 'Edit Profile', href: '/supplier/profile', icon: UserCircle2 },
+]
 
 // Standalone supplier/seller WORKSPACE shell (a supplier logs into their own
 // workspace — not a portal controlled from a marketer workspace). Requires the
 // user to have a marketplace_suppliers row; otherwise routes them to onboarding.
+// Uses the same shell chrome as the marketer workspace so the workspace switcher,
+// search, notifications and account menu stay available here too.
 export default async function SupplierLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -19,6 +32,23 @@ export default async function SupplierLayout({ children }: { children: React.Rea
 
   if (!supplier) redirect('/marketplace/sell')
 
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('full_name, is_platform_admin')
+    .eq('id', user.id)
+    .single()
+
+  // The switcher needs every workspace the user can reach so they can move
+  // between the supplier workspace and their marketer workspaces.
+  const { active, workspaces } = await getActiveWorkspace(supabase, user.id)
+
+  const { data: notifications } = await supabase
+    .from('notifications')
+    .select('id, title, body, link, is_read, created_at')
+    .eq('user_id', user.id)
+    .order('created_at', { ascending: false })
+    .limit(10)
+
   return (
     <div className="flex h-screen bg-slate-50 overflow-hidden">
       <SupplierSidebar
@@ -27,7 +57,20 @@ export default async function SupplierLayout({ children }: { children: React.Rea
         verified={supplier.verified}
         email={user.email}
       />
-      <main className="flex-1 overflow-y-auto">{children}</main>
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+        <TopNav
+          workspaces={workspaces}
+          activeWorkspaceId={active?.id ?? null}
+          supplier={supplier}
+          supplierActive
+          quickCreate={supplierQuickCreate}
+          userName={profile?.full_name ?? null}
+          userEmail={user.email ?? null}
+          isAdmin={profile?.is_platform_admin ?? false}
+          notifications={notifications ?? []}
+        />
+        <main className="flex-1 overflow-y-auto">{children}</main>
+      </div>
     </div>
   )
 }
