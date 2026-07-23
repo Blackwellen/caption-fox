@@ -1,11 +1,11 @@
 import { createClient } from '@supabase/supabase-js'
 
-const DEMO_EMAIL = 'jaamhlthomas1996@gmail.com'
+const DEMO_EMAIL = 'jamahlthomas1996@gmail.com'
 
 type DemoWorkspace = {
   name: string
   slug: string
-  type: 'brand' | 'creator'
+  type: 'brand' | 'creator' | 'small_business' | 'agency'
   industry: string
   brand: string
   brandSlug: string
@@ -39,6 +39,30 @@ const DEMO_WORKSPACES: DemoWorkspace[] = [
     campaign: 'Weekly Growth Experiments',
     campaignStatus: 'live',
     objective: 'Turn repeatable short-form content into audience growth and partnership opportunities.',
+  },
+  {
+    name: 'Jamahl Thomas Growth Co.',
+    slug: 'jamahl-thomas-business-demo',
+    type: 'small_business',
+    industry: 'Local services',
+    brand: 'Growth Co.',
+    brandSlug: 'jamahl-growth-co',
+    primaryColor: '#059669',
+    campaign: 'Local Discovery Sprint',
+    campaignStatus: 'active',
+    objective: 'Generate qualified local enquiries through helpful social content and campaign follow-up.',
+  },
+  {
+    name: 'Jamahl Thomas Agency Hub',
+    slug: 'jamahl-thomas-agency-demo',
+    type: 'agency',
+    industry: 'Marketing agency',
+    brand: 'JT Agency',
+    brandSlug: 'jt-agency',
+    primaryColor: '#DB2777',
+    campaign: 'Client Growth Programme',
+    campaignStatus: 'draft',
+    objective: 'Coordinate a multi-channel client campaign with clear approvals, deliverables and reporting.',
   },
 ]
 
