@@ -1,3 +1,4 @@
+import { isValidElement } from 'react'
 import { cn } from '@/lib/utils'
 import { Button } from './Button'
 import type { LucideIcon } from 'lucide-react'
@@ -30,9 +31,14 @@ export function EmptyState({ icon: Icon, title, description, action, secondaryAc
         <div className={cn('rounded-2xl bg-slate-100 flex items-center justify-center mb-4',
           compact ? 'w-10 h-10' : 'w-14 h-14',
         )}>
-          {typeof Icon === 'function'
-            ? <Icon size={compact ? 20 : 28} className="text-slate-400" />
-            : Icon}
+          {isValidElement(Icon)
+            ? Icon
+            : (() => {
+                // A LucideIcon component (function or React.forwardRef object) —
+                // never render it as a bare child, it must be invoked as JSX.
+                const IconComponent = Icon as LucideIcon
+                return <IconComponent size={compact ? 20 : 28} className="text-slate-400" />
+              })()}
         </div>
       )}
       <h3 className={cn('font-semibold text-slate-900', compact ? 'text-sm' : 'text-base')}>{title}</h3>
