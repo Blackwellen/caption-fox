@@ -1,7 +1,8 @@
 'use client'
 
 import Link from 'next/link'
-import { useMemo, useState } from 'react'
+import { usePathname } from 'next/navigation'
+import { useMemo, useState, type ReactNode } from 'react'
 import { Bell, ChevronDown, Command, HelpCircle, Menu, MoreHorizontal, Plus, Search, Settings2, Sparkles, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import WorkspaceSwitcher from '@/components/layout/WorkspaceSwitcher'
@@ -17,10 +18,18 @@ export default function CaptionFoxShell({
   workspaces,
   activeWorkspaceId,
   supplier,
+  children,
 }: {
   surface: ShellSurface
   path?: string[]
   basePath?: string
+  /**
+   * Real page content. When supplied, the shell renders it instead of the
+   * fixture header, tabs and placeholder content — so routed modules such as
+   * Advertising live inside the same sidebar, top bar and mobile nav as the
+   * rest of Caption Fox rather than duplicating the chrome.
+   */
+  children?: ReactNode
   /** Real workspaces for the switcher. Omitted on the fixture-only /shell route. */
   workspaces?: WorkspaceLite[]
   activeWorkspaceId?: string | null
@@ -33,6 +42,7 @@ export default function CaptionFoxShell({
   const requestedTab = isDetail || isWizardRoute ? undefined : path[1]?.replaceAll('-', ' ')
   const activeTab = item.tabs.find(tab => tab.toLowerCase() === requestedTab?.toLowerCase()) ?? item.tabs[0]
   const state = (path.includes('empty') ? 'empty' : path.includes('loading') ? 'loading' : path.includes('error') ? 'error' : path.includes('restricted') ? 'restricted' : path.includes('upgrade') ? 'upgrade' : path.includes('archived') ? 'archived' : 'ready') as ShellState
+  const pathname = usePathname()
   const [mobileOpen, setMobileOpen] = useState(false)
   const [createOpen, setCreateOpen] = useState(isWizardRoute)
   const [wizardStep, setWizardStep] = useState(0)
@@ -55,9 +65,23 @@ export default function CaptionFoxShell({
         <nav className="flex-1 overflow-y-auto px-3 py-3" aria-label={`${config.label} navigation`}>
           {config.groups.map(group => <div key={group.label} className="mb-4">
             <p className="px-3 pb-1 text-[10px] font-bold uppercase tracking-widest text-slate-500">{group.label}</p>
-            {group.items.map(navItem => <Link key={navItem.id} href={linkFor(navItem.id)} className={cn('mb-0.5 flex items-center justify-between rounded-lg px-3 py-2 text-sm transition-colors', navItem.id === item.id ? 'bg-blue-600 text-white' : 'text-slate-300 hover:bg-slate-800 hover:text-white')}>
-              <span>{navItem.label}</span><span className="text-[10px] opacity-60">{navItem.tabs.length}</span>
-            </Link>)}
+            {group.items.map(navItem => {
+              const routed = navItem.children
+              const href = routed ? `${basePath}/${routed[0].path}` : linkFor(navItem.id)
+              const expanded = navItem.id === item.id && !!routed
+              return <div key={navItem.id}>
+                <Link href={href} className={cn('mb-0.5 flex items-center justify-between rounded-lg px-3 py-2 text-sm transition-colors', navItem.id === item.id ? 'bg-blue-600 text-white' : 'text-slate-300 hover:bg-slate-800 hover:text-white')}>
+                  <span>{navItem.label}</span><span className="text-[10px] opacity-60">{routed ? routed.length : navItem.tabs.length}</span>
+                </Link>
+                {expanded && <div className="mb-1 ml-3 border-l border-slate-800 pl-2">{routed.map(child => {
+                  const childHref = `${basePath}/${child.path}`
+                  // Longest-match wins so /advertising/accounts does not also
+                  // light up the /advertising overview link.
+                  const active = pathname === childHref
+                  return <Link key={child.id} href={childHref} className={cn('block rounded-md px-2.5 py-1.5 text-[13px] transition-colors', active ? 'bg-slate-800 font-medium text-white' : 'text-slate-400 hover:text-white')}>{child.label}</Link>
+                })}</div>}
+              </div>
+            })}
           </div>)}
         </nav>
         <div className="border-t border-slate-800 p-3"><Link href={linkFor('settings')} className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-slate-300 hover:bg-slate-800"><Settings2 size={15} />Settings</Link></div>
@@ -75,11 +99,13 @@ export default function CaptionFoxShell({
         </header>
 
         <main className="mx-auto max-w-7xl p-4 pb-24 sm:p-6 lg:p-8">
+          {children ?? <>
           <nav className="mb-3 flex items-center gap-1 text-xs text-slate-500"><Link href={`/shell/${surface}`} className="hover:text-slate-900">{config.label}</Link><span>/</span><span className="font-medium text-slate-700">{item.label}</span>{path[2] && <><span>/</span><span>{path[2]}</span></>}</nav>
           <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between"><div><div className="mb-2 inline-flex rounded-full bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700">{config.role} view</div><h1 className="text-2xl font-bold tracking-tight">{item.label}</h1><p className="mt-1 max-w-2xl text-sm text-slate-500">{state === 'ready' ? `Structural shell for ${item.label.toLowerCase()}. Tabs, actions, states and related records are represented with local deterministic fixtures.` : `This route demonstrates the ${state} state for this section.`}</p></div><div className="flex gap-2"><button className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm">Export</button><button className="rounded-lg border border-slate-200 bg-white p-2" aria-label="More actions"><MoreHorizontal size={18} /></button></div></div>
 
           <Tabs item={item} active={activeTab} linkFor={linkFor} />
           <ShellContent state={state} item={item} activeTab={activeTab} linkFor={linkFor} detail={isDetail} />
+          </>}
         </main>
       </div>
 

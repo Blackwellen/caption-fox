@@ -1,13 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { enforceAiRateLimit } from '@/lib/ai/rate-limit'
-import { isAiConfigured } from '@/lib/env'
-import Anthropic from '@anthropic-ai/sdk'
-
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+import { azureChat, isAzureAiConfigured } from '@/lib/ai/azure'
 
 export async function POST(req: NextRequest) {
-  if (!isAiConfigured()) {
+  if (!isAzureAiConfigured()) {
     return NextResponse.json({ error: 'AI is not configured on this environment.' }, { status: 503 })
   }
 
@@ -19,13 +16,25 @@ export async function POST(req: NextRequest) {
   if (limited) return limited
 
   const body = await req.json()
-  const { type, platform, tone, topic, brandVoice, count = 3, workspaceId } = body
+  const {
+    type, platform, tone, topic, brandVoice, count = 3, workspaceId,
+    objective, audience, length, format,
+  } = body
 
   if (!type || !topic) {
     return NextResponse.json({ error: 'type and topic required' }, { status: 400 })
   }
 
   const prompts: Record<string, string> = {
+    // The Studio → AI Generate page's free-text "Your prompt" box is passed as
+    // `topic` with type "custom": the user's own words are the prompt.
+    custom: `${topic}
+
+Channel: ${platform ?? 'general social media'}
+Tone: ${tone ?? 'engaging and professional'}
+${objective ? `Objective: ${objective}\n` : ''}${audience ? `Audience: ${audience}\n` : ''}${length ? `Length: ${length}\n` : ''}${format ? `Format: ${format}\n` : ''}${brandVoice ? `Brand voice: ${brandVoice}\n` : ''}
+Return ONLY a JSON array of ${count} distinct string variations, no other text.`,
+
     caption: `Generate ${count} ${platform ?? 'social media'} captions about: "${topic}"
 Tone: ${tone ?? 'engaging and professional'}
 Brand voice: ${brandVoice ?? 'professional, friendly'}
@@ -64,17 +73,21 @@ Format: Return a clear, structured brief in markdown.`,
   const prompt = prompts[type]
   if (!prompt) return NextResponse.json({ error: `Unknown generation type: ${type}` }, { status: 400 })
 
-  const message = await anthropic.messages.create({
-    model: 'claude-haiku-4-5-20251001',
-    max_tokens: 2048,
+  const outcome = await azureChat({
+    model: 'gpt-5.4-mini',
     messages: [{ role: 'user', content: prompt }],
+    maxOutputTokens: 2048,
   })
 
-  const raw = message.content[0].type === 'text' ? message.content[0].text : ''
+  if (!outcome.ok) {
+    return NextResponse.json({ error: outcome.reason }, { status: 502 })
+  }
+
+  const raw = outcome.result.text
 
   // Attempt to parse JSON for array types
   let result: string | unknown = raw
-  if (['caption', 'hook', 'hashtags', 'ideas'].includes(type)) {
+  if (['caption', 'hook', 'hashtags', 'ideas', 'custom'].includes(type)) {
     try {
       const jsonMatch = raw.match(/\[[\s\S]*\]/)
       if (jsonMatch) result = JSON.parse(jsonMatch[0])
@@ -83,21 +96,35 @@ Format: Return a clear, structured brief in markdown.`,
     }
   }
 
-  // Log AI usage
+  const variants = Array.isArray(result) ? result.map(String) : [typeof result === 'string' ? result : JSON.stringify(result)]
+  const batchId = variants.length > 1 || type === 'custom' ? crypto.randomUUID() : null
+
+  // Log AI usage — one row per variant so the outputs list, credit meter and
+  // regeneration-rate stat all reflect what was actually produced.
+  const ids: string[] = []
   try {
-    await supabase.from('ai_generations').insert({
-      user_id: user.id,
-      workspace_id: workspaceId ?? null,
-      type,
-      platform,
-      tone,
-      topic,
-      output: typeof result === 'string' ? result : JSON.stringify(result),
-      prompt_tokens: message.usage.input_tokens,
-      completion_tokens: message.usage.output_tokens,
-      status: 'draft',
-    })
+    const { data: inserted } = await supabase.from('ai_generations').insert(
+      variants.map(text => ({
+        user_id: user.id,
+        workspace_id: workspaceId ?? null,
+        type, platform, tone, topic,
+        channel: platform ?? null,
+        objective: objective ?? null,
+        audience: audience ?? null,
+        model: 'gpt-5.4-mini',
+        output: text,
+        word_count: text.trim().split(/\s+/).filter(Boolean).length,
+        batch_id: batchId,
+        prompt_tokens: Math.round(outcome.result.promptTokens / variants.length),
+        completion_tokens: Math.round(outcome.result.completionTokens / variants.length),
+        status: 'draft',
+      })),
+    ).select('id')
+    for (const row of inserted ?? []) ids.push(row.id)
   } catch { /* non-critical logging */ }
 
-  return NextResponse.json({ result, usage: message.usage })
+  return NextResponse.json({
+    result, variants, ids,
+    usage: { input_tokens: outcome.result.promptTokens, output_tokens: outcome.result.completionTokens },
+  })
 }

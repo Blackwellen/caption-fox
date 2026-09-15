@@ -1,4 +1,5 @@
 import { notFound, redirect } from 'next/navigation'
+import BrandAssetsRoute from '@/components/brand-assets/BrandAssetsRoute'
 import CaptionFoxShell from '@/components/shell/CaptionFoxShell'
 import type { ShellSurface } from '@/lib/shell/caption-fox-shell'
 import { createClient } from '@/lib/supabase/server'
@@ -19,10 +20,25 @@ const surfaceByRoute: Record<string, ShellSurface> = {
 }
 
 /** Canonical type-first routes for Jamahl's seeded workspace and portal demos. */
-export default async function WorkspaceTypeShellPage({ params }: { params: Promise<{ workspaceType: string; path?: string[] }> }) {
+export default async function WorkspaceTypeShellPage({ params, searchParams }: {
+  params: Promise<{ workspaceType: string; path?: string[] }>
+  searchParams: Promise<Record<string, string | string[] | undefined>>
+}) {
   const { workspaceType, path = [] } = await params
   const surface = surfaceByRoute[workspaceType]
   if (!surface) notFound()
+
+  // Brand & Assets is a fully implemented module with its own shell and live
+  // data — it takes over from the structural fixture shell for this subtree.
+  if (path[0] === 'brand' && ['creator', 'business', 'brand', 'agency'].includes(workspaceType)) {
+    return (
+      <BrandAssetsRoute
+        workspaceType={workspaceType}
+        segments={path}
+        searchParams={await searchParams}
+      />
+    )
+  }
 
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()

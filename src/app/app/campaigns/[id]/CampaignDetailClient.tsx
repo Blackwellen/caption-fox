@@ -519,7 +519,7 @@ export default function CampaignDetailClient({ campaign, initialPosts, initialTa
               icon={Video}
               title="No UGC briefs linked"
               description="Create a UGC brief to brief creators on content for this campaign."
-              action={{ label: 'Create UGC Brief', onClick: () => router.push('/app/ugc'), icon: <Plus size={14} /> }}
+              action={{ label: 'Create UGC Brief', onClick: () => router.push('/app/creators/briefs'), icon: <Plus size={14} /> }}
             />
           </div>
         )}

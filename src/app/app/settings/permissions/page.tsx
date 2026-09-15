@@ -122,7 +122,7 @@ export default function PermissionsPage() {
     async function load() {
       setLoading(true)
       const { data: { user } } = await supabase.auth.getUser()
-      if (!user) { router.push('/auth/login'); return }
+      if (!user) { router.push('/login'); return }
 
       const wsRes = await supabase.from('workspace_members')
         .select('workspace_id, role')

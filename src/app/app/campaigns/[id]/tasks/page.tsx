@@ -22,8 +22,8 @@ import type { CampaignTask, Campaign } from '@/types/database'
 type Priority = 'urgent' | 'high' | 'medium' | 'low'
 type TaskStatus = 'todo' | 'in_progress' | 'review' | 'done'
 
-interface TaskWithMeta extends CampaignTask {
-  priority?: Priority
+interface TaskWithMeta extends Omit<CampaignTask, 'priority'> {
+  priority: Priority
   assignee_name?: string | null
 }
 

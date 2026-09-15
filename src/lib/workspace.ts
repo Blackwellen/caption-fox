@@ -32,15 +32,31 @@ export async function getUserWorkspaces(supabase: SupabaseClient, userId: string
   return [...map.values()].sort((a, b) => a.name.localeCompare(b.name))
 }
 
-// The active workspace = cookie preference if still valid, else the first available.
+// The active workspace = cookie preference (this session) if still valid,
+// else the user's durable default_workspace_id (profiles), else the first
+// available workspace.
 export async function getActiveWorkspace(supabase: SupabaseClient, userId: string): Promise<{
   active: WorkspaceLite | null
   workspaces: WorkspaceLite[]
 }> {
   const workspaces = await getUserWorkspaces(supabase, userId)
   if (workspaces.length === 0) return { active: null, workspaces }
+
   const cookieStore = await cookies()
   const preferred = cookieStore.get(ACTIVE_WORKSPACE_COOKIE)?.value
-  const active = workspaces.find(w => w.id === preferred) ?? workspaces[0]
-  return { active, workspaces }
+  if (preferred) {
+    const fromCookie = workspaces.find(w => w.id === preferred)
+    if (fromCookie) return { active: fromCookie, workspaces }
+  }
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('default_workspace_id')
+    .eq('id', userId)
+    .maybeSingle()
+  const fromDefault = profile?.default_workspace_id
+    ? workspaces.find(w => w.id === profile.default_workspace_id)
+    : undefined
+
+  return { active: fromDefault ?? workspaces[0], workspaces }
 }

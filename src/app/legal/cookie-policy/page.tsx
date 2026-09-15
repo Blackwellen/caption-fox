@@ -1,18 +1,12 @@
-import Link from 'next/link'
+import PublicNav from '@/components/marketing/PublicNav'
+import PublicFooter from '@/components/marketing/PublicFooter'
 
 export const metadata = { title: 'Cookie Policy — Caption Fox' }
 
 export default function CookiePolicyPage() {
   return (
     <div className="min-h-screen bg-white">
-      <nav className="sticky top-0 z-50 bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between">
-        <Link href="/" className="font-bold text-slate-900 text-lg">Caption Fox</Link>
-        <div className="flex gap-4">
-          <Link href="/legal/privacy" className="text-sm text-slate-500 hover:text-slate-900">Privacy</Link>
-          <Link href="/legal/terms" className="text-sm text-slate-500 hover:text-slate-900">Terms</Link>
-          <Link href="/login" className="text-sm text-slate-500 hover:text-slate-900">Sign in</Link>
-        </div>
-      </nav>
+      <PublicNav />
 
       <div className="max-w-3xl mx-auto px-4 sm:px-6 py-16">
         <p className="text-sm text-slate-400 mb-2">Last updated: 10 June 2026</p>
@@ -86,6 +80,8 @@ export default function CookiePolicyPage() {
           </section>
         </div>
       </div>
+
+      <PublicFooter />
     </div>
   )
 }

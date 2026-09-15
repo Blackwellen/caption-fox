@@ -57,25 +57,38 @@ export default function OnboardingPage() {
   function toggleGoal(g: string) { setForm(f => ({ ...f, goals: f.goals.includes(g) ? f.goals.filter(x => x !== g) : f.goals.length < 3 ? [...f.goals, g] : f.goals })) }
 
   async function saveWorkspace() {
+    if (saving) return // guard against double-click / double-submit
     setSaving(true)
     setSaveError(null)
     const sb = createClient()
     const { data: { user } } = await sb.auth.getUser()
-    if (!user) { router.push('/login'); return }
+    if (!user) { router.push(`/login?next=${encodeURIComponent('/onboarding')}`); return }
     const slug = form.workspaceName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
     const { data: workspace, error } = await sb
       .from('workspaces')
-      .insert({ name: form.workspaceName, slug: `${slug}-${Date.now()}`, type: form.workspaceType.toLowerCase().replace(' ', '_'), plan: form.plan, owner_id: user.id })
+      .insert({
+        name: form.workspaceName,
+        slug: `${slug}-${Date.now()}`,
+        type: form.workspaceType.toLowerCase().replace(' ', '_'),
+        plan: form.plan,
+        owner_id: user.id,
+        industry: form.industry || null,
+        content_goals: form.goals.length ? form.goals : null,
+        settings: { brand_name: form.brandName || null, tones: form.tones, style_rules: form.styleRules || null, channels: form.channels },
+      })
       .select('id')
       .single()
-    setSaving(false)
     if (error || !workspace) {
+      setSaving(false)
       setSaveError(error?.message ?? 'We couldn’t create your workspace. Please try again.')
       return
     }
     // The on_workspace_created DB trigger adds the owner membership row that all
-    // in-workspace RLS relies on. Remember this workspace as the active one.
+    // in-workspace RLS relies on. Remember this workspace as the active one, and
+    // make it the durable default so the user lands here on future logins too.
     document.cookie = `cf_workspace=${workspace.id}; path=/; max-age=31536000; samesite=lax`
+    await sb.from('profiles').update({ onboarding_completed: true, default_workspace_id: workspace.id }).eq('id', user.id)
+    setSaving(false)
     setSaveError(null)
     next()
   }

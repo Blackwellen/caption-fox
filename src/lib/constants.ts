@@ -87,7 +87,7 @@ export const NAV_ITEMS = [
   { label: 'Calendar', href: '/app/calendar', icon: 'calendar' },
   { label: 'Campaigns', href: '/app/campaigns', icon: 'megaphone' },
   { label: 'Studio', href: '/app/studio', icon: 'wand' },
-  { label: 'UGC', href: '/app/ugc', icon: 'video' },
+  { label: 'Creators and UGC', href: '/app/creators', icon: 'video' },
   { label: 'Inbox', href: '/app/inbox', icon: 'inbox' },
   { label: 'Analytics', href: '/app/analytics', icon: 'bar-chart' },
   { label: 'Settings', href: '/app/settings', icon: 'settings' },

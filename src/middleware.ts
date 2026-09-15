@@ -24,7 +24,7 @@ export async function middleware(request: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser()
   const { pathname } = request.nextUrl
 
-  const authPages = ['/login', '/signup', '/forgot-password', '/mfa']
+  const authPages = ['/login', '/signup', '/forgot-password', '/mfa', '/admin-login', '/affiliates/login', '/affiliates/signup']
 
   // Protect /app/* — redirect to login if unauthenticated
   if (!user && pathname.startsWith('/app')) {
@@ -34,10 +34,12 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(url)
   }
 
-  // Protect /admin/* — redirect to login if unauthenticated
-  if (!user && pathname.startsWith('/admin')) {
+  // Protect /admin/* — redirect to the admin-only sign-in if unauthenticated
+  // (not /login: platform admin, workspace users and affiliates use separate
+  // sign-in pages even though they share one Supabase auth backend).
+  if (!user && pathname.startsWith('/admin') && pathname !== '/admin-login') {
     const url = request.nextUrl.clone()
-    url.pathname = '/login'
+    url.pathname = '/admin-login'
     return NextResponse.redirect(url)
   }
 
@@ -48,8 +50,10 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(url)
   }
 
-  // Redirect authenticated users away from auth pages
-  if (user && authPages.includes(pathname)) {
+  // Redirect authenticated users away from auth pages — except /admin-login,
+  // which stays reachable so a signed-in non-admin can prove they're not one
+  // without first having to sign out.
+  if (user && authPages.includes(pathname) && pathname !== '/admin-login') {
     const url = request.nextUrl.clone()
     url.pathname = '/app/home'
     return NextResponse.redirect(url)

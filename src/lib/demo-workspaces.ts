@@ -194,6 +194,13 @@ export async function ensureDemoWorkspaces(userId: string, email?: string | null
       target_reach: demo.type === 'brand' ? 50000 : 15000,
       tags: ['demo', 'cross-channel', demo.type === 'brand' ? 'launch' : 'always-on'],
       created_by: userId,
+      owner_id: userId,
+      lifecycle_stage: demo.campaignStatus === 'live' ? 'live' : demo.campaignStatus === 'active' ? 'in_progress' : 'planning',
+      priority: 'high',
+      health: 'on_track',
+      progress: demo.campaignStatus === 'live' ? 68 : demo.campaignStatus === 'active' ? 42 : 12,
+      channels: ['instagram', 'tiktok', 'linkedin'],
+      engagements: 24500, reach: 118000, conversions: 640,
     }).select('id').single()
     const campaignId = campaign?.id as string | undefined
     if (!campaignId) continue
@@ -258,6 +265,105 @@ export async function ensureDemoWorkspaces(userId: string, email?: string | null
       usage_rights: 'licensed',
       created_by: userId,
     })
+
+    // Campaign Manager: a small realistic spread across the board/timeline
+    // stages, plus one giveaway, one competition and one template so the
+    // seven Campaigns surfaces are never empty for the demo account.
+    const extraCampaignRows = [
+      { name: `${demo.brand} — Product Teaser`, type: 'product_launch', stage: 'planning', health: 'on_track', progress: 8, priority: 'medium', budget: 6000, spend: 320, start: '2026-08-05', end: '2026-08-25' },
+      { name: `${demo.brand} — Community Spotlight`, type: 'ugc', stage: 'in_review', health: 'on_track', progress: 55, priority: 'medium', budget: 3000, spend: 1650, start: '2026-07-10', end: '2026-08-01' },
+      { name: `${demo.brand} — Autumn Refresh`, type: 'seasonal', stage: 'scheduled', health: 'at_risk', progress: 30, priority: 'high', budget: 9000, spend: 8700, start: '2026-08-20', end: '2026-09-30' },
+      { name: `${demo.brand} — Newsletter Push`, type: 'lead_gen', stage: 'completed', health: 'on_track', progress: 100, priority: 'low', budget: 1500, spend: 1480, start: '2026-06-01', end: '2026-06-30' },
+    ] as const
+    const extraCampaignIds: string[] = []
+    for (const row of extraCampaignRows) {
+      const { data: existing } = await supabase.from('campaigns').select('id').eq('workspace_id', workspaceId).eq('name', row.name).maybeSingle()
+      if (existing?.id) { extraCampaignIds.push(existing.id as string); continue }
+      const { data: created } = await supabase.from('campaigns').insert({
+        workspace_id: workspaceId, brand_id: brandId, name: row.name,
+        description: `Demo campaign covering the ${row.stage.replace('_', ' ')} stage.`,
+        status: 'active', campaign_type: row.type, objective: 'engagement',
+        start_date: row.start, end_date: row.end, budget: row.budget, actual_spend: row.spend,
+        currency: 'GBP', tags: ['demo'], created_by: userId, owner_id: userId,
+        lifecycle_stage: row.stage, priority: row.priority, health: row.health, progress: row.progress,
+        channels: ['instagram', 'facebook'], engagements: Math.round(row.progress * 210), reach: Math.round(row.progress * 900),
+      }).select('id').single()
+      if (created?.id) extraCampaignIds.push(created.id as string)
+    }
+
+    if (extraCampaignIds[0]) {
+      await insertIfMissing(supabase, 'campaign_milestones', { campaign_id: extraCampaignIds[0], title: 'Brief approved' }, {
+        workspace_id: workspaceId, campaign_id: extraCampaignIds[0], title: 'Brief approved',
+        due_date: '2026-08-08', milestone_type: 'brief', status: 'completed', owner_id: userId, created_by: userId,
+        completed_at: '2026-08-07T10:00:00Z',
+      })
+      await insertIfMissing(supabase, 'campaign_milestones', { campaign_id: extraCampaignIds[0], title: 'Launch' }, {
+        workspace_id: workspaceId, campaign_id: extraCampaignIds[0], title: 'Launch',
+        due_date: '2026-08-25', milestone_type: 'launch', status: 'pending', owner_id: userId, created_by: userId,
+      })
+    }
+
+    const { data: existingGiveaway } = await supabase.from('giveaways').select('id').eq('workspace_id', workspaceId).eq('title', `${demo.brand} Summer Giveaway`).maybeSingle()
+    if (!existingGiveaway) {
+      await supabase.from('giveaways').insert({
+        workspace_id: workspaceId, campaign_id: campaignId, brand_id: brandId,
+        title: `${demo.brand} Summer Giveaway`, description: 'Win a full brand bundle from the summer collection.',
+        status: 'active', start_date: '2026-07-01T00:00:00Z', end_date: '2026-08-15T23:59:59Z',
+        platform: 'instagram', prize_title: 'Summer bundle worth £250', prize_value: 250, prize_currency: 'GBP',
+        entry_methods: ['follow', 'like', 'comment'], entry_hashtag: '#SummerWithUs', max_entries_per_person: 1,
+        winner_count: 1, winner_selection: 'random', total_entries: 1842, total_unique_participants: 1560,
+        owner_id: userId, created_by: userId, prize_fulfilment: 'pending', progress: 62, health: 'on_track',
+        channels: ['instagram', 'tiktok'],
+      })
+    }
+
+    const { data: existingCompetition } = await supabase.from('competitions').select('id').eq('workspace_id', workspaceId).eq('title', `${demo.brand} Creator Challenge`).maybeSingle()
+    if (!existingCompetition) {
+      await supabase.from('competitions').insert({
+        workspace_id: workspaceId, campaign_id: campaignId, brand_id: brandId,
+        title: `${demo.brand} Creator Challenge`, description: 'Submit your best short-form video for a chance to be featured.',
+        competition_type: 'video', status: 'judging', start_date: '2026-07-01T00:00:00Z', end_date: '2026-08-10T23:59:59Z',
+        submission_deadline: '2026-08-01T23:59:59Z', prize_title: 'Featured campaign spot + £500', prize_value: 500,
+        judging_type: 'panel', max_submissions_per_person: 1, submission_count: 214, vote_count: 3800,
+        owner_id: userId, created_by: userId, judging_stage: 'review', progress: 48, health: 'on_track',
+        channels: ['tiktok', 'instagram'], engagement_rate: 8.4,
+      })
+    }
+
+    await insertIfMissing(supabase, 'campaign_templates', { workspace_id: workspaceId, name: 'Product launch playbook' }, {
+      workspace_id: workspaceId, name: 'Product launch playbook',
+      description: 'A six-week multi-channel launch structure with brief, teaser, launch and follow-up phases.',
+      category: 'product_launch', template_type: 'multi_channel', status: 'published', usage_count: 4,
+      linked_workflows: 2, channels: ['instagram', 'tiktok', 'email'], default_budget: 6000, default_duration_days: 42,
+      owner_id: userId, created_by: userId, is_favourite: true,
+    })
+
+    const activityRows = [
+      { action: 'created', entity_type: 'campaign', summary: `created campaign ${demo.campaign}` },
+      { action: 'stage_changed', entity_type: 'campaign', summary: `moved ${demo.campaign} to ${demo.campaignStatus}` },
+      { action: 'entries_imported', entity_type: 'entry', summary: `imported entries for ${demo.brand} Summer Giveaway` },
+    ] as const
+    for (const activity of activityRows) {
+      await insertIfMissing(supabase, 'campaign_activity', { workspace_id: workspaceId, summary: activity.summary }, {
+        workspace_id: workspaceId, actor_id: userId, entity_type: activity.entity_type,
+        action: activity.action, summary: activity.summary, surface: 'campaigns',
+      })
+    }
+
+    // 30 days of metric snapshots so the performance trend chart has real data.
+    const { data: existingMetric } = await supabase.from('campaign_metrics_daily').select('id').eq('workspace_id', workspaceId).limit(1).maybeSingle()
+    if (!existingMetric) {
+      const metricRows = Array.from({ length: 30 }, (_, i) => {
+        const date = new Date(Date.now() - (29 - i) * 86_400_000).toISOString().slice(0, 10)
+        const base = 400 + i * 22
+        return {
+          workspace_id: workspaceId, campaign_id: campaignId, metric_date: date,
+          engagements: base + (i % 5) * 30, reach: base * 4, conversions: Math.round(base / 12),
+          spend: 40 + i * 3,
+        }
+      })
+      await supabase.from('campaign_metrics_daily').insert(metricRows)
+    }
   }
 
   // Supplier data is optional until the marketplace migration has been applied.

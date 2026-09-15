@@ -173,6 +173,7 @@ export interface Database {
           id: string; campaign_id: string; workspace_id: string
           title: string; description: string | null; status: string
           assignee_id: string | null; due_date: string | null
+          priority: string
           created_by: string; created_at: string; updated_at: string
         }
         Insert: Omit<Database['public']['Tables']['campaign_tasks']['Row'], 'id' | 'created_at' | 'updated_at'>
@@ -244,13 +245,53 @@ export interface Database {
       inbox_threads: {
         Row: {
           id: string; workspace_id: string; channel_id: string | null
-          platform: string; thread_type: string; external_id: string | null
-          author_name: string | null; author_handle: string | null
-          status: string; sentiment: string | null; assignee_id: string | null
-          is_important: boolean; created_at: string; updated_at: string
+          external_thread_id: string | null; type: string; platform: string
+          sender_name: string | null; sender_handle: string | null; sender_avatar: string | null
+          content: string | null
+          status: string; sentiment: string | null; assigned_to: string | null
+          is_read: boolean; requires_reply: boolean; external_post_url: string | null
+          created_at: string; updated_at: string
+          priority: string; tags: string[]; is_flagged: boolean; flag_reason: string | null
+          first_response_at: string | null; resolved_at: string | null
+          sla_target_minutes: number; sla_state: string
+          sentiment_source: string; sentiment_confidence: number | null
+          sentiment_overridden_by: string | null; sentiment_overridden_at: string | null
+          related_post_id: string | null; is_demo: boolean
         }
         Insert: Omit<Database['public']['Tables']['inbox_threads']['Row'], 'id' | 'created_at' | 'updated_at'>
         Update: Partial<Database['public']['Tables']['inbox_threads']['Insert']>
+      }
+      inbox_saved_views: {
+        Row: {
+          id: string; workspace_id: string; name: string; description: string | null
+          filters: Json; sort: string; is_pinned: boolean; is_shared: boolean; is_default: boolean
+          usage_count: number; last_used_at: string | null
+          created_by: string | null; created_at: string; updated_at: string
+        }
+        Insert: Omit<Database['public']['Tables']['inbox_saved_views']['Row'], 'id' | 'created_at' | 'updated_at'>
+        Update: Partial<Database['public']['Tables']['inbox_saved_views']['Insert']>
+      }
+      inbox_messages: {
+        Row: {
+          id: string; thread_id: string; workspace_id: string
+          content: string; sender_type: string; sent_by: string | null
+          sent_at: string; approved_by: string | null
+          is_ai_generated: boolean; is_internal_note: boolean
+          provider_message_id: string | null; delivery_status: string
+          failure_reason: string | null; is_demo: boolean
+        }
+        Insert: Omit<Database['public']['Tables']['inbox_messages']['Row'], 'id' | 'sent_at'>
+        Update: Partial<Database['public']['Tables']['inbox_messages']['Insert']>
+      }
+      saved_replies: {
+        Row: {
+          id: string; workspace_id: string; title: string; content: string
+          category: string | null; platforms: string[]
+          created_by: string | null; created_at: string
+          is_shared: boolean; usage_count: number; archived_at: string | null; is_demo: boolean
+        }
+        Insert: Omit<Database['public']['Tables']['saved_replies']['Row'], 'id' | 'created_at'>
+        Update: Partial<Database['public']['Tables']['saved_replies']['Insert']>
       }
       notifications: {
         Row: {
@@ -418,6 +459,9 @@ export type UgcBrief = Database['public']['Tables']['ugc_briefs']['Row']
 export type UgcCreator = Database['public']['Tables']['ugc_creators']['Row']
 export type UgcSubmission = Database['public']['Tables']['ugc_submissions']['Row']
 export type InboxThread = Database['public']['Tables']['inbox_threads']['Row']
+export type InboxMessage = Database['public']['Tables']['inbox_messages']['Row']
+export type SavedReply = Database['public']['Tables']['saved_replies']['Row']
+export type InboxSavedView = Database['public']['Tables']['inbox_saved_views']['Row']
 export type Notification = Database['public']['Tables']['notifications']['Row']
 export type AuditLog = Database['public']['Tables']['audit_logs']['Row']
 export type Subscription = Database['public']['Tables']['subscriptions']['Row']

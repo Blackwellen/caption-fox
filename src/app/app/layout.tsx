@@ -23,7 +23,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('full_name, is_platform_admin')
+    .select('full_name, is_platform_admin, default_workspace_id')
     .eq('id', user.id)
     .single()
 
@@ -34,6 +34,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     .select('display_name, verified')
     .eq('user_id', user.id)
     .maybeSingle()
+
+  // A brand-new user has neither a workspace nor a supplier profile yet —
+  // send them into onboarding instead of rendering an empty/broken shell.
+  if (!active && !supplier) redirect('/onboarding')
 
   const { data: notifications } = await supabase
     .from('notifications')
@@ -61,13 +65,16 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           userEmail={user.email ?? null}
           isAdmin={isAdmin}
           notifications={notifications ?? []}
+          workspaceType={active?.type}
+          userId={user.id}
+          defaultWorkspaceId={profile?.default_workspace_id ?? null}
         />
         <main className="flex-1 overflow-y-auto pb-16 lg:pb-0">
           {children}
         </main>
       </div>
       <MobileNav workspaceType={active?.type} />
-      <FoxAIBubble />
+      {active && <FoxAIBubble workspaceId={active.id} userId={user.id} canAssign={!!isAdmin || active.role === 'owner' || active.role === 'admin' || active.role === 'manager'} />}
     </div>
   )
 }

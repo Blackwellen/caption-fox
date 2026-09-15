@@ -3,12 +3,25 @@ export type ShellSurface =
   | 'affiliate' | 'publisher' | 'portal-client' | 'portal-creator'
   | 'portal-buyer' | 'public-marketplace' | 'public-link' | 'admin'
 
+/** A real, routed sub-page shown nested under its parent in the sidebar. */
+export type ShellNavChild = {
+  id: string
+  label: string
+  /** Absolute path relative to the workspace base, e.g. "advertising/accounts". */
+  path: string
+}
+
 export type ShellNavItem = {
   id: string
   label: string
   tabs: string[]
   detailTabs?: string[]
   wizard?: string[]
+  /**
+   * Routed children. Present only for modules that have real pages rather than
+   * fixture tabs, so the sidebar never expands into links that do not exist.
+   */
+  children?: ShellNavChild[]
 }
 
 export type ShellGroup = { label: string; items: ShellNavItem[] }
@@ -26,15 +39,35 @@ const campaignDetailTabs = ['Overview', 'Brief', 'Content', 'Tasks', 'Budget', '
 const contentDetailTabs = ['Editor', 'Variants', 'Approvals', 'Schedule', 'Performance', 'Versions', 'Rights']
 const orderDetailTabs = ['Scope', 'Messages', 'Milestones', 'Deliveries', 'Rights', 'Payment', 'Dispute', 'Audit']
 
+/**
+ * Advertising is a real routed module, not a fixture surface, so it declares
+ * routed children. Brand and agency share this single definition — there is one
+ * Advertising implementation, not one per workspace type.
+ */
+const advertisingNavItem: ShellNavItem = {
+  id: 'advertising',
+  label: 'Advertising',
+  tabs: ['Overview', 'Accounts', 'Campaigns', 'Creatives', 'Audiences', 'Reports'],
+  detailTabs: ['Overview', 'Targeting', 'Creatives', 'Budget', 'Placements', 'Results', 'Change log'],
+  children: [
+    { id: 'advertising-overview', label: 'Overview', path: 'advertising' },
+    { id: 'advertising-accounts', label: 'Accounts', path: 'advertising/accounts' },
+    { id: 'advertising-campaigns', label: 'Campaigns', path: 'advertising/campaigns' },
+    { id: 'advertising-creatives', label: 'Creatives', path: 'advertising/creatives' },
+    { id: 'advertising-audiences', label: 'Audiences', path: 'advertising/audiences' },
+    { id: 'advertising-reports', label: 'Reports', path: 'advertising/reports' },
+  ],
+}
+
 const coreCampaignGroups: ShellGroup[] = [
   { label: 'Command', items: [{ id: 'home', label: 'Home', tabs: ['Overview', 'Approvals', 'Ideas'] }] },
   { label: 'Plan', items: [
     { id: 'campaigns', label: 'Campaigns', tabs: ['All campaigns', 'Giveaways', 'Competitions', 'Templates'], detailTabs: campaignDetailTabs, wizard: ['Goal', 'Audience', 'Channels', 'Deliverables', 'Dates', 'Budget', 'Approvals', 'Review'] },
-    { id: 'calendar', label: 'Calendar', tabs: ['Calendar', 'Publishing Queue'], detailTabs: ['Content', 'Channel variants', 'Approval', 'Delivery log', 'History'], wizard: ['Channel', 'Variant', 'Date and time', 'Compliance', 'Preview', 'Queue'] },
+    { id: 'calendar', label: 'Calendar', tabs: ['Calendar', 'Publishing Queue', 'Agenda', 'Conflicts'], detailTabs: ['Content', 'Channel variants', 'Approval', 'Delivery log', 'History'], wizard: ['Channel', 'Variant', 'Date and time', 'Compliance', 'Preview', 'Queue'] },
   ] },
   { label: 'Create', items: [
     { id: 'studio', label: 'Studio', tabs: ['Compose', 'AI Generate', 'Ideas', 'Templates', 'Hashtags', 'Media Library'], detailTabs: contentDetailTabs, wizard: ['Format', 'Brief', 'Create or import', 'Edit', 'Brand and rights', 'Approval', 'Save'] },
-    { id: 'links', label: 'Link in Bio', tabs: ['Pages', 'Links', 'Themes', 'Analytics'], detailTabs: ['Design', 'Links', 'Products', 'Pixels', 'Analytics'], wizard: ['Identity', 'Theme', 'Links', 'Tracking', 'Preview', 'Publish'] },
+    { id: 'links', label: 'Link in Bio', tabs: ['Pages', 'Links', 'Themes', 'Analytics'], detailTabs: ['Design', 'Links', 'Products', 'Forms', 'Pixels', 'Analytics', 'Settings', 'Versions'], wizard: ['Identity', 'Theme', 'Links', 'Tracking', 'Preview', 'Publish'] },
   ] },
   { label: 'Promote', items: [
     { id: 'social', label: 'Social', tabs: ['Publishing', 'Engagement', 'Listening', 'Channel Connections'], detailTabs: ['Overview', 'Posts', 'Audience', 'Scopes', 'Health', 'Logs'], wizard: ['Provider', 'Authenticate', 'Profile', 'Permissions', 'Test', 'Enable'] },
@@ -45,7 +78,7 @@ const coreCampaignGroups: ShellGroup[] = [
   { label: 'Manage', items: [{ id: 'settings', label: 'Settings', tabs: ['Workspace', 'Channels', 'People', 'Billing', 'Account', 'Data and governance'] }] },
 ]
 
-function cloneGroups(groups: ShellGroup[]) { return groups.map(group => ({ ...group, items: group.items.map(item => ({ ...item, tabs: [...item.tabs], detailTabs: item.detailTabs ? [...item.detailTabs] : undefined, wizard: item.wizard ? [...item.wizard] : undefined })) })) }
+function cloneGroups(groups: ShellGroup[]) { return groups.map(group => ({ ...group, items: group.items.map(item => ({ ...item, tabs: [...item.tabs], detailTabs: item.detailTabs ? [...item.detailTabs] : undefined, wizard: item.wizard ? [...item.wizard] : undefined, children: item.children ? item.children.map(child => ({ ...child })) : undefined })) })) }
 
 function insert(groups: ShellGroup[], groupLabel: string, items: ShellNavItem[]) {
   const group = groups.find(item => item.label === groupLabel)
@@ -71,7 +104,7 @@ export const shellConfigs: Record<ShellSurface, ShellConfig> = {
   brand: campaignConfig('Brand workspace', 'Brand marketer', groups => {
     insert(groups, 'Plan', [{ id: 'strategy', label: 'Strategy', tabs: ['Objectives', 'Audiences', 'Research', 'Positioning', 'Plans', 'Forecasts'] }])
     insert(groups, 'Create', [{ id: 'brand', label: 'Brand & Assets', tabs: ['Brand Kits', 'Asset Library', 'Rights', 'Product Library'] }])
-    insert(groups, 'Promote', [{ id: 'advertising', label: 'Advertising', tabs: ['Accounts', 'Campaigns', 'Creatives', 'Audiences', 'Reports'], detailTabs: ['Overview', 'Targeting', 'Creatives', 'Budget', 'Placements', 'Results', 'Change log'] }, { id: 'messaging', label: 'Messaging', tabs: ['Email', 'SMS', 'WhatsApp', 'RCS', 'Push', 'Journeys', 'Templates'] }, { id: 'seo', label: 'SEO & Discovery', tabs: ['Keywords', 'Content Briefs', 'Rankings', 'Local', 'AI Search', 'Backlinks'] }])
+    insert(groups, 'Promote', [advertisingNavItem, { id: 'messaging', label: 'Messaging', tabs: ['Email', 'SMS', 'WhatsApp', 'RCS', 'Push', 'Journeys', 'Templates'] }, { id: 'seo', label: 'SEO & Discovery', tabs: ['Keywords', 'Content Briefs', 'Rankings', 'Local', 'AI Search', 'Backlinks'] }])
     groups.splice(4, 0, { label: 'Collaborate', items: [{ id: 'creators', label: 'Creators & UGC', tabs: ['Creators', 'Briefs', 'Submissions', 'Rights', 'Payments'], detailTabs: ['Profile', 'Campaigns', 'Content', 'Performance', 'Agreements', 'Payments'], wizard: ['Brief', 'Shortlist', 'Rights', 'Deliverables', 'Invite', 'Review'] }, { id: 'partnerships', label: 'Partnerships', tabs: ['Affiliates', 'Referrals', 'Ambassadors', 'Loyalty', 'Resellers', 'Co-marketing'] }, { id: 'reputation', label: 'PR & Reputation', tabs: ['Media Lists', 'Pitches', 'Press Room', 'Coverage', 'Reviews', 'Crisis'] }, { id: 'community', label: 'Community', tabs: ['Communities', 'Calendar', 'Moderation', 'Members', 'Advocacy'] }, { id: 'events', label: 'Events', tabs: ['Events', 'Webinars', 'Podcasts', 'Sponsorships', 'Follow-up'] }] })
     insert(groups, 'Engage', [{ id: 'audiences', label: 'Leads & Audiences', tabs: ['Contacts', 'Segments', 'Consent', 'Scoring', 'Imports'] }])
     insert(groups, 'Measure', [{ id: 'finance', label: 'Finance', tabs: ['Budgets', 'Purchase Orders', 'Costs', 'Invoices', 'Commissions', 'Profitability'] }])
@@ -81,7 +114,7 @@ export const shellConfigs: Record<ShellSurface, ShellConfig> = {
     groups[0].items.push({ id: 'clients', label: 'Clients', tabs: ['All clients', 'Active', 'At risk', 'Archived'], detailTabs: ['Overview', 'Campaigns', 'Approvals', 'Reports', 'Files', 'Access'], wizard: ['Client details', 'Brands', 'Permissions', 'Portal', 'Review'] })
     insert(groups, 'Plan', [{ id: 'strategy', label: 'Strategy', tabs: ['Objectives', 'Audiences', 'Research', 'Positioning', 'Plans', 'Forecasts'] }])
     insert(groups, 'Create', [{ id: 'brand', label: 'Brand & Assets', tabs: ['Brand Kits', 'Asset Library', 'Rights', 'Product Library'] }, { id: 'templates', label: 'Shared Templates', tabs: ['Campaign', 'Content', 'Report', 'Brief'] }])
-    insert(groups, 'Promote', [{ id: 'advertising', label: 'Advertising', tabs: ['Accounts', 'Campaigns', 'Creatives', 'Audiences', 'Reports'] }, { id: 'messaging', label: 'Messaging', tabs: ['Email', 'SMS', 'WhatsApp', 'RCS', 'Push', 'Journeys', 'Templates'] }, { id: 'web', label: 'Web & Conversion', tabs: ['Landing Pages', 'Forms', 'Funnels', 'Experiments', 'Tracking'] }, { id: 'seo', label: 'SEO & Discovery', tabs: ['Keywords', 'Content Briefs', 'Rankings', 'Local', 'AI Search', 'Backlinks'] }])
+    insert(groups, 'Promote', [advertisingNavItem, { id: 'messaging', label: 'Messaging', tabs: ['Email', 'SMS', 'WhatsApp', 'RCS', 'Push', 'Journeys', 'Templates'] }, { id: 'web', label: 'Web & Conversion', tabs: ['Landing Pages', 'Forms', 'Funnels', 'Experiments', 'Tracking'] }, { id: 'seo', label: 'SEO & Discovery', tabs: ['Keywords', 'Content Briefs', 'Rankings', 'Local', 'AI Search', 'Backlinks'] }])
     groups.splice(4, 0, { label: 'Collaborate', items: [{ id: 'creators', label: 'Creators & UGC', tabs: ['Creators', 'Briefs', 'Submissions', 'Rights', 'Payments'] }, { id: 'partnerships', label: 'Partnerships', tabs: ['Affiliates', 'Referrals', 'Ambassadors', 'Loyalty', 'Resellers', 'Co-marketing'] }, { id: 'reputation', label: 'PR & Reputation', tabs: ['Media Lists', 'Pitches', 'Press Room', 'Coverage', 'Reviews', 'Crisis'] }, { id: 'community', label: 'Community', tabs: ['Communities', 'Calendar', 'Moderation', 'Members', 'Advocacy'] }, { id: 'events', label: 'Events', tabs: ['Events', 'Webinars', 'Podcasts', 'Sponsorships', 'Follow-up'] }] })
     insert(groups, 'Engage', [{ id: 'audiences', label: 'Leads & Audiences', tabs: ['Contacts', 'Segments', 'Consent', 'Scoring', 'Imports'] }, { id: 'client-approvals', label: 'Client Approvals', tabs: ['Pending', 'Approved', 'Changes requested'] }])
     insert(groups, 'Measure', [{ id: 'finance', label: 'Finance', tabs: ['Budgets', 'Purchase Orders', 'Costs', 'Invoices', 'Commissions', 'Profitability'] }, { id: 'client-reports', label: 'Client Reports', tabs: ['Scheduled', 'Shared', 'Drafts'] }])

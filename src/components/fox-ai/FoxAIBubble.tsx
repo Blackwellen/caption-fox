@@ -1,108 +1,62 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
+import { useState } from 'react'
 import Image from 'next/image'
-import { X, Send, Sparkles, Pencil, Inbox, CheckSquare, AlertTriangle, RotateCcw, ChevronDown } from 'lucide-react'
+import { X, Sparkles, Pencil, Inbox, CheckSquare, AlertTriangle, Image as ImageIcon, Bot, Users2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { createClient } from '@/lib/supabase/client'
+import { CopilotTab } from './tabs/CopilotTab'
+import { CreateTab } from './tabs/CreateTab'
+import { InboxTab } from './tabs/InboxTab'
+import { TasksTab } from './tabs/TasksTab'
+import { AlertsTab } from './tabs/AlertsTab'
+import { MediaTab } from './tabs/MediaTab'
+import { AgentTab } from './tabs/AgentTab'
+import { ContactsTab } from './tabs/ContactsTab'
 
-type BubbleMode = 'copilot' | 'create' | 'inbox' | 'tasks' | 'alerts'
+export type FoxTab = 'copilot' | 'create' | 'inbox' | 'tasks' | 'alerts' | 'media' | 'agent' | 'contacts'
 
-const modes: { id: BubbleMode; label: string; icon: React.ReactNode }[] = [
-  { id: 'copilot', label: 'Copilot',  icon: <Sparkles size={14} /> },
-  { id: 'create',  label: 'Create',   icon: <Pencil size={14} /> },
-  { id: 'inbox',   label: 'Inbox',    icon: <Inbox size={14} /> },
-  { id: 'tasks',   label: 'Tasks',    icon: <CheckSquare size={14} /> },
-  { id: 'alerts',  label: 'Alerts',   icon: <AlertTriangle size={14} /> },
+const TABS: { id: FoxTab; label: string; icon: React.ReactNode }[] = [
+  { id: 'copilot', label: 'Copilot', icon: <Sparkles size={15} /> },
+  { id: 'create', label: 'Create', icon: <Pencil size={15} /> },
+  { id: 'inbox', label: 'Inbox', icon: <Inbox size={15} /> },
+  { id: 'tasks', label: 'Tasks', icon: <CheckSquare size={15} /> },
+  { id: 'alerts', label: 'Alerts', icon: <AlertTriangle size={15} /> },
+  { id: 'media', label: 'Media', icon: <ImageIcon size={15} /> },
+  { id: 'agent', label: 'Agent', icon: <Bot size={15} /> },
+  { id: 'contacts', label: 'Contacts', icon: <Users2 size={15} /> },
 ]
 
-const createSuggestions = [
-  'Generate 10 TikTok hooks',
-  'Write an Instagram caption',
-  'Create a LinkedIn post',
-  'Generate hashtag set',
-  'Write a Reel script',
-  'Repurpose this post',
-]
-
-const copilotSuggestions = [
-  'Summarise this week\'s performance',
-  'What should I post today?',
-  'Find content gaps',
-  'Suggest next campaign ideas',
-  'Review my brand voice',
-]
-
-interface Message {
-  role: 'user' | 'assistant'
-  content: string
-  timestamp: Date
+interface FoxAIBubbleProps {
+  workspaceId: string
+  userId: string
+  canAssign: boolean
 }
 
-export default function FoxAIBubble() {
+export default function FoxAIBubble({ workspaceId, userId, canAssign }: FoxAIBubbleProps) {
   const [open, setOpen] = useState(false)
-  const [mode, setMode] = useState<BubbleMode>('copilot')
-  const [input, setInput] = useState('')
-  const [messages, setMessages] = useState<Message[]>([])
-  const [loading, setLoading] = useState(false)
-  const [alertCount] = useState(0)
-  const messagesEndRef = useRef<HTMLDivElement>(null)
+  const [tab, setTab] = useState<FoxTab>('copilot')
+  const [alertCount, setAlertCount] = useState(0)
+  const [activeThreadId, setActiveThreadId] = useState<string | null>(null)
 
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages])
-
-  async function handleSend() {
-    if (!input.trim() || loading) return
-    const userMsg: Message = { role: 'user', content: input.trim(), timestamp: new Date() }
-    const history = [...messages, userMsg]
-    setMessages(history)
-    setInput('')
-    setLoading(true)
-
-    try {
-      const res = await fetch('/api/ai/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        // API expects a `messages` array (role/content) + mode; send recent history for context.
-        body: JSON.stringify({
-          messages: history.slice(-12).map(m => ({ role: m.role, content: m.content })),
-          mode,
-        }),
-      })
-      const data = await res.json().catch(() => ({} as { text?: string; error?: string }))
-      const reply = res.ok
-        ? (data.text ?? 'I couldn\'t process that request. Please try again.')
-        : (data.error === 'Unauthorized'
-            ? 'Please sign in to use Fox AI.'
-            : data.error ?? 'I couldn\'t process that request. Please try again.')
-      setMessages(prev => [...prev, { role: 'assistant', content: reply, timestamp: new Date() }])
-    } catch {
-      setMessages(prev => [...prev, {
-        role: 'assistant',
-        content: 'Something went wrong. Please check your connection and try again.',
-        timestamp: new Date(),
-      }])
-    } finally {
-      setLoading(false)
-    }
+  function openInboxThread(threadId: string) {
+    setActiveThreadId(threadId)
+    setTab('inbox')
   }
-
-  function useSuggestion(s: string) { setInput(s) }
 
   return (
     <>
-      {/* Collapsed bubble */}
+      {/* Collapsed launcher — white background, blue border, fox symbol, no solid fill */}
       {!open && (
         <button
           onClick={() => setOpen(true)}
-          className="fixed bottom-6 right-6 z-50 w-14 h-14 rounded-full bg-fox-gradient shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105 flex items-center justify-center group"
-          aria-label="Open Fox AI"
+          className="fixed bottom-6 right-6 z-50 flex h-14 w-14 items-center justify-center rounded-full border-2 border-blue-500 bg-white shadow-lg transition-all duration-200 hover:scale-105 hover:shadow-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 group"
+          aria-label="Open Fox AI Copilot"
+          title="Fox AI Copilot"
         >
-          <Image src="/caption fox favicon.png" alt="Fox AI" width={32} height={32} className="rounded-lg" />
+          <Image src="/caption fox favicon.png" alt="" width={30} height={30} className="rounded-md transition-transform group-hover:scale-105" />
           {alertCount > 0 && (
-            <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center">
-              {alertCount}
+            <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-xs font-bold text-white">
+              {alertCount > 9 ? '9+' : alertCount}
             </span>
           )}
         </button>
@@ -110,122 +64,53 @@ export default function FoxAIBubble() {
 
       {/* Expanded panel */}
       {open && (
-        <div className="fixed bottom-6 right-6 z-50 w-[420px] max-h-[620px] bg-white rounded-2xl shadow-2xl border border-slate-200 flex flex-col overflow-hidden">
+        <div
+          className="fixed bottom-6 right-6 z-50 flex max-h-[calc(100vh-32px)] w-[min(1040px,calc(100vw-32px))] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl"
+          role="dialog"
+          aria-label="Fox AI Copilot"
+        >
           {/* Header */}
-          <div className="bg-fox-gradient px-4 py-3 flex items-center gap-3">
-            <Image src="/caption fox favicon.png" alt="Fox AI" width={28} height={28} className="rounded-lg" />
-            <div className="flex-1">
-              <p className="text-white font-semibold text-sm">Fox AI Copilot</p>
-              <p className="text-blue-100 text-xs">Your social content assistant</p>
+          <div className="flex items-center gap-3 bg-fox-gradient px-5 py-3.5 shrink-0">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/15">
+              <Image src="/caption fox favicon.png" alt="Fox AI" width={22} height={22} className="rounded" />
             </div>
-            <button onClick={() => setOpen(false)} className="p-1 text-blue-100 hover:text-white transition-colors">
-              <X size={16} />
+            <div className="flex-1">
+              <p className="text-sm font-semibold text-white">Fox AI Copilot</p>
+              <p className="text-xs text-blue-100">Your social content assistant</p>
+            </div>
+            <button onClick={() => setOpen(false)} className="rounded-lg p-1.5 text-blue-100 transition-colors hover:bg-white/10 hover:text-white" aria-label="Close Fox AI Copilot">
+              <X size={18} />
             </button>
           </div>
 
-          {/* Mode tabs */}
-          <div className="flex border-b border-slate-100 px-2 pt-1.5 gap-0.5">
-            {modes.map(m => (
+          {/* Navigation — 8 one-word tabs, single row */}
+          <nav className="flex shrink-0 gap-1 overflow-x-auto border-b border-slate-100 px-3 pt-2" aria-label="Fox AI Copilot sections">
+            {TABS.map(t => (
               <button
-                key={m.id}
-                onClick={() => setMode(m.id)}
+                key={t.id}
+                onClick={() => setTab(t.id)}
                 className={cn(
-                  'flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-t-lg border-b-2 -mb-px transition-all',
-                  mode === m.id
-                    ? 'border-blue-600 text-blue-600'
-                    : 'border-transparent text-slate-500 hover:text-slate-700',
+                  'flex items-center gap-1.5 whitespace-nowrap rounded-t-lg border-b-2 px-3 py-2 text-sm font-medium -mb-px transition-colors',
+                  tab === t.id ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-800',
                 )}
+                aria-current={tab === t.id ? 'page' : undefined}
               >
-                {m.icon}
-                {m.label}
+                {t.icon}
+                {t.label}
               </button>
             ))}
-          </div>
+          </nav>
 
-          {/* Messages */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-3 min-h-0">
-            {messages.length === 0 && (
-              <div className="text-center py-6">
-                <div className="w-12 h-12 rounded-2xl bg-fox-50 flex items-center justify-center mx-auto mb-3">
-                  <Sparkles size={20} className="text-blue-500" />
-                </div>
-                <p className="text-sm font-medium text-slate-700">
-                  {mode === 'copilot' && 'Ask me anything about your content'}
-                  {mode === 'create' && 'Generate captions, hooks, scripts & more'}
-                  {mode === 'inbox' && 'Manage and reply to your messages'}
-                  {mode === 'tasks' && 'View and manage your tasks'}
-                  {mode === 'alerts' && 'No active alerts'}
-                </p>
-                <div className="flex flex-wrap gap-1.5 justify-center mt-4">
-                  {(mode === 'create' ? createSuggestions : copilotSuggestions).map(s => (
-                    <button
-                      key={s}
-                      onClick={() => useSuggestion(s)}
-                      className="px-2.5 py-1 text-xs bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-full transition-colors"
-                    >
-                      {s}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-            {messages.map((msg, i) => (
-              <div key={i} className={cn('flex gap-2', msg.role === 'user' ? 'justify-end' : 'justify-start')}>
-                {msg.role === 'assistant' && (
-                  <div className="w-6 h-6 rounded-full bg-fox-gradient flex items-center justify-center shrink-0 mt-0.5">
-                    <Image src="/caption fox favicon.png" alt="" width={14} height={14} className="rounded" />
-                  </div>
-                )}
-                <div className={cn(
-                  'max-w-[80%] px-3 py-2 rounded-xl text-sm',
-                  msg.role === 'user'
-                    ? 'bg-blue-600 text-white rounded-br-sm'
-                    : 'bg-slate-100 text-slate-800 rounded-bl-sm',
-                )}>
-                  {msg.content}
-                </div>
-              </div>
-            ))}
-            {loading && (
-              <div className="flex gap-2">
-                <div className="w-6 h-6 rounded-full bg-fox-gradient flex items-center justify-center shrink-0">
-                  <Image src="/caption fox favicon.png" alt="" width={14} height={14} className="rounded" />
-                </div>
-                <div className="bg-slate-100 rounded-xl px-3 py-2">
-                  <span className="flex gap-1">
-                    {[0,1,2].map(i => (
-                      <span key={i} className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: `${i * 150}ms` }} />
-                    ))}
-                  </span>
-                </div>
-              </div>
-            )}
-            <div ref={messagesEndRef} />
-          </div>
-
-          {/* Composer */}
-          <div className="p-3 border-t border-slate-100">
-            <div className="flex items-end gap-2">
-              <textarea
-                value={input}
-                onChange={e => setInput(e.target.value)}
-                onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend() } }}
-                placeholder={
-                  mode === 'create' ? 'What would you like to create?' :
-                  mode === 'copilot' ? 'Ask Fox anything…' : 'Type a message…'
-                }
-                rows={2}
-                className="flex-1 resize-none text-sm px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder:text-slate-400"
-              />
-              <button
-                onClick={handleSend}
-                disabled={!input.trim() || loading}
-                className="p-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white rounded-xl transition-colors shrink-0"
-              >
-                <Send size={15} />
-              </button>
-            </div>
-            <p className="text-[10px] text-slate-400 mt-1.5 px-1">Fox AI drafts only — review before publishing.</p>
+          {/* Active tab content */}
+          <div className="min-h-0 flex-1 overflow-y-auto">
+            {tab === 'copilot' && <CopilotTab workspaceId={workspaceId} />}
+            {tab === 'create' && <CreateTab workspaceId={workspaceId} />}
+            {tab === 'inbox' && <InboxTab workspaceId={workspaceId} userId={userId} canAssign={canAssign} initialThreadId={activeThreadId} />}
+            {tab === 'tasks' && <TasksTab workspaceId={workspaceId} userId={userId} />}
+            {tab === 'alerts' && <AlertsTab workspaceId={workspaceId} onCountChange={setAlertCount} />}
+            {tab === 'media' && <MediaTab workspaceId={workspaceId} userId={userId} />}
+            {tab === 'agent' && <AgentTab workspaceId={workspaceId} userId={userId} />}
+            {tab === 'contacts' && <ContactsTab workspaceId={workspaceId} onOpenConversation={openInboxThread} />}
           </div>
         </div>
       )}

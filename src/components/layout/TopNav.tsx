@@ -18,8 +18,8 @@ const quickCreateItems = [
   { label: 'New Campaign',         href: '/app/campaigns?action=new',        icon: Megaphone },
   { label: 'Generate Content Plan',href: '/app/studio?action=plan',          icon: CalendarPlus },
   { label: 'Upload Media',         href: '/app/studio?tab=media&action=upload', icon: Upload },
-  { label: 'New UGC Brief',        href: '/app/ugc?action=new-brief',        icon: Video },
-  { label: 'Add Creator',          href: '/app/ugc?tab=creators&action=add', icon: UserPlus },
+  { label: 'New UGC Brief',        href: '/app/creators/briefs?action=new',  icon: Video },
+  { label: 'Add Creator',          href: '/app/creators/creators?action=new', icon: UserPlus },
   { label: 'Invite Team Member',   href: '/app/settings?tab=team&action=invite', icon: UserPlus },
   { label: 'Create Report',        href: '/app/analytics?action=report',     icon: BarChart2 },
 ]
@@ -46,6 +46,9 @@ interface TopNavProps {
   userEmail?: string | null
   isAdmin?: boolean
   notifications?: NotificationItem[]
+  workspaceType?: string | null
+  userId?: string | null
+  defaultWorkspaceId?: string | null
 }
 
 export default function TopNav({
@@ -58,6 +61,9 @@ export default function TopNav({
   userEmail,
   isAdmin,
   notifications = [],
+  workspaceType,
+  userId,
+  defaultWorkspaceId,
 }: TopNavProps) {
   const createItems = variant === 'supplier' ? supplierCreateItems : quickCreateItems
   const [quickOpen, setQuickOpen] = useState(false)
@@ -77,10 +83,10 @@ export default function TopNav({
 
   return (
     <header className="h-14 bg-white border-b border-slate-200 flex items-center px-5 gap-3 shrink-0 z-10 relative">
-      <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
+      <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} workspaceType={workspaceType} />
 
       {/* Workspace switcher */}
-      <WorkspaceSwitcher workspaces={workspaces} activeId={activeWorkspaceId} supplier={supplier} supplierActive={supplierActive} />
+      <WorkspaceSwitcher workspaces={workspaces} activeId={activeWorkspaceId} supplier={supplier} supplierActive={supplierActive} userId={userId} defaultWorkspaceId={defaultWorkspaceId} />
 
       {/* Search → command palette */}
       <div className="flex-1 max-w-md">

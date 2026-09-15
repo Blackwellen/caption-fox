@@ -4,6 +4,8 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { Mail, MessageCircle, Clock } from 'lucide-react'
+import PublicNav from '@/components/marketing/PublicNav'
+import PublicFooter from '@/components/marketing/PublicFooter'
 
 export default function ContactPage() {
   const [form, setForm] = useState({ name: '', email: '', subject: '', category: '', message: '' })
@@ -31,14 +33,7 @@ export default function ContactPage() {
 
   return (
     <div className="min-h-screen bg-white">
-      <nav className="sticky top-0 z-50 bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between">
-        <Link href="/" className="font-bold text-slate-900 text-lg">Caption Fox</Link>
-        <div className="flex items-center gap-4">
-          <Link href="/marketplace" className="hidden sm:inline text-sm text-slate-600 hover:text-slate-900">Marketplace</Link>
-          <Link href="/login" className="text-sm text-slate-600 hover:text-slate-900">Sign in</Link>
-          <Link href="/signup" className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition-colors">Get started</Link>
-        </div>
-      </nav>
+      <PublicNav />
 
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-20">
         <div className="text-center mb-14">
@@ -94,6 +89,8 @@ export default function ContactPage() {
           </div>
         </div>
       </div>
+
+      <PublicFooter />
     </div>
   )
 }

@@ -5,18 +5,24 @@ import Image from 'next/image'
 import { usePathname, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { cn } from '@/lib/utils'
+import { workspaceRouteSegment } from '@/lib/workspace-shared'
 import {
   Home, Calendar, Megaphone, Wand2, Video, Inbox, BarChart2, Settings,
   LogOut, ChevronRight, Radio, Link2, Gift, Store, Target, BadgeDollarSign,
   Workflow, Users, Globe2, Mail, FileSearch, LibraryBig,
 } from 'lucide-react'
 
-type NavItem = { label: string; href: string; icon: typeof Home }
+type NavItem = { id: string; label: string; href: string; icon: typeof Home }
 type NavGroup = { group: string | null; items: NavItem[] }
 
+// Sections keyed by stable id, independent of href — some sections (brand,
+// advertising, events) route to the type-first surface (/creator/events) when
+// that's where the real, DB-backed implementation lives, instead of the still
+// -unbuilt /app/* fixture. DO NOT restyle or restructure this sidebar's chrome
+// without reason — only add/remove/rewire entries here as sections come online.
 const workspaceNavAllowlist: Record<string, string[]> = {
-  creator: ['/app/home', '/app/campaigns', '/app/calendar', '/app/studio', '/app/links', '/app/social', '/app/marketplace', '/app/inbox', '/app/analytics', '/app/settings'],
-  small_business: ['/app/home', '/app/strategy', '/app/campaigns', '/app/calendar', '/app/studio', '/app/brand', '/app/links', '/app/social', '/app/messaging', '/app/web', '/app/marketplace', '/app/inbox', '/app/audiences', '/app/analytics', '/app/settings'],
+  creator: ['home', 'campaigns', 'calendar', 'studio', 'links', 'social', 'marketplace', 'partnerships', 'inbox', 'analytics', 'settings'],
+  small_business: ['home', 'strategy', 'campaigns', 'calendar', 'studio', 'brand', 'links', 'social', 'messaging', 'web', 'marketplace', 'partnerships', 'creators', 'inbox', 'audiences', 'analytics', 'settings'],
   brand: [],
   agency: [],
 }
@@ -24,44 +30,47 @@ const workspaceNavAllowlist: Record<string, string[]> = {
 // Existing mature routes and newly route-backed structural shells live in one
 // information architecture. Shell routes are clearly labelled by their page header
 // until their individual data/integration release gates are complete.
-const navGroups: NavGroup[] = [
-  { group: null, items: [{ label: 'Home', href: '/app/home', icon: Home }] },
-  { group: 'Plan', items: [
-    { label: 'Strategy', href: '/app/strategy', icon: Target },
-    { label: 'Campaigns', href: '/app/campaigns', icon: Megaphone },
-    { label: 'Calendar', href: '/app/calendar', icon: Calendar },
-  ] },
-  { group: 'Create', items: [
-    { label: 'Studio', href: '/app/studio', icon: Wand2 },
-    { label: 'Brand & Assets', href: '/app/brand', icon: LibraryBig },
-    { label: 'Link in Bio', href: '/app/links', icon: Link2 },
-  ] },
-  { group: 'Promote', items: [
-    { label: 'Social', href: '/app/social', icon: Radio },
-    { label: 'Advertising', href: '/app/advertising', icon: BadgeDollarSign },
-    { label: 'Messaging', href: '/app/messaging', icon: Mail },
-    { label: 'Web & Conversion', href: '/app/web', icon: Globe2 },
-    { label: 'SEO & Discovery', href: '/app/seo', icon: FileSearch },
-  ] },
-  { group: 'Collaborate', items: [
-    { label: 'Creators & UGC', href: '/app/creators', icon: Video },
-    { label: 'Marketplace', href: '/app/marketplace', icon: Store },
-    { label: 'Partnerships', href: '/app/partnerships', icon: Gift },
-    { label: 'PR & Reputation', href: '/app/reputation', icon: Radio },
-    { label: 'Community', href: '/app/community', icon: Users },
-    { label: 'Events', href: '/app/events', icon: Calendar },
-  ] },
-  { group: 'Engage', items: [
-    { label: 'Inbox', href: '/app/inbox', icon: Inbox },
-    { label: 'Leads & Audiences', href: '/app/audiences', icon: Users },
-  ] },
-  { group: 'Measure', items: [
-    { label: 'Analytics', href: '/app/analytics', icon: BarChart2 },
-    { label: 'Finance', href: '/app/finance', icon: BadgeDollarSign },
-  ] },
-  { group: 'Operate', items: [{ label: 'Automations', href: '/app/automations', icon: Workflow }] },
-  { group: 'Manage', items: [{ label: 'Settings', href: '/app/settings', icon: Settings }] },
-]
+function buildNavGroups(typedBase: string | null): NavGroup[] {
+  const typed = (segment: string, fallback: string) => typedBase ? `${typedBase}/${segment}` : fallback
+  return [
+    { group: null, items: [{ id: 'home', label: 'Home', href: '/app/home', icon: Home }] },
+    { group: 'Plan', items: [
+      { id: 'strategy', label: 'Strategy', href: '/app/strategy', icon: Target },
+      { id: 'campaigns', label: 'Campaigns', href: '/app/campaigns', icon: Megaphone },
+      { id: 'calendar', label: 'Calendar', href: '/app/calendar', icon: Calendar },
+    ] },
+    { group: 'Create', items: [
+      { id: 'studio', label: 'Studio', href: '/app/studio', icon: Wand2 },
+      { id: 'brand', label: 'Brand & Assets', href: typed('brand', '/app/brand'), icon: LibraryBig },
+      { id: 'links', label: 'Link in Bio', href: '/app/links', icon: Link2 },
+    ] },
+    { group: 'Promote', items: [
+      { id: 'social', label: 'Social', href: '/app/social', icon: Radio },
+      { id: 'advertising', label: 'Advertising', href: typed('advertising', '/app/advertising'), icon: BadgeDollarSign },
+      { id: 'messaging', label: 'Messaging', href: '/app/messaging', icon: Mail },
+      { id: 'web', label: 'Web & Conversion', href: '/app/web', icon: Globe2 },
+      { id: 'seo', label: 'SEO & Discovery', href: '/app/seo', icon: FileSearch },
+    ] },
+    { group: 'Collaborate', items: [
+      { id: 'creators', label: 'Creators & UGC', href: '/app/creators', icon: Video },
+      { id: 'marketplace', label: 'Marketplace', href: '/app/marketplace', icon: Store },
+      { id: 'partnerships', label: 'Partnerships', href: '/app/partnerships', icon: Gift },
+      { id: 'reputation', label: 'PR & Reputation', href: '/app/reputation', icon: Radio },
+      { id: 'community', label: 'Community', href: '/app/community', icon: Users },
+      { id: 'events', label: 'Events', href: typed('events', '/app/events'), icon: Calendar },
+    ] },
+    { group: 'Engage', items: [
+      { id: 'inbox', label: 'Inbox', href: '/app/inbox', icon: Inbox },
+      { id: 'audiences', label: 'Leads & Audiences', href: '/app/audiences', icon: Users },
+    ] },
+    { group: 'Measure', items: [
+      { id: 'analytics', label: 'Analytics', href: '/app/analytics', icon: BarChart2 },
+      { id: 'finance', label: 'Finance', href: '/app/finance', icon: BadgeDollarSign },
+    ] },
+    { group: 'Operate', items: [{ id: 'automations', label: 'Automations', href: '/app/automations', icon: Workflow }] },
+    { group: 'Manage', items: [{ id: 'settings', label: 'Settings', href: '/app/settings', icon: Settings }] },
+  ]
+}
 
 interface SidebarProps { userEmail?: string | null; userName?: string | null; isAdmin?: boolean; workspaceType?: string | null }
 
@@ -77,9 +86,11 @@ export default function Sidebar({ userEmail, userName, isAdmin, workspaceType }:
     router.refresh()
   }
 
+  const typedBase = workspaceRouteSegment(workspaceType)
+  const navGroups = buildNavGroups(typedBase)
   const allowlist = workspaceType ? workspaceNavAllowlist[workspaceType] : undefined
   const visibleNavGroups = navGroups
-    .map(group => ({ ...group, items: allowlist?.length ? group.items.filter(item => allowlist.includes(item.href)) : group.items }))
+    .map(group => ({ ...group, items: allowlist?.length ? group.items.filter(item => allowlist.includes(item.id)) : group.items }))
     .filter(group => group.items.length > 0)
 
   return <aside className="hidden h-screen w-[240px] shrink-0 flex-col border-r border-navy-800 bg-navy-900 lg:flex">

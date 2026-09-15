@@ -16,85 +16,13 @@ import {
   Camera,
   AtSign,
   PlayCircle,
-  Star,
-  Menu,
-  X,
+  LayoutGrid,
+  Globe,
+  Target,
 } from 'lucide-react'
-import { useState } from 'react'
 import { cn } from '@/lib/utils'
-
-// ─── Public Nav ───────────────────────────────────────────────────────────────
-
-function PublicNav() {
-  const [open, setOpen] = useState(false)
-
-  return (
-    <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-sm border-b border-slate-200 shadow-sm">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16">
-          {/* Logo */}
-          <Link href="/" className="flex items-center gap-2 shrink-0">
-            <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-              <Sparkles size={16} className="text-white" />
-            </div>
-            <span className="font-bold text-slate-900 text-lg tracking-tight">Caption Fox</span>
-          </Link>
-
-          {/* Desktop nav */}
-            <nav className="hidden md:flex items-center gap-6">
-              <Link href="/" className="text-sm text-slate-500 hover:text-slate-900 transition-colors font-medium">Home</Link>
-              <Link href="/features" className="text-sm text-blue-600 font-semibold border-b-2 border-blue-600 pb-0.5">Features</Link>
-              <Link href="/marketplace" className="text-sm text-slate-500 hover:text-slate-900 transition-colors font-medium">Marketplace</Link>
-              <Link href="/pricing" className="text-sm text-slate-500 hover:text-slate-900 transition-colors font-medium">Pricing</Link>
-            <Link href="/contact" className="text-sm text-slate-500 hover:text-slate-900 transition-colors font-medium">Contact</Link>
-          </nav>
-
-          {/* CTA */}
-          <div className="hidden md:flex items-center gap-3">
-            <Link href="/login" className="text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors">
-              Sign in
-            </Link>
-            <Link
-              href="/register"
-              className="inline-flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors shadow-sm"
-            >
-              Get started <ArrowRight size={14} />
-            </Link>
-          </div>
-
-          {/* Mobile menu toggle */}
-          <button
-            onClick={() => setOpen(o => !o)}
-            className="md:hidden p-2 rounded-lg text-slate-500 hover:bg-slate-100 transition-colors"
-          >
-            {open ? <X size={20} /> : <Menu size={20} />}
-          </button>
-        </div>
-      </div>
-
-      {/* Mobile menu */}
-      {open && (
-        <div className="md:hidden border-t border-slate-200 bg-white px-4 pb-4 space-y-1">
-          {[
-            { href: '/', label: 'Home' },
-            { href: '/features', label: 'Features' },
-            { href: '/marketplace', label: 'Marketplace' },
-            { href: '/pricing', label: 'Pricing' },
-            { href: '/contact', label: 'Contact' },
-          ].map(l => (
-            <Link key={l.href} href={l.href} className="block px-3 py-2 text-sm font-medium text-slate-700 hover:text-blue-600 rounded-lg hover:bg-blue-50 transition-colors">
-              {l.label}
-            </Link>
-          ))}
-          <div className="pt-2 flex flex-col gap-2">
-            <Link href="/login" className="block text-center py-2 text-sm font-medium text-slate-700 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">Sign in</Link>
-            <Link href="/register" className="block text-center py-2 text-sm font-semibold text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors">Get started</Link>
-          </div>
-        </div>
-      )}
-    </header>
-  )
-}
+import PublicNav from '@/components/marketing/PublicNav'
+import PublicFooter from '@/components/marketing/PublicFooter'
 
 // ─── Feature Section ─────────────────────────────────────────────────────────
 
@@ -131,7 +59,7 @@ function FeatureSection({ item }: { item: FeatureItem }) {
       </ul>
       <div>
         <Link
-          href="/register"
+          href="/signup"
           className="inline-flex items-center gap-1.5 text-blue-600 font-semibold text-sm hover:gap-2.5 transition-all"
         >
           Learn more <ArrowRight size={15} />
@@ -596,31 +524,25 @@ const features: FeatureItem[] = [
   },
 ]
 
-// ─── Social Proof Strip ───────────────────────────────────────────────────────
+// ─── Positioning Strip (honest — no fabricated logos/reviews) ─────────────────
 
 function SocialProofStrip() {
-  const logos = [
-    'Lumia Skin', 'FitCore Co.', 'GreenLeaf Media', 'Apex Studios',
-    'NovaWear', 'CloudNine PR', 'Vibe Agency', 'Sparkle Brand',
+  const points = [
+    { icon: <LayoutGrid size={16} />, label: 'Built for brands, creators & agencies' },
+    { icon: <Sparkles size={16} />, label: 'AI-native from the ground up' },
+    { icon: <Globe size={16} />, label: '7 social platforms, one workspace' },
+    { icon: <Target size={16} />, label: 'Campaigns, not just scheduling' },
   ]
   return (
     <div className="bg-slate-50 border-y border-slate-200 py-10">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-        <p className="text-sm font-semibold text-slate-500 uppercase tracking-widest mb-6">
-          Trusted by 500+ brands worldwide
-        </p>
-        <div className="flex flex-wrap justify-center gap-x-8 gap-y-3">
-          {logos.map((l, i) => (
-            <span key={i} className="text-slate-400 font-semibold text-sm hover:text-slate-600 transition-colors">
-              {l}
-            </span>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex flex-wrap items-center justify-center gap-x-10 gap-y-4 text-slate-500">
+          {points.map((item) => (
+            <div key={item.label} className="flex items-center gap-2 text-sm font-medium">
+              <span className="text-blue-600">{item.icon}</span>
+              {item.label}
+            </div>
           ))}
-        </div>
-        <div className="flex items-center justify-center gap-1 mt-6">
-          {Array.from({ length: 5 }).map((_, i) => (
-            <Star key={i} size={16} className="fill-amber-400 text-amber-400" />
-          ))}
-          <span className="text-sm text-slate-600 ml-2 font-medium">4.9 / 5 from 200+ reviews</span>
         </div>
       </div>
     </div>
@@ -651,7 +573,7 @@ function CTASection() {
         </p>
         <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3">
           <Link
-            href="/register"
+            href="/signup"
             className="inline-flex items-center gap-2 bg-white text-blue-700 font-bold text-sm px-6 py-3 rounded-xl hover:bg-blue-50 transition-colors shadow-lg"
           >
             Start for free <ArrowRight size={16} />
@@ -665,68 +587,6 @@ function CTASection() {
         </div>
       </div>
     </section>
-  )
-}
-
-// ─── Public Footer ────────────────────────────────────────────────────────────
-
-function PublicFooter() {
-  const cols = [
-    {
-      heading: 'Product',
-      links: ['Features', 'Pricing', 'Changelog', 'Roadmap', 'Integrations', 'API Docs'],
-    },
-    {
-      heading: 'Company',
-      links: ['About', 'Blog', 'Careers', 'Press Kit', 'Affiliates', 'Contact'],
-    },
-    {
-      heading: 'Legal',
-      links: ['Privacy Policy', 'Terms of Service', 'Cookie Policy', 'GDPR', 'Acceptable Use'],
-    },
-    {
-      heading: 'Support',
-      links: ['Help Center', 'Status Page', 'Community', 'Onboarding', 'Live Chat', 'Feature Requests'],
-    },
-  ]
-
-  return (
-    <footer className="bg-[#0C1A2E] text-slate-400 py-14">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-8 mb-10">
-          {/* Brand */}
-          <div className="col-span-2 md:col-span-1">
-            <div className="flex items-center gap-2 mb-4">
-              <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-                <Sparkles size={16} className="text-white" />
-              </div>
-              <span className="font-bold text-white text-base">Caption Fox</span>
-            </div>
-            <p className="text-sm leading-relaxed text-slate-500 max-w-[200px]">
-              The all-in-one content platform for ambitious brands and teams.
-            </p>
-          </div>
-
-          {cols.map(col => (
-            <div key={col.heading}>
-              <h4 className="text-xs font-semibold text-slate-300 uppercase tracking-widest mb-4">{col.heading}</h4>
-              <ul className="space-y-2.5">
-                {col.links.map(l => (
-                  <li key={l}>
-                    <a href="#" className="text-sm text-slate-500 hover:text-slate-300 transition-colors">{l}</a>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
-        </div>
-
-        <div className="border-t border-slate-800 pt-6 flex flex-col sm:flex-row items-center justify-between gap-3">
-          <p className="text-xs text-slate-600">© 2026 Caption Fox, Inc. All rights reserved.</p>
-          <p className="text-xs text-slate-600">Made with care for content teams everywhere.</p>
-        </div>
-      </div>
-    </footer>
   )
 }
 
@@ -755,7 +615,7 @@ function Hero() {
         </p>
         <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3">
           <Link
-            href="/register"
+            href="/signup"
             className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm px-6 py-3 rounded-xl transition-colors shadow-sm"
           >
             Start free trial <ArrowRight size={16} />

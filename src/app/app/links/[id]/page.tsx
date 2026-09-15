@@ -1,28 +1,28 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import { useEffect, useState, useCallback, useMemo } from 'react'
+import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import {
-  Plus, Edit, Eye, Copy, Trash2, ExternalLink, Link2,
-  Globe, CheckCircle, X, AlignLeft, Image, FileText,
-  Monitor, Smartphone, ToggleLeft, Layout, MoveUp, MoveDown,
-  AlignCenter, Upload, Download,
+  Plus, Edit, Eye, Copy, Trash2, ExternalLink, Link2, Globe, CheckCircle, X,
+  AlignLeft, Image as ImageIcon, FileText, MoveUp, MoveDown, ShoppingBag,
+  ClipboardList, Target, ChevronDown, Rocket, History,
 } from 'lucide-react'
 import {
-  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, Line, CartesianGrid,
+  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
 } from 'recharts'
 import { createClient } from '@/lib/supabase/client'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
 import { Skeleton } from '@/components/ui/Skeleton'
+import { EmptyState } from '@/components/ui/EmptyState'
+import { PublicMicroPageRenderer, type RenderableItem, type RenderablePage } from '@/components/link-in-bio/PublicMicroPageRenderer'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface LinkPage {
   id: string
   workspace_id: string
-  brand_id: string | null
   slug: string
   title: string
   description: string | null
@@ -38,6 +38,15 @@ interface LinkPage {
   total_views: number
   total_clicks: number
   is_active: boolean
+  status: string
+  theme_id: string | null
+  owner_id: string | null
+  published_at: string | null
+  current_version: number
+  seo_title: string | null
+  seo_description: string | null
+  visibility: string
+  tags: string[]
   created_at: string
   updated_at: string
 }
@@ -49,390 +58,99 @@ interface LinkItem {
   item_type: 'link' | 'header' | 'divider' | 'social' | 'video' | 'image' | 'text'
   title: string | null
   url: string | null
-  thumbnail_url: string | null
-  icon: string | null
   sort_order: number
   is_active: boolean
   click_count: number
-  created_at: string
 }
 
-type EditorTab = 'links' | 'appearance' | 'settings' | 'analytics'
-type PreviewMode = 'mobile' | 'desktop'
+interface VersionRow { id: string; version: number; published: boolean; note: string | null; created_at: string }
 
-// ─── Constants ────────────────────────────────────────────────────────────────
+type EditorTab = 'design' | 'links' | 'products' | 'forms' | 'pixels' | 'analytics' | 'settings' | 'versions'
 
-const ITEM_TYPE_LABELS: Record<string, string> = {
-  link: 'Link', header: 'Header', divider: 'Divider',
-  social: 'Social Icons', video: 'Video Embed', image: 'Image', text: 'Text Block',
-}
-
-const ITEM_TYPE_ICONS: Record<string, React.ReactNode> = {
-  link: <Link2 size={13} />, header: <AlignLeft size={13} />, divider: <Layout size={13} />,
-  social: <Globe size={13} />, video: <Eye size={13} />, image: <Image size={13} />, text: <FileText size={13} />,
-}
-
-const BG_PRESETS = [
-  { label: 'Dark Navy', value: '#0C1A2E' },
-  { label: 'Black', value: '#000000' },
-  { label: 'White', value: '#FFFFFF' },
-  { label: 'Purple', value: '#6B21A8' },
-  { label: 'Slate', value: '#1E293B' },
-  { label: 'Teal', value: '#0F766E' },
+const TABS: { id: EditorTab; label: string }[] = [
+  { id: 'design', label: 'Design' },
+  { id: 'links', label: 'Links' },
+  { id: 'products', label: 'Products' },
+  { id: 'forms', label: 'Forms' },
+  { id: 'pixels', label: 'Pixels' },
+  { id: 'analytics', label: 'Analytics' },
+  { id: 'settings', label: 'Settings' },
+  { id: 'versions', label: 'Versions' },
 ]
 
-const GRADIENT_PRESETS = [
-  { label: 'Ocean', value: 'linear-gradient(135deg, #0C1A2E 0%, #1e40af 100%)' },
-  { label: 'Sunset', value: 'linear-gradient(135deg, #7c3aed 0%, #db2777 100%)' },
-  { label: 'Forest', value: 'linear-gradient(135deg, #064e3b 0%, #065f46 100%)' },
-  { label: 'Fire', value: 'linear-gradient(135deg, #991b1b 0%, #ea580c 100%)' },
-]
+const ITEM_TYPE_LABELS: Record<string, string> = { link: 'Link', header: 'Header', divider: 'Divider', social: 'Social Icons', video: 'Video Embed', image: 'Image', text: 'Text Block' }
+const ITEM_TYPE_ICONS: Record<string, React.ReactNode> = { link: <Link2 size={13} />, header: <AlignLeft size={13} />, divider: <FileText size={13} />, social: <Globe size={13} />, video: <Eye size={13} />, image: <ImageIcon size={13} />, text: <FileText size={13} /> }
+const BG_PRESETS = [{ label: 'Dark Navy', value: '#0C1A2E' }, { label: 'Black', value: '#000000' }, { label: 'White', value: '#FFFFFF' }, { label: 'Purple', value: '#6B21A8' }, { label: 'Slate', value: '#1E293B' }, { label: 'Teal', value: '#0F766E' }]
+const GRADIENT_PRESETS = [{ label: 'Ocean', value: 'linear-gradient(135deg, #0C1A2E 0%, #1e40af 100%)' }, { label: 'Sunset', value: 'linear-gradient(135deg, #7c3aed 0%, #db2777 100%)' }, { label: 'Forest', value: 'linear-gradient(135deg, #064e3b 0%, #065f46 100%)' }, { label: 'Fire', value: 'linear-gradient(135deg, #991b1b 0%, #ea580c 100%)' }]
+const FONT_OPTIONS = [{ value: 'inter', label: 'Inter' }, { value: 'poppins', label: 'Poppins' }, { value: 'playfair', label: 'Playfair Display' }, { value: 'mono', label: 'Monospace' }]
 
-const FONT_OPTIONS = [
-  { value: 'inter', label: 'Inter' },
-  { value: 'poppins', label: 'Poppins' },
-  { value: 'playfair', label: 'Playfair Display' },
-  { value: 'mono', label: 'Monospace' },
-]
+function getAppUrl() { return typeof window !== 'undefined' ? window.location.origin : 'https://captionfox.app' }
 
-const FONT_CLASS: Record<string, string> = {
-  inter: 'font-sans', poppins: 'font-sans', playfair: 'font-serif', mono: 'font-mono',
-}
-
-function getAppUrl() {
-  return typeof window !== 'undefined' ? window.location.origin : 'https://captionfox.app'
-}
-
-// ─── Phone Frame Preview ──────────────────────────────────────────────────────
-
-function PhonePreview({ page, items, mode }: { page: LinkPage; items: LinkItem[]; mode: PreviewMode }) {
-  const bgStyle = page.background_type === 'gradient'
-    ? { background: page.background_value }
-    : { backgroundColor: page.background_value }
-
-  const btnRadius = page.button_style === 'pill'
-    ? 'rounded-full'
-    : page.button_style === 'square'
-    ? 'rounded-none'
-    : 'rounded-xl'
-
-  const activeItems = items.filter(i => i.is_active).sort((a, b) => a.sort_order - b.sort_order)
-
-  const inner = (
-    <div className="h-full overflow-y-auto" style={bgStyle}>
-      <div className={cn('flex flex-col items-center px-5 py-8 gap-3 min-h-full', FONT_CLASS[page.font_family ?? 'inter'])}>
-        {/* Avatar */}
-        <div
-          className="w-16 h-16 rounded-full border-2 border-white/30 flex items-center justify-center text-white font-bold text-xl shrink-0"
-          style={{ backgroundColor: page.primary_color }}
-        >
-          {page.avatar_url
-            ? <img src={page.avatar_url} alt={page.title} className="w-full h-full rounded-full object-cover" />
-            : page.title.charAt(0).toUpperCase()
-          }
-        </div>
-
-        {/* Title */}
-        <p className="text-white font-bold text-base text-center">{page.title}</p>
-
-        {/* Description */}
-        {page.description && (
-          <p className="text-white/60 text-xs text-center">{page.description}</p>
-        )}
-
-        {/* Items */}
-        <div className="w-full space-y-2.5 mt-2">
-          {activeItems.map(item => {
-            if (item.item_type === 'divider') {
-              return <div key={item.id} className="w-full h-px bg-white/20" />
-            }
-            if (item.item_type === 'header') {
-              return (
-                <p key={item.id} className="text-white/80 text-xs font-semibold uppercase tracking-wider text-center pt-2">
-                  {item.title}
-                </p>
-              )
-            }
-            if (item.item_type === 'text') {
-              return (
-                <p key={item.id} className="text-white/70 text-xs text-center">
-                  {item.title}
-                </p>
-              )
-            }
-            return (
-              <a
-                key={item.id}
-                href={item.url ?? '#'}
-                target="_blank"
-                rel="noopener noreferrer"
-                className={cn('flex items-center justify-center w-full py-3 text-sm font-semibold text-center transition-opacity hover:opacity-90', btnRadius)}
-                style={{ backgroundColor: page.button_color, color: page.button_text_color }}
-              >
-                {item.title || 'Link'}
-              </a>
-            )
-          })}
-          {activeItems.length === 0 && (
-            <div
-              className={cn('w-full py-3 text-center text-sm font-semibold opacity-40', btnRadius)}
-              style={{ backgroundColor: page.button_color, color: page.button_text_color }}
-            >
-              Your link here
-            </div>
-          )}
-        </div>
-
-        {/* Branding */}
-        {page.show_caption_fox_branding && (
-          <p className="text-white/30 text-xs mt-auto pt-6">Made with Caption Fox</p>
-        )}
-      </div>
-    </div>
-  )
-
-  if (mode === 'desktop') {
-    return (
-      <div className="w-full bg-slate-100 rounded-xl border border-slate-200 overflow-hidden" style={{ minHeight: 520 }}>
-        <div className="flex items-center gap-1.5 px-3 py-2 bg-slate-200 border-b border-slate-300">
-          <div className="w-3 h-3 rounded-full bg-red-400" />
-          <div className="w-3 h-3 rounded-full bg-amber-400" />
-          <div className="w-3 h-3 rounded-full bg-emerald-400" />
-          <div className="flex-1 mx-2 px-3 py-1 bg-white rounded text-xs text-slate-400 text-center">
-            {getAppUrl()}/l/{page.slug}
-          </div>
-        </div>
-        <div className="flex justify-center py-6">
-          <div className="w-80" style={{ minHeight: 460 }}>
-            {inner}
-          </div>
-        </div>
-      </div>
-    )
-  }
-
-  return (
-    <div className="flex justify-center">
-      {/* Phone frame */}
-      <div className="relative w-[260px] shrink-0">
-        <div className="relative bg-slate-900 rounded-[2.5rem] border-4 border-slate-800 shadow-2xl overflow-hidden" style={{ height: 520 }}>
-          {/* Notch */}
-          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-24 h-6 bg-slate-900 rounded-b-2xl z-10" />
-          {/* Screen */}
-          <div className="absolute inset-0 overflow-hidden rounded-[2.2rem]">
-            {inner}
-          </div>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-// ─── Add Item Dropdown ────────────────────────────────────────────────────────
-
-function AddItemDropdown({ onAdd }: { onAdd: (type: LinkItem['item_type']) => void }) {
-  const [open, setOpen] = useState(false)
-  const types: LinkItem['item_type'][] = ['link', 'header', 'divider', 'social', 'video', 'text']
-
-  return (
-    <div className="relative">
-      <button
-        onClick={() => setOpen(!open)}
-        className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-      >
-        <Plus size={14} /> Add Item
-      </button>
-      {open && (
-        <>
-          <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
-          <div className="absolute left-0 top-full mt-1 z-20 bg-white border border-slate-200 rounded-xl shadow-lg py-1 min-w-[160px]">
-            {types.map(t => (
-              <button
-                key={t}
-                onClick={() => { onAdd(t); setOpen(false) }}
-                className="w-full flex items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 text-left"
-              >
-                {ITEM_TYPE_ICONS[t]}
-                {ITEM_TYPE_LABELS[t]}
-              </button>
-            ))}
-          </div>
-        </>
-      )}
-    </div>
-  )
-}
-
-// ─── Inline Item Editor ───────────────────────────────────────────────────────
-
-function ItemEditor({
-  item,
-  onSave,
-  onCancel,
-}: {
-  item: LinkItem
-  onSave: (updates: Partial<LinkItem>) => void
-  onCancel: () => void
-}) {
-  const [title, setTitle] = useState(item.title ?? '')
-  const [url, setUrl] = useState(item.url ?? '')
-  const [icon, setIcon] = useState(item.icon ?? '')
-
-  return (
-    <div className="mt-2 p-3 bg-slate-50 border border-slate-200 rounded-lg space-y-3">
-      {(item.item_type === 'link' || item.item_type === 'social' || item.item_type === 'video') && (
-        <>
-          <div>
-            <label className="block text-xs font-medium text-slate-600 mb-1">Title</label>
-            <input
-              type="text"
-              className="w-full px-2.5 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-900 placeholder:text-slate-400"
-              value={title}
-              onChange={e => setTitle(e.target.value)}
-              placeholder="Link title"
-            />
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-slate-600 mb-1">
-              {item.item_type === 'video' ? 'Embed URL (YouTube/TikTok)' : 'URL'}
-            </label>
-            <input
-              type="url"
-              className="w-full px-2.5 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-900 placeholder:text-slate-400"
-              value={url}
-              onChange={e => setUrl(e.target.value)}
-              placeholder="https://"
-            />
-          </div>
-        </>
-      )}
-      {(item.item_type === 'header' || item.item_type === 'text' || item.item_type === 'divider') && (
-        <div>
-          <label className="block text-xs font-medium text-slate-600 mb-1">
-            {item.item_type === 'header' ? 'Header Text' : item.item_type === 'text' ? 'Text Content' : 'Label (optional)'}
-          </label>
-          <input
-            type="text"
-            className="w-full px-2.5 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-900 placeholder:text-slate-400"
-            value={title}
-            onChange={e => setTitle(e.target.value)}
-            placeholder={item.item_type === 'header' ? 'Section heading…' : item.item_type === 'text' ? 'Your text…' : ''}
-          />
-        </div>
-      )}
-      <div className="flex gap-2 justify-end">
-        <button onClick={onCancel} className="px-3 py-1.5 text-xs font-medium text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50">Cancel</button>
-        <button
-          onClick={() => onSave({ title: title || null, url: url || null, icon: icon || null })}
-          className="px-3 py-1.5 text-xs font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-        >
-          Save
-        </button>
-      </div>
-    </div>
-  )
-}
-
-// ─── Main Page ────────────────────────────────────────────────────────────────
-
-export default function LinkBuilderPage() {
+export default function LinkPageDetail() {
   const params = useParams()
   const router = useRouter()
+  const searchParams = useSearchParams()
   const pageId = params.id as string
 
   const [page, setPage] = useState<LinkPage | null>(null)
   const [items, setItems] = useState<LinkItem[]>([])
+  const [versions, setVersions] = useState<VersionRow[]>([])
+  const [ownerName, setOwnerName] = useState<string>('—')
   const [loading, setLoading] = useState(true)
-  const [tab, setTab] = useState<EditorTab>('links')
-  const [previewMode, setPreviewMode] = useState<PreviewMode>('mobile')
-
-  // Editing item
+  const [tab, setTab] = useState<EditorTab>((searchParams.get('tab') as EditorTab) || 'design')
+  const [publishing, setPublishing] = useState(false)
   const [editingItemId, setEditingItemId] = useState<string | null>(null)
-
-  // Appearance edits (live preview)
-  const [appearance, setAppearance] = useState<Partial<LinkPage>>({})
-  const [savingAppearance, setSavingAppearance] = useState(false)
-
-  // Settings edits
-  const [settings, setSettings] = useState<{ title: string; slug: string; description: string; show_caption_fox_branding: boolean; is_active: boolean }>({
-    title: '', slug: '', description: '', show_caption_fox_branding: true, is_active: true,
-  })
-  const [savingSettings, setSavingSettings] = useState(false)
-  const [settingsError, setSettingsError] = useState<string | null>(null)
-
-  // Toast
+  const [addMenuOpen, setAddMenuOpen] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
 
-  // ── Load page ─────────────────────────────────────────────────────────────
+  function showToast(msg: string) { setToast(msg); setTimeout(() => setToast(null), 3000) }
 
   const loadPage = useCallback(async () => {
     setLoading(true)
-    try {
-      const supabase = createClient()
-      const { data: pg } = await supabase.from('link_pages').select('*').eq('id', pageId).single()
-      const { data: its } = await supabase.from('link_page_items').select('*')
-        .eq('page_id', pageId).order('sort_order', { ascending: true })
-
-      if (pg) {
-        setPage(pg)
-        setAppearance({
-          background_type: pg.background_type,
-          background_value: pg.background_value,
-          primary_color: pg.primary_color,
-          button_style: pg.button_style,
-          button_color: pg.button_color,
-          button_text_color: pg.button_text_color,
-          font_family: pg.font_family,
-        })
-        setSettings({
-          title: pg.title,
-          slug: pg.slug,
-          description: pg.description ?? '',
-          show_caption_fox_branding: pg.show_caption_fox_branding,
-          is_active: pg.is_active,
-        })
-      }
-      setItems(its ?? [])
-    } catch { /* silent */ } finally { setLoading(false) }
+    const supabase = createClient()
+    const { data: pg } = await supabase.from('link_pages').select('*').eq('id', pageId).single()
+    const { data: its } = await supabase.from('link_page_items').select('*').eq('page_id', pageId).order('sort_order', { ascending: true })
+    const { data: vers } = await supabase.from('link_page_versions').select('id, version, published, note, created_at').eq('page_id', pageId).order('version', { ascending: false })
+    if (pg?.owner_id) {
+      const { data: owner } = await supabase.from('profiles').select('full_name, email').eq('id', pg.owner_id).single()
+      setOwnerName(owner?.full_name || owner?.email || '—')
+    }
+    setPage(pg ?? null)
+    setItems(its ?? [])
+    setVersions(vers ?? [])
+    setLoading(false)
   }, [pageId])
 
   useEffect(() => { loadPage() }, [loadPage])
 
-  // ── Computed preview page (merges live appearance edits) ──────────────────
+  const renderPage: RenderablePage | null = page ? {
+    title: page.title, description: page.description, avatar_url: page.avatar_url,
+    background_type: page.background_type, background_value: page.background_value,
+    primary_color: page.primary_color, button_style: page.button_style,
+    button_color: page.button_color, button_text_color: page.button_text_color,
+    font_family: page.font_family, show_caption_fox_branding: page.show_caption_fox_branding,
+  } : null
 
-  const previewPage: LinkPage | null = page ? { ...page, ...appearance } : null
+  const renderItems: RenderableItem[] = items.map(i => ({ id: i.id, item_type: i.item_type, title: i.title, url: i.url, is_active: i.is_active, sort_order: i.sort_order }))
 
-  // ── Add item ──────────────────────────────────────────────────────────────
+  // ── Item CRUD ─────────────────────────────────────────────────────────────
 
   async function addItem(type: LinkItem['item_type']) {
     if (!page) return
+    setAddMenuOpen(false)
     const supabase = createClient()
     const maxOrder = items.length > 0 ? Math.max(...items.map(i => i.sort_order)) + 1 : 0
-    const { data } = await supabase.from('link_page_items').insert({
-      page_id: page.id,
-      workspace_id: page.workspace_id,
-      item_type: type,
-      title: ITEM_TYPE_LABELS[type],
-      url: null,
-      sort_order: maxOrder,
-    }).select().single()
-    if (data) {
-      setItems(prev => [...prev, data])
-      setEditingItemId(data.id)
-    }
+    const { data } = await supabase.from('link_page_items').insert({ page_id: page.id, workspace_id: page.workspace_id, item_type: type, title: ITEM_TYPE_LABELS[type], url: null, sort_order: maxOrder }).select().single()
+    if (data) { setItems(prev => [...prev, data]); setEditingItemId(data.id) }
   }
-
-  // ── Save item edits ───────────────────────────────────────────────────────
 
   async function saveItemEdit(itemId: string, updates: Partial<LinkItem>) {
     const supabase = createClient()
     await supabase.from('link_page_items').update(updates).eq('id', itemId)
     setItems(prev => prev.map(i => i.id === itemId ? { ...i, ...updates } : i))
     setEditingItemId(null)
-    showToast('Item saved')
+    showToast('Block saved')
   }
-
-  // ── Toggle item active ────────────────────────────────────────────────────
 
   async function toggleItem(item: LinkItem) {
     const supabase = createClient()
@@ -440,7 +158,13 @@ export default function LinkBuilderPage() {
     setItems(prev => prev.map(i => i.id === item.id ? { ...i, is_active: !i.is_active } : i))
   }
 
-  // ── Delete item ───────────────────────────────────────────────────────────
+  async function duplicateItem(item: LinkItem) {
+    if (!page) return
+    const supabase = createClient()
+    const maxOrder = items.length > 0 ? Math.max(...items.map(i => i.sort_order)) + 1 : 0
+    const { data } = await supabase.from('link_page_items').insert({ page_id: page.id, workspace_id: page.workspace_id, item_type: item.item_type, title: item.title, url: item.url, sort_order: maxOrder }).select().single()
+    if (data) setItems(prev => [...prev, data])
+  }
 
   async function deleteItem(id: string) {
     const supabase = createClient()
@@ -449,21 +173,15 @@ export default function LinkBuilderPage() {
     if (editingItemId === id) setEditingItemId(null)
   }
 
-  // ── Reorder items ─────────────────────────────────────────────────────────
-
   async function moveItem(id: string, dir: 'up' | 'down') {
     const sorted = [...items].sort((a, b) => a.sort_order - b.sort_order)
     const idx = sorted.findIndex(i => i.id === id)
-    if (idx < 0) return
-    if (dir === 'up' && idx === 0) return
-    if (dir === 'down' && idx === sorted.length - 1) return
-
+    if (idx < 0 || (dir === 'up' && idx === 0) || (dir === 'down' && idx === sorted.length - 1)) return
     const swapIdx = dir === 'up' ? idx - 1 : idx + 1
     const newItems = [...sorted]
     const temp = newItems[idx].sort_order
     newItems[idx] = { ...newItems[idx], sort_order: newItems[swapIdx].sort_order }
     newItems[swapIdx] = { ...newItems[swapIdx], sort_order: temp }
-
     setItems(newItems)
     const supabase = createClient()
     await Promise.all([
@@ -472,65 +190,31 @@ export default function LinkBuilderPage() {
     ])
   }
 
-  // ── Save appearance ───────────────────────────────────────────────────────
+  // ── Publish (creates a version snapshot) ────────────────────────────────
 
-  async function saveAppearance() {
+  async function publishChanges() {
     if (!page) return
-    setSavingAppearance(true)
+    setPublishing(true)
     try {
       const supabase = createClient()
-      await supabase.from('link_pages').update(appearance).eq('id', page.id)
-      setPage(p => p ? { ...p, ...appearance } : p)
-      showToast('Appearance saved')
-    } catch { /* silent */ } finally { setSavingAppearance(false) }
+      const { data: { user } } = await supabase.auth.getUser()
+      const nextVersion = page.current_version + 1
+      const snapshot = { page: { ...page }, items }
+      await supabase.from('link_page_versions').insert({ page_id: page.id, workspace_id: page.workspace_id, version: nextVersion, snapshot, published: true, created_by: user?.id ?? null })
+      const { data: updated } = await supabase.from('link_pages').update({ status: 'published', is_active: true, published_at: new Date().toISOString(), current_version: nextVersion, updated_by: user?.id ?? null }).eq('id', page.id).select().single()
+      if (updated) setPage(updated)
+      setVersions(prev => [{ id: crypto.randomUUID(), version: nextVersion, published: true, note: null, created_at: new Date().toISOString() }, ...prev])
+      showToast('Published!')
+    } catch { showToast('Failed to publish') } finally { setPublishing(false) }
   }
-
-  // ── Save settings ─────────────────────────────────────────────────────────
-
-  async function saveSettings() {
-    if (!page) return
-    if (!settings.title.trim()) { setSettingsError('Title is required'); return }
-    if (!settings.slug.trim()) { setSettingsError('Slug is required'); return }
-    if (!/^[a-z0-9-]+$/.test(settings.slug)) { setSettingsError('Slug: lowercase letters, numbers and hyphens only'); return }
-
-    setSavingSettings(true)
-    setSettingsError(null)
-    try {
-      const supabase = createClient()
-      const { error } = await supabase.from('link_pages').update({
-        title: settings.title,
-        slug: settings.slug,
-        description: settings.description || null,
-        show_caption_fox_branding: settings.show_caption_fox_branding,
-        is_active: settings.is_active,
-      }).eq('id', page.id)
-      if (error) {
-        if (error.code === '23505') throw new Error('That slug is already taken')
-        throw error
-      }
-      setPage(p => p ? { ...p, ...settings, description: settings.description || null } : p)
-      showToast('Settings saved')
-    } catch (e: any) {
-      setSettingsError(e.message ?? 'Failed to save settings')
-    } finally { setSavingSettings(false) }
-  }
-
-  // ── Helpers ───────────────────────────────────────────────────────────────
-
-  function showToast(msg: string) {
-    setToast(msg)
-    setTimeout(() => setToast(null), 3000)
-  }
-
-  // ─────────────────────────────────────────────────────────────────────────
 
   if (loading || !page) {
     return (
       <div className="p-6 max-w-7xl mx-auto space-y-4">
-        <Skeleton className="h-8 w-64" />
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <Skeleton className="h-[600px] w-full rounded-xl" />
-          <Skeleton className="h-[600px] w-full rounded-xl" />
+        <Skeleton className="h-10 w-80" />
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <Skeleton className="h-[500px] w-full rounded-xl lg:col-span-2" />
+          <Skeleton className="h-[500px] w-full rounded-xl" />
         </div>
       </div>
     )
@@ -540,471 +224,365 @@ export default function LinkBuilderPage() {
   const publicUrl = `${getAppUrl()}/l/${page.slug}`
   const ctr = page.total_views > 0 ? ((page.total_clicks / page.total_views) * 100).toFixed(1) : '0.0'
 
-  const TABS: { id: EditorTab; label: string }[] = [
-    { id: 'links', label: 'Links' },
-    { id: 'appearance', label: 'Appearance' },
-    { id: 'settings', label: 'Settings' },
-    { id: 'analytics', label: 'Analytics' },
-  ]
-
   return (
-    <div className="p-6 max-w-7xl mx-auto">
-      {/* Breadcrumb + top actions */}
-      <div className="flex items-center justify-between gap-4 mb-6">
-        <div className="flex items-center gap-2 text-sm">
-          <button onClick={() => router.push('/app/links')} className="text-slate-500 hover:text-blue-600 transition-colors">
-            Link Pages
-          </button>
-          <span className="text-slate-300">/</span>
-          <span className="font-semibold text-slate-900">{page.title}</span>
-          <Badge variant={page.is_active ? 'green' : 'slate'} dot className="ml-1">
-            {page.is_active ? 'Active' : 'Paused'}
-          </Badge>
+    <div className="p-6 max-w-[1600px] mx-auto">
+      {/* Header */}
+      <div className="flex items-start justify-between gap-4 mb-4 flex-wrap">
+        <div>
+          <div className="flex items-center gap-2 text-xs text-slate-400 mb-1">
+            <button onClick={() => router.push('/app/links/library')} className="hover:text-blue-600">Link Library</button>
+            <span>/</span><span className="text-slate-600">{page.title}</span>
+          </div>
+          <h1 className="text-xl font-bold text-slate-900">{page.title}</h1>
+          <div className="flex items-center flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500 mt-1.5">
+            <span className="flex items-center gap-1"><Badge status={page.status}>{page.status}</Badge></span>
+            <span>Owner: {ownerName}</span>
+            <span>Created {new Date(page.created_at).toLocaleDateString('en-GB')}</span>
+            <span>Updated {new Date(page.updated_at).toLocaleDateString('en-GB')}</span>
+            {page.published_at && <span>Published {new Date(page.published_at).toLocaleDateString('en-GB')}</span>}
+            <a href={publicUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-blue-600 hover:underline"><Globe size={11} /> {publicUrl.replace('https://', '')} <ExternalLink size={10} /></a>
+          </div>
         </div>
         <div className="flex items-center gap-2">
-          <button
-            onClick={() => { navigator.clipboard.writeText(publicUrl); showToast('Link copied!') }}
-            className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-slate-700 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
-          >
-            <Copy size={13} /> Copy Link
+          <button onClick={() => { navigator.clipboard.writeText(publicUrl); showToast('Link copied!') }} className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-slate-700 border border-slate-200 rounded-lg hover:bg-slate-50"><Copy size={13} /> Copy link</button>
+          <Button variant="primary" size="sm" icon={<Rocket size={14} />} loading={publishing} onClick={publishChanges}>Publish changes</Button>
+        </div>
+      </div>
+
+      {/* Tab bar */}
+      <div className="flex items-center gap-1 border-b border-slate-200 mb-5 overflow-x-auto">
+        {TABS.map(t => (
+          <button key={t.id} onClick={() => setTab(t.id)} className={cn('px-3 py-2.5 text-sm font-medium border-b-2 -mb-px whitespace-nowrap transition-colors', tab === t.id ? 'text-blue-600 border-blue-600' : 'text-slate-500 border-transparent hover:text-slate-700')}>
+            {t.label}
           </button>
-          <a
-            href={publicUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            <ExternalLink size={13} /> View Live
-          </a>
-        </div>
+        ))}
       </div>
 
-      {/* Main layout: left editor + right preview */}
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] xl:grid-cols-[1fr_360px] gap-6 items-start">
-        {/* ── LEFT: Editor ── */}
-        <div className="space-y-4">
-          {/* Tab bar */}
-          <div className="bg-white rounded-xl border border-slate-200">
-            <div className="flex border-b border-slate-100">
-              {TABS.map(t => (
-                <button
-                  key={t.id}
-                  onClick={() => setTab(t.id)}
-                  className={cn(
-                    'flex-1 py-3 text-sm font-medium transition-colors',
-                    tab === t.id ? 'text-blue-600 border-b-2 border-blue-600' : 'text-slate-500 hover:text-slate-700',
-                  )}
-                >
-                  {t.label}
-                </button>
-              ))}
+      {tab === 'design' && (
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6 items-start">
+          <div className="bg-white rounded-xl border border-slate-200 p-4">
+            <div className="flex items-center justify-between mb-3">
+              <div>
+                <h2 className="text-sm font-semibold text-slate-900">Blocks</h2>
+                <p className="text-xs text-slate-400">Drag order with the arrows to build your page.</p>
+              </div>
+              <div className="relative">
+                <button onClick={() => setAddMenuOpen(o => !o)} className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700"><Plus size={14} /> Add block</button>
+                {addMenuOpen && (
+                  <>
+                    <div className="fixed inset-0 z-10" onClick={() => setAddMenuOpen(false)} />
+                    <div className="absolute right-0 top-full mt-1 z-20 bg-white border border-slate-200 rounded-xl shadow-lg py-1 min-w-[160px]">
+                      {(['link', 'header', 'divider', 'social', 'video', 'text'] as const).map(t => (
+                        <button key={t} onClick={() => addItem(t)} className="w-full flex items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 text-left">{ITEM_TYPE_ICONS[t]} {ITEM_TYPE_LABELS[t]}</button>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
             </div>
 
-            <div className="p-4">
-              {/* ═══ LINKS TAB ═══ */}
-              {tab === 'links' && (
-                <div className="space-y-3">
-                  <AddItemDropdown onAdd={addItem} />
-
-                  {sortedItems.length === 0 ? (
-                    <div className="text-center py-10 text-slate-400">
-                      <Link2 size={28} className="mx-auto mb-2 opacity-40" />
-                      <p className="text-sm">No items yet. Add your first link above.</p>
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      {sortedItems.map((item, idx) => (
-                        <div key={item.id} className="border border-slate-200 rounded-xl overflow-hidden">
-                          {/* Item row */}
-                          <div className={cn('flex items-center gap-3 px-3 py-2.5', !item.is_active && 'opacity-50')}>
-                            {/* Sort arrows */}
-                            <div className="flex flex-col gap-0.5">
-                              <button
-                                onClick={() => moveItem(item.id, 'up')}
-                                disabled={idx === 0}
-                                className="p-0.5 text-slate-300 hover:text-slate-600 disabled:opacity-20 disabled:cursor-not-allowed"
-                              >
-                                <MoveUp size={11} />
-                              </button>
-                              <button
-                                onClick={() => moveItem(item.id, 'down')}
-                                disabled={idx === sortedItems.length - 1}
-                                className="p-0.5 text-slate-300 hover:text-slate-600 disabled:opacity-20 disabled:cursor-not-allowed"
-                              >
-                                <MoveDown size={11} />
-                              </button>
-                            </div>
-
-                            {/* Type icon */}
-                            <span className="text-slate-400 shrink-0">{ITEM_TYPE_ICONS[item.item_type]}</span>
-
-                            {/* Info */}
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm font-medium text-slate-900 truncate">
-                                {item.title || ITEM_TYPE_LABELS[item.item_type]}
-                              </p>
-                              {item.url && (
-                                <p className="text-xs text-slate-400 truncate">{item.url}</p>
-                              )}
-                            </div>
-
-                            {/* Active toggle */}
-                            <button
-                              onClick={() => toggleItem(item)}
-                              className={cn(
-                                'relative w-9 h-5 rounded-full transition-colors shrink-0',
-                                item.is_active ? 'bg-blue-600' : 'bg-slate-200',
-                              )}
-                            >
-                              <span className={cn(
-                                'absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform',
-                                item.is_active ? 'translate-x-4' : 'translate-x-0.5',
-                              )} />
-                            </button>
-
-                            {/* Edit / Delete */}
-                            <button
-                              onClick={() => setEditingItemId(editingItemId === item.id ? null : item.id)}
-                              className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
-                            >
-                              <Edit size={13} />
-                            </button>
-                            <button
-                              onClick={() => deleteItem(item.id)}
-                              className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors"
-                            >
-                              <Trash2 size={13} />
-                            </button>
-                          </div>
-
-                          {/* Inline edit form */}
-                          {editingItemId === item.id && (
-                            <div className="border-t border-slate-100 px-3 pb-3">
-                              <ItemEditor
-                                item={item}
-                                onSave={updates => saveItemEdit(item.id, updates)}
-                                onCancel={() => setEditingItemId(null)}
-                              />
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* ═══ APPEARANCE TAB ═══ */}
-              {tab === 'appearance' && (
-                <div className="space-y-5">
-                  {/* Background type */}
-                  <div>
-                    <label className="block text-xs font-medium text-slate-700 mb-2">Background Type</label>
-                    <div className="flex gap-2">
-                      {(['color', 'gradient'] as const).map(t => (
-                        <button
-                          key={t}
-                          onClick={() => setAppearance(a => ({ ...a, background_type: t }))}
-                          className={cn(
-                            'flex-1 py-2 text-xs font-medium rounded-lg border transition-all capitalize',
-                            appearance.background_type === t ? 'bg-blue-600 text-white border-blue-600' : 'text-slate-600 border-slate-200 hover:border-slate-300',
-                          )}
-                        >{t}</button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Background presets */}
-                  <div>
-                    <label className="block text-xs font-medium text-slate-700 mb-2">
-                      {appearance.background_type === 'gradient' ? 'Gradient' : 'Background Color'}
-                    </label>
-                    <div className="grid grid-cols-4 gap-2">
-                      {(appearance.background_type === 'gradient' ? GRADIENT_PRESETS : BG_PRESETS).map(p => (
-                        <button
-                          key={p.value}
-                          onClick={() => setAppearance(a => ({ ...a, background_value: p.value }))}
-                          className={cn(
-                            'h-9 rounded-lg border-2 transition-all relative overflow-hidden',
-                            appearance.background_value === p.value ? 'border-blue-500' : 'border-transparent',
-                          )}
-                          style={appearance.background_type === 'gradient' ? { background: p.value } : { backgroundColor: p.value }}
-                          title={p.label}
-                        >
-                          {appearance.background_value === p.value && (
-                            <div className="absolute inset-0 flex items-center justify-center">
-                              <CheckCircle size={12} className="text-white drop-shadow" />
-                            </div>
-                          )}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Colors */}
-                  <div className="grid grid-cols-3 gap-3">
-                    {[
-                      { label: 'Primary Color', key: 'primary_color' as const },
-                      { label: 'Button Color', key: 'button_color' as const },
-                      { label: 'Button Text', key: 'button_text_color' as const },
-                    ].map(({ label, key }) => (
-                      <div key={key}>
-                        <label className="block text-xs font-medium text-slate-700 mb-1.5">{label}</label>
-                        <div className="flex items-center gap-2 border border-slate-200 rounded-lg px-2 py-1.5">
-                          <input
-                            type="color"
-                            className="w-5 h-5 rounded cursor-pointer border-0 p-0 shrink-0"
-                            value={(appearance[key] as string) ?? '#000000'}
-                            onChange={e => setAppearance(a => ({ ...a, [key]: e.target.value }))}
-                          />
-                          <span className="text-xs font-mono text-slate-600 truncate">{(appearance[key] as string)}</span>
-                        </div>
+            {sortedItems.length === 0 ? (
+              <EmptyState icon={Link2} compact title="No blocks yet" description="Add your first block to start building this page." />
+            ) : (
+              <div className="space-y-2">
+                {sortedItems.map((item, idx) => (
+                  <div key={item.id} className="border border-slate-200 rounded-xl overflow-hidden">
+                    <div className={cn('flex items-center gap-3 px-3 py-2.5', !item.is_active && 'opacity-50')}>
+                      <div className="flex flex-col gap-0.5">
+                        <button onClick={() => moveItem(item.id, 'up')} disabled={idx === 0} className="p-0.5 text-slate-300 hover:text-slate-600 disabled:opacity-20"><MoveUp size={11} /></button>
+                        <button onClick={() => moveItem(item.id, 'down')} disabled={idx === sortedItems.length - 1} className="p-0.5 text-slate-300 hover:text-slate-600 disabled:opacity-20"><MoveDown size={11} /></button>
                       </div>
-                    ))}
-                  </div>
-
-                  {/* Button style */}
-                  <div>
-                    <label className="block text-xs font-medium text-slate-700 mb-2">Button Style</label>
-                    <div className="flex gap-2">
-                      {(['square', 'rounded', 'pill'] as const).map(s => (
-                        <button
-                          key={s}
-                          onClick={() => setAppearance(a => ({ ...a, button_style: s }))}
-                          className={cn(
-                            'flex-1 py-2 text-xs font-semibold border-2 transition-all capitalize',
-                            s === 'pill' ? 'rounded-full' : s === 'square' ? 'rounded-none' : 'rounded-lg',
-                            appearance.button_style === s ? 'border-blue-600 bg-blue-600 text-white' : 'border-slate-200 text-slate-600 hover:border-slate-300',
-                          )}
-                        >{s}</button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Font */}
-                  <div>
-                    <label className="block text-xs font-medium text-slate-700 mb-1.5">Font Family</label>
-                    <select
-                      className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-900 bg-white"
-                      value={appearance.font_family}
-                      onChange={e => setAppearance(a => ({ ...a, font_family: e.target.value }))}
-                    >
-                      {FONT_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                    </select>
-                  </div>
-
-                  <Button variant="primary" loading={savingAppearance} onClick={saveAppearance}>
-                    Save Appearance
-                  </Button>
-                </div>
-              )}
-
-              {/* ═══ SETTINGS TAB ═══ */}
-              {tab === 'settings' && (
-                <div className="space-y-4">
-                  {settingsError && (
-                    <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
-                      <X size={14} /> {settingsError}
-                    </div>
-                  )}
-                  <div>
-                    <label className="block text-xs font-medium text-slate-700 mb-1.5">Page Title</label>
-                    <input
-                      type="text"
-                      className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-900"
-                      value={settings.title}
-                      onChange={e => setSettings(s => ({ ...s, title: e.target.value }))}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-slate-700 mb-1.5">Slug</label>
-                    <div className="flex items-center border border-slate-200 rounded-lg overflow-hidden focus-within:ring-2 focus-within:ring-blue-500">
-                      <span className="px-3 py-2.5 text-xs text-slate-400 bg-slate-50 border-r border-slate-200 whitespace-nowrap">
-                        {getAppUrl()}/l/
-                      </span>
-                      <input
-                        type="text"
-                        className="flex-1 px-3 py-2.5 text-sm text-slate-900 focus:outline-none"
-                        value={settings.slug}
-                        onChange={e => setSettings(s => ({ ...s, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '') }))}
-                      />
-                    </div>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-slate-700 mb-1.5">Description</label>
-                    <textarea
-                      className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-900 placeholder:text-slate-400 resize-none"
-                      rows={2}
-                      value={settings.description}
-                      onChange={e => setSettings(s => ({ ...s, description: e.target.value }))}
-                    />
-                  </div>
-
-                  {/* Toggles */}
-                  <div className="space-y-3">
-                    {[
-                      { label: 'Show "Made with Caption Fox" branding', key: 'show_caption_fox_branding' as const },
-                      { label: 'Page is active (visible to visitors)', key: 'is_active' as const },
-                    ].map(({ label, key }) => (
-                      <div key={key} className="flex items-center justify-between py-3 border-b border-slate-100 last:border-0">
-                        <span className="text-sm text-slate-700">{label}</span>
-                        <button
-                          onClick={() => setSettings(s => ({ ...s, [key]: !s[key] }))}
-                          className={cn(
-                            'relative w-10 h-5 rounded-full transition-colors',
-                            settings[key] ? 'bg-blue-600' : 'bg-slate-200',
-                          )}
-                        >
-                          <span className={cn(
-                            'absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform',
-                            settings[key] ? 'translate-x-5' : 'translate-x-0.5',
-                          )} />
-                        </button>
+                      <span className="text-slate-400 shrink-0">{ITEM_TYPE_ICONS[item.item_type]}</span>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-slate-900 truncate">{item.title || ITEM_TYPE_LABELS[item.item_type]}</p>
+                        {item.url && <p className="text-xs text-slate-400 truncate">{item.url}</p>}
                       </div>
-                    ))}
+                      {item.item_type === 'link' && item.click_count > 0 && <span className="text-xs text-slate-400 shrink-0">{item.click_count} clicks</span>}
+                      <button onClick={() => toggleItem(item)} className={cn('relative w-9 h-5 rounded-full transition-colors shrink-0', item.is_active ? 'bg-blue-600' : 'bg-slate-200')}>
+                        <span className={cn('absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform', item.is_active ? 'translate-x-4' : 'translate-x-0.5')} />
+                      </button>
+                      <button onClick={() => duplicateItem(item)} className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50"><Copy size={13} /></button>
+                      <button onClick={() => setEditingItemId(editingItemId === item.id ? null : item.id)} className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50"><Edit size={13} /></button>
+                      <button onClick={() => deleteItem(item.id)} className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50"><Trash2 size={13} /></button>
+                    </div>
+                    {editingItemId === item.id && <ItemEditor item={item} onSave={u => saveItemEdit(item.id, u)} onCancel={() => setEditingItemId(null)} />}
                   </div>
+                ))}
+              </div>
+            )}
+          </div>
 
-                  <div className="flex gap-2">
-                    <a
-                      href={publicUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-slate-700 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
-                    >
-                      <ExternalLink size={13} /> View Live Page
-                    </a>
-                    <button
-                      onClick={() => { navigator.clipboard.writeText(publicUrl); showToast('Copied!') }}
-                      className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-slate-700 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
-                    >
-                      <Copy size={13} /> Copy Link
-                    </button>
-                    <Button variant="primary" loading={savingSettings} onClick={saveSettings} className="ml-auto">
-                      Save Settings
-                    </Button>
+          <div className="sticky top-4 space-y-3">
+            <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+              <p className="text-xs font-medium text-slate-500 px-3 pt-3 pb-2">Live preview</p>
+              <div className="flex justify-center pb-4">
+                <div className="relative w-[240px] shrink-0">
+                  <div className="relative bg-slate-900 rounded-[2.3rem] border-4 border-slate-800 shadow-xl overflow-hidden" style={{ height: 480 }}>
+                    <div className="absolute top-0 left-1/2 -translate-x-1/2 w-20 h-5 bg-slate-900 rounded-b-2xl z-10" />
+                    <div className="absolute inset-0 overflow-hidden rounded-[2rem]">
+                      {renderPage && <PublicMicroPageRenderer page={renderPage} items={renderItems} frameless />}
+                    </div>
                   </div>
                 </div>
-              )}
-
-              {/* ═══ ANALYTICS TAB ═══ */}
-              {tab === 'analytics' && (
-                <div className="space-y-5">
-                  {/* KPI row */}
-                  <div className="grid grid-cols-3 gap-3">
-                    {[
-                      { label: 'Total Views', value: page.total_views.toLocaleString(), color: 'text-blue-600' },
-                      { label: 'Total Clicks', value: page.total_clicks.toLocaleString(), color: 'text-emerald-600' },
-                      { label: 'CTR', value: `${ctr}%`, color: 'text-violet-600' },
-                    ].map(k => (
-                      <div key={k.label} className="bg-slate-50 rounded-xl p-3 text-center">
-                        <p className={cn('text-xl font-bold', k.color)}>{k.value}</p>
-                        <p className="text-xs text-slate-500 mt-0.5">{k.label}</p>
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* Clicks per link */}
-                  {sortedItems.filter(i => i.item_type === 'link' && i.click_count > 0).length > 0 ? (
-                    <div>
-                      <h3 className="text-sm font-semibold text-slate-900 mb-3">Clicks Per Link</h3>
-                      <ResponsiveContainer width="100%" height={200}>
-                        <BarChart
-                          data={sortedItems
-                            .filter(i => i.item_type === 'link')
-                            .sort((a, b) => b.click_count - a.click_count)
-                            .map(i => ({ name: (i.title ?? 'Link').slice(0, 20), clicks: i.click_count }))}
-                          margin={{ top: 0, right: 0, left: -20, bottom: 0 }}
-                        >
-                          <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                          <XAxis dataKey="name" tick={{ fontSize: 11 }} />
-                          <YAxis tick={{ fontSize: 11 }} />
-                          <Tooltip />
-                          <Bar dataKey="clicks" fill="#2563EB" radius={[4, 4, 0, 0]} />
-                        </BarChart>
-                      </ResponsiveContainer>
-                    </div>
-                  ) : (
-                    <div className="bg-slate-50 rounded-xl p-4 text-center">
-                      <p className="text-sm text-slate-500">No click data yet. Share your page to start tracking.</p>
-                    </div>
-                  )}
-
-                  {/* Top links table */}
-                  <div>
-                    <h3 className="text-sm font-semibold text-slate-900 mb-3">Link Performance</h3>
-                    <div className="border border-slate-200 rounded-xl overflow-hidden">
-                      <table className="w-full text-sm">
-                        <thead>
-                          <tr className="bg-slate-50 border-b border-slate-100">
-                            <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wide px-3 py-2.5">Link</th>
-                            <th className="text-right text-xs font-semibold text-slate-500 uppercase tracking-wide px-3 py-2.5">Clicks</th>
-                            <th className="text-right text-xs font-semibold text-slate-500 uppercase tracking-wide px-3 py-2.5">CTR</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {sortedItems.filter(i => i.item_type === 'link').map(item => {
-                            const itemCtr = page.total_views > 0 ? ((item.click_count / page.total_views) * 100).toFixed(1) : '0.0'
-                            return (
-                              <tr key={item.id} className="border-b border-slate-100 last:border-0 hover:bg-slate-50">
-                                <td className="px-3 py-2.5 text-slate-700 truncate max-w-[180px]">{item.title ?? 'Link'}</td>
-                                <td className="px-3 py-2.5 text-right font-semibold text-slate-900">{item.click_count}</td>
-                                <td className="px-3 py-2.5 text-right text-slate-500">{itemCtr}%</td>
-                              </tr>
-                            )
-                          })}
-                          {sortedItems.filter(i => i.item_type === 'link').length === 0 && (
-                            <tr>
-                              <td colSpan={3} className="px-3 py-6 text-center text-sm text-slate-400">No links yet</td>
-                            </tr>
-                          )}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-
-                  <p className="text-xs text-slate-400 bg-blue-50 border border-blue-100 rounded-lg px-3 py-2">
-                    Connect full analytics tracking for real-time view data and detailed visitor insights.
-                  </p>
-                </div>
-              )}
+              </div>
             </div>
+            <PageSummaryPanel page={page} versions={versions} />
           </div>
         </div>
+      )}
 
-        {/* ── RIGHT: Phone Preview ── */}
-        <div className="sticky top-4 space-y-3">
-          {/* Preview mode toggle */}
-          <div className="flex items-center justify-between">
-            <p className="text-xs font-medium text-slate-500">Preview</p>
-            <div className="flex gap-1 p-1 bg-slate-100 rounded-lg">
-              {([
-                { mode: 'mobile' as const, icon: <Smartphone size={13} /> },
-                { mode: 'desktop' as const, icon: <Monitor size={13} /> },
-              ]).map(({ mode, icon }) => (
-                <button
-                  key={mode}
-                  onClick={() => setPreviewMode(mode)}
-                  className={cn(
-                    'px-2.5 py-1.5 rounded-md transition-all flex items-center gap-1',
-                    previewMode === mode ? 'bg-white shadow-sm text-slate-900' : 'text-slate-400 hover:text-slate-600',
-                  )}
-                >
-                  {icon}
-                  <span className="text-xs font-medium capitalize">{mode}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-          {previewPage && <PhonePreview page={previewPage} items={items} mode={previewMode} />}
-        </div>
-      </div>
+      {tab === 'links' && <LinksAsListTab items={sortedItems} onToggle={toggleItem} onDelete={deleteItem} onEditTitle={saveItemEdit} />}
+      {tab === 'products' && <NotConnectedTab icon={ShoppingBag} title="Products" description="Connect a product catalogue to feature shoppable items on this page. Not yet connected in this workspace." />}
+      {tab === 'forms' && <NotConnectedTab icon={ClipboardList} title="Forms" description="Connect a lead-capture form to collect emails from visitors. Not yet connected in this workspace." />}
+      {tab === 'pixels' && <NotConnectedTab icon={Target} title="Pixels" description="Connect a tracking pixel (Meta, TikTok, Google) to measure ad performance from this page. Not yet connected in this workspace." />}
+      {tab === 'analytics' && <AnalyticsTab page={page} items={sortedItems} ctr={ctr} />}
+      {tab === 'settings' && <SettingsTab page={page} onSaved={updated => setPage(updated)} publicUrl={publicUrl} showToast={showToast} />}
+      {tab === 'versions' && <VersionsTab versions={versions} currentVersion={page.current_version} />}
 
-      {/* Toast */}
       {toast && (
         <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2 px-4 py-3 bg-slate-900 text-white text-sm font-medium rounded-xl shadow-xl">
-          <CheckCircle size={14} className="text-emerald-400" />
-          {toast}
+          <CheckCircle size={14} className="text-emerald-400" /> {toast}
         </div>
+      )}
+    </div>
+  )
+}
+
+// ─── Sub-panels ───────────────────────────────────────────────────────────────
+
+function PageSummaryPanel({ page, versions }: { page: LinkPage; versions: VersionRow[] }) {
+  const ctr = page.total_views > 0 ? ((page.total_clicks / page.total_views) * 100).toFixed(1) : '0.0'
+  return (
+    <div className="bg-white rounded-xl border border-slate-200 p-4">
+      <h3 className="text-sm font-semibold text-slate-900 mb-3">Page summary</h3>
+      <div className="grid grid-cols-2 gap-3 mb-3">
+        <div><p className="text-xs text-slate-400">Total clicks</p><p className="text-lg font-bold text-slate-900">{page.total_clicks.toLocaleString()}</p></div>
+        <div><p className="text-xs text-slate-400">CTR</p><p className="text-lg font-bold text-slate-900">{ctr}%</p></div>
+      </div>
+      <div className="space-y-1.5 text-xs text-slate-500">
+        <div className="flex justify-between"><span>Version</span><span className="font-medium text-slate-700">v{page.current_version}</span></div>
+        <div className="flex justify-between"><span>Visibility</span><span className="font-medium text-slate-700 capitalize">{page.visibility}</span></div>
+        <div className="flex justify-between"><span>Total versions</span><span className="font-medium text-slate-700">{versions.length}</span></div>
+      </div>
+    </div>
+  )
+}
+
+function ItemEditor({ item, onSave, onCancel }: { item: LinkItem; onSave: (u: Partial<LinkItem>) => void; onCancel: () => void }) {
+  const [title, setTitle] = useState(item.title ?? '')
+  const [url, setUrl] = useState(item.url ?? '')
+  return (
+    <div className="border-t border-slate-100 px-3 pb-3 pt-2 space-y-3">
+      {(item.item_type === 'link' || item.item_type === 'social' || item.item_type === 'video') && (
+        <>
+          <input type="text" className="w-full px-2.5 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-900" value={title} onChange={e => setTitle(e.target.value)} placeholder="Title" />
+          <input type="url" className="w-full px-2.5 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-900" value={url} onChange={e => setUrl(e.target.value)} placeholder="https://" />
+        </>
+      )}
+      {(item.item_type === 'header' || item.item_type === 'text' || item.item_type === 'divider') && (
+        <input type="text" className="w-full px-2.5 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-900" value={title} onChange={e => setTitle(e.target.value)} placeholder={item.item_type === 'header' ? 'Section heading' : 'Text'} />
+      )}
+      <div className="flex gap-2 justify-end">
+        <button onClick={onCancel} className="px-3 py-1.5 text-xs font-medium text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50">Cancel</button>
+        <button onClick={() => onSave({ title: title || null, url: url || null })} className="px-3 py-1.5 text-xs font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700">Save</button>
+      </div>
+    </div>
+  )
+}
+
+function LinksAsListTab({ items, onToggle, onDelete, onEditTitle }: { items: LinkItem[]; onToggle: (i: LinkItem) => void; onDelete: (id: string) => void; onEditTitle: (id: string, u: Partial<LinkItem>) => void }) {
+  const linkItems = items.filter(i => i.item_type === 'link')
+  return (
+    <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+      <div className="px-5 py-3.5 border-b border-slate-100"><h2 className="text-sm font-semibold text-slate-900">Links on this page</h2></div>
+      <table className="w-full text-sm">
+        <thead><tr className="bg-slate-50 border-b border-slate-100">
+          <th className="text-left text-xs font-semibold text-slate-500 uppercase px-4 py-2">Title</th>
+          <th className="text-left text-xs font-semibold text-slate-500 uppercase px-4 py-2">URL</th>
+          <th className="text-right text-xs font-semibold text-slate-500 uppercase px-4 py-2">Clicks</th>
+          <th className="text-right text-xs font-semibold text-slate-500 uppercase px-4 py-2">Active</th>
+          <th className="px-4 py-2" />
+        </tr></thead>
+        <tbody>
+          {linkItems.map(item => (
+            <tr key={item.id} className="border-b border-slate-100 last:border-0 hover:bg-slate-50">
+              <td className="px-4 py-2.5 font-medium text-slate-900">{item.title ?? 'Link'}</td>
+              <td className="px-4 py-2.5 text-slate-500 truncate max-w-[220px]">{item.url}</td>
+              <td className="px-4 py-2.5 text-right font-semibold text-slate-900">{item.click_count}</td>
+              <td className="px-4 py-2.5 text-right">
+                <button onClick={() => onToggle(item)} className={cn('relative w-9 h-5 rounded-full transition-colors inline-block', item.is_active ? 'bg-blue-600' : 'bg-slate-200')}>
+                  <span className={cn('absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform', item.is_active ? 'translate-x-4' : 'translate-x-0.5')} />
+                </button>
+              </td>
+              <td className="px-4 py-2.5 text-right"><button onClick={() => onDelete(item.id)} className="p-1 text-slate-400 hover:text-red-500"><Trash2 size={13} /></button></td>
+            </tr>
+          ))}
+          {linkItems.length === 0 && <tr><td colSpan={5} className="px-4 py-8 text-center text-sm text-slate-400">No links yet — add one from the Design tab.</td></tr>}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
+function NotConnectedTab({ icon: Icon, title, description }: { icon: any; title: string; description: string }) {
+  return (
+    <div className="bg-white rounded-xl border border-slate-200">
+      <EmptyState icon={Icon} title={`${title} isn't connected yet`} description={description} />
+    </div>
+  )
+}
+
+function AnalyticsTab({ page, items, ctr }: { page: LinkPage; items: LinkItem[]; ctr: string }) {
+  const linkItems = items.filter(i => i.item_type === 'link' && i.click_count > 0).sort((a, b) => b.click_count - a.click_count)
+  return (
+    <div className="space-y-5">
+      <div className="grid grid-cols-3 gap-4">
+        {[{ label: 'Total views', value: page.total_views.toLocaleString() }, { label: 'Total clicks', value: page.total_clicks.toLocaleString() }, { label: 'CTR', value: `${ctr}%` }].map(k => (
+          <div key={k.label} className="bg-white rounded-xl border border-slate-200 p-4 text-center"><p className="text-2xl font-bold text-slate-900">{k.value}</p><p className="text-xs text-slate-500 mt-1">{k.label}</p></div>
+        ))}
+      </div>
+      <div className="bg-white rounded-xl border border-slate-200 p-5">
+        <h3 className="text-sm font-semibold text-slate-900 mb-3">Clicks per link</h3>
+        {linkItems.length > 0 ? (
+          <ResponsiveContainer width="100%" height={220}>
+            <BarChart data={linkItems.map(i => ({ name: (i.title ?? 'Link').slice(0, 20), clicks: i.click_count }))} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+              <XAxis dataKey="name" tick={{ fontSize: 11 }} /><YAxis tick={{ fontSize: 11 }} /><Tooltip />
+              <Bar dataKey="clicks" fill="#2563EB" radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        ) : <div className="h-40 flex items-center justify-center text-sm text-slate-400">No click data yet</div>}
+      </div>
+    </div>
+  )
+}
+
+function SettingsTab({ page, onSaved, publicUrl, showToast }: { page: LinkPage; onSaved: (p: LinkPage) => void; publicUrl: string; showToast: (m: string) => void }) {
+  const [form, setForm] = useState({
+    title: page.title, slug: page.slug, description: page.description ?? '',
+    show_caption_fox_branding: page.show_caption_fox_branding, visibility: page.visibility,
+    seo_title: page.seo_title ?? '', seo_description: page.seo_description ?? '',
+    background_type: page.background_type, background_value: page.background_value,
+    primary_color: page.primary_color, button_color: page.button_color, button_text_color: page.button_text_color,
+    button_style: page.button_style, font_family: page.font_family,
+  })
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  async function save() {
+    if (!form.title.trim()) { setError('Title is required'); return }
+    if (!/^[a-z0-9-]+$/.test(form.slug)) { setError('Slug: lowercase letters, numbers and hyphens only'); return }
+    setSaving(true); setError(null)
+    try {
+      const supabase = createClient()
+      const { data, error: err } = await supabase.from('link_pages').update({
+        title: form.title, slug: form.slug, description: form.description || null,
+        show_caption_fox_branding: form.show_caption_fox_branding, visibility: form.visibility,
+        seo_title: form.seo_title || null, seo_description: form.seo_description || null,
+        background_type: form.background_type, background_value: form.background_value,
+        primary_color: form.primary_color, button_color: form.button_color, button_text_color: form.button_text_color,
+        button_style: form.button_style, font_family: form.font_family,
+      }).eq('id', page.id).select().single()
+      if (err) { if (err.code === '23505') throw new Error('That slug is already taken'); throw err }
+      onSaved(data)
+      showToast('Settings saved')
+    } catch (e: any) { setError(e.message ?? 'Failed to save') } finally { setSaving(false) }
+  }
+
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 max-w-4xl">
+      <div className="bg-white rounded-xl border border-slate-200 p-5 space-y-4">
+        <h3 className="text-sm font-semibold text-slate-900">General</h3>
+        {error && <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700"><X size={14} /> {error}</div>}
+        <div>
+          <label className="block text-xs font-medium text-slate-700 mb-1.5">Page title</label>
+          <input type="text" className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-900" value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} />
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-slate-700 mb-1.5">Slug</label>
+          <div className="flex items-center border border-slate-200 rounded-lg overflow-hidden focus-within:ring-2 focus-within:ring-blue-500">
+            <span className="px-3 py-2.5 text-xs text-slate-400 bg-slate-50 border-r border-slate-200 whitespace-nowrap">{getAppUrl()}/l/</span>
+            <input type="text" className="flex-1 px-3 py-2.5 text-sm text-slate-900 focus:outline-none" value={form.slug} onChange={e => setForm(f => ({ ...f, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '') }))} />
+          </div>
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-slate-700 mb-1.5">Description</label>
+          <textarea rows={2} className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-900 resize-none" value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} />
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-slate-700 mb-1.5">Visibility</label>
+          <select className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-lg bg-white text-slate-900" value={form.visibility} onChange={e => setForm(f => ({ ...f, visibility: e.target.value }))}>
+            <option value="public">Public</option>
+            <option value="private">Private (unlisted)</option>
+          </select>
+        </div>
+        <div className="flex items-center justify-between py-2 border-t border-slate-100">
+          <span className="text-sm text-slate-700">Show &quot;Made with Caption Fox&quot;</span>
+          <button onClick={() => setForm(f => ({ ...f, show_caption_fox_branding: !f.show_caption_fox_branding }))} className={cn('relative w-10 h-5 rounded-full transition-colors', form.show_caption_fox_branding ? 'bg-blue-600' : 'bg-slate-200')}>
+            <span className={cn('absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform', form.show_caption_fox_branding ? 'translate-x-5' : 'translate-x-0.5')} />
+          </button>
+        </div>
+      </div>
+
+      <div className="space-y-4">
+        <div className="bg-white rounded-xl border border-slate-200 p-5 space-y-4">
+          <h3 className="text-sm font-semibold text-slate-900">Appearance</h3>
+          <div className="grid grid-cols-3 gap-2">
+            {(form.background_type === 'gradient' ? GRADIENT_PRESETS : BG_PRESETS).map(p => (
+              <button key={p.value} onClick={() => setForm(f => ({ ...f, background_value: p.value }))} className={cn('h-9 rounded-lg border-2', form.background_value === p.value ? 'border-blue-500' : 'border-transparent')} style={form.background_type === 'gradient' ? { background: p.value } : { backgroundColor: p.value }} title={p.label} />
+            ))}
+          </div>
+          <div className="flex gap-2">
+            {(['color', 'gradient'] as const).map(t => <button key={t} onClick={() => setForm(f => ({ ...f, background_type: t }))} className={cn('flex-1 py-1.5 text-xs font-medium rounded-lg border capitalize', form.background_type === t ? 'bg-blue-600 text-white border-blue-600' : 'text-slate-600 border-slate-200')}>{t}</button>)}
+          </div>
+          <div className="grid grid-cols-3 gap-2">
+            {[{ label: 'Primary', key: 'primary_color' as const }, { label: 'Button', key: 'button_color' as const }, { label: 'Btn text', key: 'button_text_color' as const }].map(({ label, key }) => (
+              <div key={key}>
+                <label className="block text-[11px] text-slate-500 mb-1">{label}</label>
+                <input type="color" className="w-full h-8 rounded cursor-pointer border border-slate-200" value={form[key]} onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))} />
+              </div>
+            ))}
+          </div>
+          <select className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg bg-white text-slate-900" value={form.font_family} onChange={e => setForm(f => ({ ...f, font_family: e.target.value }))}>
+            {FONT_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+          </select>
+        </div>
+
+        <div className="bg-white rounded-xl border border-slate-200 p-5 space-y-3">
+          <h3 className="text-sm font-semibold text-slate-900">SEO &amp; sharing</h3>
+          <input type="text" placeholder="SEO title" className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-900" value={form.seo_title} onChange={e => setForm(f => ({ ...f, seo_title: e.target.value }))} />
+          <textarea rows={2} placeholder="SEO description" className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-900 resize-none" value={form.seo_description} onChange={e => setForm(f => ({ ...f, seo_description: e.target.value }))} />
+        </div>
+
+        <Button variant="primary" loading={saving} onClick={save} className="w-full">Save settings</Button>
+      </div>
+    </div>
+  )
+}
+
+function VersionsTab({ versions, currentVersion }: { versions: VersionRow[]; currentVersion: number }) {
+  return (
+    <div className="bg-white rounded-xl border border-slate-200 overflow-hidden max-w-3xl">
+      <div className="px-5 py-3.5 border-b border-slate-100"><h2 className="text-sm font-semibold text-slate-900">Publish history</h2></div>
+      {versions.length === 0 ? (
+        <EmptyState icon={History} compact title="No versions yet" description="Publish your first changes to start version history." />
+      ) : (
+        <table className="w-full text-sm">
+          <thead><tr className="bg-slate-50 border-b border-slate-100">
+            <th className="text-left text-xs font-semibold text-slate-500 uppercase px-4 py-2">Version</th>
+            <th className="text-left text-xs font-semibold text-slate-500 uppercase px-4 py-2">Date</th>
+            <th className="text-right text-xs font-semibold text-slate-500 uppercase px-4 py-2">Status</th>
+          </tr></thead>
+          <tbody>
+            {versions.map(v => (
+              <tr key={v.id} className="border-b border-slate-100 last:border-0">
+                <td className="px-4 py-2.5 font-medium text-slate-900">v{v.version} {v.version === currentVersion && <span className="text-xs text-blue-600 ml-1">(current)</span>}</td>
+                <td className="px-4 py-2.5 text-slate-500">{new Date(v.created_at).toLocaleString('en-GB')}</td>
+                <td className="px-4 py-2.5 text-right"><Badge variant={v.published ? 'green' : 'slate'}>{v.published ? 'Published' : 'Draft snapshot'}</Badge></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       )}
     </div>
   )

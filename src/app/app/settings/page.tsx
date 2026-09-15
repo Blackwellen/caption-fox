@@ -250,7 +250,7 @@ export default function SettingsPage() {
     async function load() {
       setLoading(true)
       const { data: { user } } = await supabase.auth.getUser()
-      if (!user) { router.push('/auth/login'); return }
+      if (!user) { router.push('/login'); return }
       setCurrentUserId(user.id)
 
       const [profileRes, workspaceRes] = await Promise.all([
@@ -1326,7 +1326,7 @@ export default function SettingsPage() {
       setSigningOut(true)
       const { error } = await supabase.auth.signOut({ scope: 'global' })
       if (!error) {
-        router.push('/auth/login')
+        router.push('/login')
       } else {
         showToast(error.message, 'error')
       }
@@ -1408,7 +1408,7 @@ export default function SettingsPage() {
               <Badge variant={mfaEnabled ? 'green' : 'slate'} dot>{mfaEnabled ? 'Enabled' : 'Disabled'}</Badge>
               {mfaEnabled
                 ? <Button size="sm" variant="ghost" className="text-red-500 hover:text-red-700" onClick={() => setDisableMfaModal(true)}>Disable MFA</Button>
-                : <Button size="sm" variant="secondary" icon={<Shield size={13} />} onClick={() => router.push('/auth/mfa')}>Enable MFA</Button>}
+                : <Button size="sm" variant="secondary" icon={<Shield size={13} />} onClick={() => router.push('/mfa')}>Enable MFA</Button>}
             </div>
           </div>
         </section>

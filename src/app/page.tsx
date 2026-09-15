@@ -1,146 +1,87 @@
 'use client'
 
-import Image from 'next/image'
 import Link from 'next/link'
-import { useState } from 'react'
 import {
   Sparkles, Calendar, Megaphone, Users, Inbox, BarChart2,
-  Menu, X, Check, ChevronDown, ChevronUp, ArrowRight, Play,
-  Zap, TrendingUp, MessageSquare, Target, Shield, Globe,
+  Check, ChevronDown, ChevronUp, ArrowRight,
+  Zap, TrendingUp, MessageSquare, Target, Globe, LayoutGrid,
 } from 'lucide-react'
+import PublicNav from '@/components/marketing/PublicNav'
+import PublicFooter from '@/components/marketing/PublicFooter'
 
-/* ─── Public Nav ─────────────────────────────────────────── */
-function PublicNav() {
-  const [open, setOpen] = useState(false)
-
-  return (
-    <header className="sticky top-0 z-50 bg-white/95 backdrop-blur border-b border-slate-100">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16">
-          {/* Logo */}
-          <Link href="/" className="flex items-center gap-2">
-            <Image
-              src="/caption-fox-logo-transparent.png"
-              alt="Caption Fox"
-              width={140}
-              height={32}
-              className="h-8 w-auto"
-              priority
-            />
-          </Link>
-
-          {/* Desktop nav */}
-          <nav className="hidden md:flex items-center gap-8">
-            <Link href="/features" className="text-sm text-slate-600 hover:text-slate-900 font-medium transition-colors">Features</Link>
-            <Link href="/marketplace" className="text-sm text-slate-600 hover:text-slate-900 font-medium transition-colors">Marketplace</Link>
-            <Link href="/pricing" className="text-sm text-slate-600 hover:text-slate-900 font-medium transition-colors">Pricing</Link>
-            <Link href="#use-cases" className="text-sm text-slate-600 hover:text-slate-900 font-medium transition-colors">Use Cases</Link>
-            <Link href="#resources" className="text-sm text-slate-600 hover:text-slate-900 font-medium transition-colors">Resources</Link>
-          </nav>
-
-          {/* Desktop CTAs */}
-          <div className="hidden md:flex items-center gap-3">
-            <Link
-              href="/login"
-              className="text-sm font-medium text-slate-600 hover:text-slate-900 px-4 py-2 rounded-lg hover:bg-slate-50 transition-colors"
-            >
-              Sign in
-            </Link>
-            <Link
-              href="/auth/signup"
-              className="text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg transition-colors shadow-sm"
-            >
-              Start free trial
-            </Link>
-          </div>
-
-          {/* Mobile hamburger */}
-          <button
-            className="md:hidden p-2 text-slate-600 hover:text-slate-900 rounded-lg hover:bg-slate-100"
-            onClick={() => setOpen(!open)}
-            aria-label="Toggle menu"
-          >
-            {open ? <X size={20} /> : <Menu size={20} />}
-          </button>
-        </div>
-
-        {/* Mobile menu */}
-        {open && (
-          <div className="md:hidden border-t border-slate-100 py-4 space-y-1">
-            <Link href="/features" className="block px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 rounded-lg">Features</Link>
-            <Link href="/marketplace" className="block px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 rounded-lg">Marketplace</Link>
-            <Link href="/pricing" className="block px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 rounded-lg">Pricing</Link>
-            <Link href="#use-cases" className="block px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 rounded-lg">Use Cases</Link>
-            <Link href="#resources" className="block px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 rounded-lg">Resources</Link>
-            <div className="pt-3 border-t border-slate-100 flex flex-col gap-2 px-4">
-              <Link href="/login" className="text-center py-2.5 text-sm font-medium text-slate-700 border border-slate-200 rounded-lg hover:bg-slate-50">Sign in</Link>
-              <Link href="/auth/signup" className="text-center py-2.5 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700">Start free trial</Link>
-            </div>
-          </div>
-        )}
-      </div>
-    </header>
-  )
-}
-
-/* ─── Dashboard Mockup ───────────────────────────────────── */
+/* ─── Product visual (premium CSS mockup — no fabricated screenshots) ────── */
 function DashboardMockup() {
   return (
-    <div className="relative w-full max-w-2xl mx-auto rounded-2xl overflow-hidden shadow-2xl border border-slate-200 bg-white">
-      {/* Window bar */}
-      <div className="flex items-center gap-1.5 px-4 py-3 bg-slate-50 border-b border-slate-200">
-        <span className="w-3 h-3 rounded-full bg-red-400" />
-        <span className="w-3 h-3 rounded-full bg-yellow-400" />
-        <span className="w-3 h-3 rounded-full bg-green-400" />
-        <span className="ml-3 text-xs text-slate-400 font-mono">app.captionfox.com</span>
-      </div>
-      <div className="flex h-72">
-        {/* Sidebar */}
-        <div className="w-14 bg-navy-900 flex flex-col items-center py-4 gap-4" style={{ backgroundColor: '#0C1A2E' }}>
-          <div className="w-7 h-7 rounded-lg bg-blue-600 flex items-center justify-center">
-            <Sparkles size={14} className="text-white" />
-          </div>
-          {[Calendar, Megaphone, BarChart2, Inbox].map((Icon, i) => (
-            <div key={i} className="w-7 h-7 rounded-lg bg-white/10 flex items-center justify-center">
-              <Icon size={13} className="text-white/60" />
-            </div>
-          ))}
+    <div className="relative w-full max-w-2xl mx-auto">
+      {/* Ambient glow behind the card */}
+      <div
+        className="absolute -inset-6 rounded-[2rem] opacity-60 blur-2xl pointer-events-none"
+        style={{ background: 'linear-gradient(135deg, #38BDF8 0%, #2563EB 60%, #7c3aed 100%)' }}
+        aria-hidden
+      />
+      <div className="relative rounded-2xl overflow-hidden shadow-2xl border border-slate-200/80 bg-white ring-1 ring-black/5">
+        {/* Window bar */}
+        <div className="flex items-center gap-1.5 px-4 py-3 bg-slate-50 border-b border-slate-200">
+          <span className="w-3 h-3 rounded-full bg-red-400" />
+          <span className="w-3 h-3 rounded-full bg-yellow-400" />
+          <span className="w-3 h-3 rounded-full bg-green-400" />
+          <span className="ml-3 text-xs text-slate-400 font-mono">app.captionfox.io</span>
         </div>
-        {/* Main */}
-        <div className="flex-1 p-4 bg-slate-50 overflow-hidden">
-          {/* KPI strip */}
-          <div className="grid grid-cols-3 gap-2 mb-3">
-            {[
-              { label: 'Posts this month', val: '24' },
-              { label: 'Avg. engagement', val: '4.2%' },
-              { label: 'AI generations', val: '148' },
-            ].map((k) => (
-              <div key={k.label} className="bg-white rounded-lg p-2.5 border border-slate-200">
-                <div className="text-base font-bold text-slate-800">{k.val}</div>
-                <div className="text-[10px] text-slate-500 mt-0.5 leading-tight">{k.label}</div>
+        <div className="flex h-80">
+          {/* Sidebar */}
+          <div className="w-14 flex flex-col items-center py-4 gap-4" style={{ backgroundColor: '#0C1A2E' }}>
+            <div className="w-7 h-7 rounded-lg bg-fox-gradient flex items-center justify-center">
+              <Sparkles size={14} className="text-white" />
+            </div>
+            {[Calendar, Megaphone, BarChart2, Inbox].map((Icon, i) => (
+              <div key={i} className="w-7 h-7 rounded-lg bg-white/10 flex items-center justify-center">
+                <Icon size={13} className="text-white/60" />
               </div>
             ))}
           </div>
-          {/* Calendar preview */}
-          <div className="bg-white rounded-lg border border-slate-200 p-3">
-            <div className="text-xs font-medium text-slate-700 mb-2">Content Calendar — June</div>
-            <div className="grid grid-cols-7 gap-1">
-              {['M','T','W','T','F','S','S'].map((d,i) => (
-                <div key={i} className="text-center text-[9px] text-slate-400 font-medium">{d}</div>
+          {/* Main */}
+          <div className="flex-1 p-4 bg-slate-50 overflow-hidden">
+            {/* KPI strip */}
+            <div className="grid grid-cols-3 gap-2 mb-3">
+              {[
+                { label: 'Posts this month', val: '24' },
+                { label: 'Avg. engagement', val: '4.2%' },
+                { label: 'AI generations', val: '148' },
+              ].map((k) => (
+                <div key={k.label} className="bg-white rounded-lg p-2.5 border border-slate-200">
+                  <div className="text-base font-bold text-slate-800">{k.val}</div>
+                  <div className="text-[10px] text-slate-500 mt-0.5 leading-tight">{k.label}</div>
+                </div>
               ))}
-              {Array.from({ length: 28 }).map((_, i) => {
-                const hasPost = [2, 5, 8, 11, 14, 17, 20, 23].includes(i)
-                return (
-                  <div
-                    key={i}
-                    className={`aspect-square rounded text-[9px] flex items-center justify-center font-medium ${
-                      hasPost ? 'bg-blue-600 text-white' : 'bg-slate-50 text-slate-400'
-                    }`}
-                  >
-                    {i + 1}
-                  </div>
-                )
-              })}
+            </div>
+            {/* Calendar preview */}
+            <div className="bg-white rounded-lg border border-slate-200 p-3">
+              <div className="text-xs font-medium text-slate-700 mb-2">Content Calendar — June</div>
+              <div className="grid grid-cols-7 gap-1">
+                {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((d, i) => (
+                  <div key={i} className="text-center text-[9px] text-slate-400 font-medium">{d}</div>
+                ))}
+                {Array.from({ length: 28 }).map((_, i) => {
+                  const hasPost = [2, 5, 8, 11, 14, 17, 20, 23].includes(i)
+                  return (
+                    <div
+                      key={i}
+                      className={`aspect-square rounded text-[9px] flex items-center justify-center font-medium ${
+                        hasPost ? 'bg-fox-gradient text-white' : 'bg-slate-50 text-slate-400'
+                      }`}
+                    >
+                      {i + 1}
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+            {/* AI suggestion strip */}
+            <div className="mt-3 bg-white rounded-lg border border-slate-200 p-2.5 flex items-center gap-2">
+              <div className="w-6 h-6 rounded-md bg-violet-100 flex items-center justify-center shrink-0">
+                <Sparkles size={12} className="text-violet-600" />
+              </div>
+              <div className="text-[10px] text-slate-500 leading-tight">Fox AI suggests posting Wed 6pm for +18% reach</div>
             </div>
           </div>
         </div>
@@ -149,38 +90,23 @@ function DashboardMockup() {
   )
 }
 
-/* ─── Feature Mockup ─────────────────────────────────────── */
+/* ─── Feature visual (premium, colour-themed, honestly labelled as UI preview) ─── */
 function FeatureMockup({ color = 'blue', rows = 3 }: { color?: string; rows?: number }) {
-  const colors: Record<string, string> = {
-    blue: 'bg-blue-50 border-blue-100',
-    violet: 'bg-violet-50 border-violet-100',
-    emerald: 'bg-emerald-50 border-emerald-100',
-    amber: 'bg-amber-50 border-amber-100',
-    sky: 'bg-sky-50 border-sky-100',
-    rose: 'bg-rose-50 border-rose-100',
+  const themes: Record<string, { bg: string; border: string; bar: string; accent: string }> = {
+    blue: { bg: 'bg-blue-50/70', border: 'border-blue-100', bar: 'bg-blue-200', accent: 'bg-blue-500' },
+    violet: { bg: 'bg-violet-50/70', border: 'border-violet-100', bar: 'bg-violet-200', accent: 'bg-violet-500' },
+    emerald: { bg: 'bg-emerald-50/70', border: 'border-emerald-100', bar: 'bg-emerald-200', accent: 'bg-emerald-500' },
+    amber: { bg: 'bg-amber-50/70', border: 'border-amber-100', bar: 'bg-amber-200', accent: 'bg-amber-500' },
+    sky: { bg: 'bg-sky-50/70', border: 'border-sky-100', bar: 'bg-sky-200', accent: 'bg-sky-500' },
+    rose: { bg: 'bg-rose-50/70', border: 'border-rose-100', bar: 'bg-rose-200', accent: 'bg-rose-500' },
   }
-  const barColor: Record<string, string> = {
-    blue: 'bg-blue-200',
-    violet: 'bg-violet-200',
-    emerald: 'bg-emerald-200',
-    amber: 'bg-amber-200',
-    sky: 'bg-sky-200',
-    rose: 'bg-rose-200',
-  }
-  const accentColor: Record<string, string> = {
-    blue: 'bg-blue-500',
-    violet: 'bg-violet-500',
-    emerald: 'bg-emerald-500',
-    amber: 'bg-amber-500',
-    sky: 'bg-sky-500',
-    rose: 'bg-rose-500',
-  }
+  const t = themes[color] ?? themes.blue
   return (
-    <div className={`rounded-xl border p-4 space-y-2 ${colors[color] ?? colors.blue}`}>
+    <div className={`rounded-xl border p-4 space-y-2.5 ${t.bg} ${t.border}`}>
       {Array.from({ length: rows }).map((_, i) => (
-        <div key={i} className="flex items-center gap-2">
-          <div className={`w-5 h-5 rounded ${accentColor[color]} flex-shrink-0`} />
-          <div className={`h-2.5 rounded-full ${barColor[color]} flex-1`} style={{ width: `${60 + (i * 13) % 35}%` }} />
+        <div key={i} className="flex items-center gap-2.5">
+          <div className={`w-5 h-5 rounded-md ${t.accent} flex-shrink-0`} />
+          <div className={`h-2.5 rounded-full ${t.bar} flex-1`} style={{ width: `${60 + (i * 13) % 35}%` }} />
         </div>
       ))}
     </div>
@@ -198,102 +124,6 @@ function FaqItem({ q, a }: { q: string; a: string }) {
       </summary>
       <div className="px-6 pb-4 text-sm text-slate-600 leading-relaxed border-t border-slate-100 pt-3">{a}</div>
     </details>
-  )
-}
-
-/* ─── Public Footer ──────────────────────────────────────── */
-function PublicFooter() {
-  const cols = [
-    {
-      heading: 'Product',
-      links: [
-        { label: 'Features', href: '/features' },
-        { label: 'Pricing', href: '/pricing' },
-        { label: 'Changelog', href: '/changelog' },
-        { label: 'Roadmap', href: '/roadmap' },
-      ],
-    },
-    {
-      heading: 'Company',
-      links: [
-        { label: 'About', href: '/about' },
-        { label: 'Blog', href: '/blog' },
-        { label: 'Careers', href: '/careers' },
-        { label: 'Press', href: '/press' },
-      ],
-    },
-    {
-      heading: 'Legal',
-      links: [
-        { label: 'Privacy Policy', href: '/legal/privacy' },
-        { label: 'Terms of Service', href: '/legal/terms' },
-        { label: 'Cookie Policy', href: '/legal/cookie-policy' },
-        { label: 'Acceptable Use', href: '/legal/acceptable-use' },
-        { label: 'DPA', href: '/legal/dpa' },
-      ],
-    },
-    {
-      heading: 'Support',
-      links: [
-        { label: 'Help Centre', href: '/help' },
-        { label: 'Contact', href: '/contact' },
-        { label: 'Status', href: '/status' },
-        { label: 'Affiliates', href: '/affiliates' },
-      ],
-    },
-  ]
-
-  return (
-    <footer className="bg-slate-900 text-white">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-8 mb-12">
-          {/* Brand col */}
-          <div className="col-span-2 md:col-span-1">
-            <Image
-              src="/caption-fox-logo-transparent.png"
-              alt="Caption Fox"
-              width={120}
-              height={28}
-              className="h-7 w-auto brightness-0 invert mb-4"
-            />
-            <p className="text-slate-400 text-sm leading-relaxed">
-              AI-powered social media content platform for brands, creators and agencies.
-            </p>
-          </div>
-
-          {cols.map((col) => (
-            <div key={col.heading}>
-              <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-4">{col.heading}</h3>
-              <ul className="space-y-2.5">
-                {col.links.map((l) => (
-                  <li key={l.label}>
-                    <Link href={l.href} className="text-sm text-slate-400 hover:text-white transition-colors">
-                      {l.label}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
-        </div>
-
-        <div className="border-t border-slate-800 pt-8 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <p className="text-slate-400 text-sm">© 2025 Caption Fox Ltd. All rights reserved.</p>
-          <div className="flex items-center gap-4">
-            {/* Social icons (SVG inline) */}
-            <a href="https://twitter.com" target="_blank" rel="noopener noreferrer" aria-label="Twitter" className="text-slate-400 hover:text-white transition-colors">
-              <svg width="18" height="18" fill="currentColor" viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.748l7.73-8.835L1.254 2.25H8.08l4.261 5.635 5.903-5.635zm-1.161 17.52h1.833L7.084 4.126H5.117z" /></svg>
-            </a>
-            <a href="https://linkedin.com" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn" className="text-slate-400 hover:text-white transition-colors">
-              <svg width="18" height="18" fill="currentColor" viewBox="0 0 24 24"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z" /></svg>
-            </a>
-            <a href="https://instagram.com" target="_blank" rel="noopener noreferrer" aria-label="Instagram" className="text-slate-400 hover:text-white transition-colors">
-              <svg width="18" height="18" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z" /></svg>
-            </a>
-          </div>
-        </div>
-      </div>
-    </footer>
   )
 }
 
@@ -411,7 +241,7 @@ export default function LandingPage() {
       period: '',
       features: ['1 brand', '3 posts/month', 'Basic calendar', 'Fox AI (5/mo)', '1 team member'],
       cta: 'Get started free',
-      href: '/auth/signup?plan=free',
+      href: '/signup?plan=free',
       highlight: false,
     },
     {
@@ -420,7 +250,7 @@ export default function LandingPage() {
       period: '/mo',
       features: ['5 brands', 'Unlimited posts', 'Fox AI unlimited', 'Full analytics (9 tabs)', 'Campaigns (12 types)', 'Up to 5 members'],
       cta: 'Start free trial',
-      href: '/auth/signup?plan=pro',
+      href: '/signup?plan=pro',
       highlight: true,
     },
     {
@@ -429,7 +259,7 @@ export default function LandingPage() {
       period: '/mo',
       features: ['Unlimited brands', 'Unlimited posts', 'Social Listening', 'Competitor Analysis', 'White-label ready', 'Unlimited team'],
       cta: 'Start free trial',
-      href: '/auth/signup?plan=agency',
+      href: '/signup?plan=agency',
       highlight: false,
     },
   ]
@@ -460,7 +290,7 @@ export default function LandingPage() {
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-16">
             <Link
-              href="/auth/signup"
+              href="/signup"
               className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-3.5 rounded-xl text-base shadow-sm transition-colors"
             >
               Start Free <ArrowRight size={18} />
@@ -476,18 +306,20 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── Social Proof ──────────────────────────────────── */}
+      {/* ── Positioning strip (honest — no fabricated logos/customers) ───── */}
       <section className="bg-slate-50 border-y border-slate-100 py-10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <p className="text-sm text-slate-500 mb-6">Trusted by growing brands, creators and agencies</p>
-          <div className="flex flex-wrap items-center justify-center gap-3">
-            {['Acme Co', 'StudioX', 'GrowthCo', 'CreativeLab', 'BrandPulse'].map((name) => (
-              <span
-                key={name}
-                className="bg-white border border-slate-200 text-slate-600 text-sm font-medium px-4 py-2 rounded-full shadow-sm"
-              >
-                {name}
-              </span>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex flex-wrap items-center justify-center gap-x-10 gap-y-4 text-slate-500">
+            {[
+              { icon: <LayoutGrid size={16} />, label: 'Built for brands, creators & agencies' },
+              { icon: <Sparkles size={16} />, label: 'AI-native from the ground up' },
+              { icon: <Globe size={16} />, label: '7 social platforms, one workspace' },
+              { icon: <Target size={16} />, label: 'Campaigns, not just scheduling' },
+            ].map((item) => (
+              <div key={item.label} className="flex items-center gap-2 text-sm font-medium">
+                <span className="text-blue-600">{item.icon}</span>
+                {item.label}
+              </div>
             ))}
           </div>
         </div>
@@ -527,7 +359,7 @@ export default function LandingPage() {
           </div>
 
           <div className="space-y-24">
-            {features.map((f, idx) => (
+            {features.map((f) => (
               <div
                 key={f.badge}
                 className={`grid lg:grid-cols-2 gap-12 items-center ${f.flip ? 'lg:flex-row-reverse' : ''}`}
@@ -770,11 +602,11 @@ export default function LandingPage() {
             Start creating smarter content today
           </h2>
           <p className="text-lg text-slate-600 mb-10">
-            Join thousands of brands, creators and agencies using Caption Fox to plan, create and grow.
+            Plan, create and grow with Caption Fox — the AI-powered content platform for brands, creators and agencies.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <Link
-              href="/auth/signup"
+              href="/signup"
               className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold px-8 py-4 rounded-xl text-base shadow-sm transition-colors"
             >
               Get started free <ArrowRight size={18} />

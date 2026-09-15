@@ -2,11 +2,12 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import Image from 'next/image'
 import {
-  Check, X, Zap, Sparkles, BarChart2, Megaphone,
-  ChevronDown, ChevronUp, ArrowRight, Shield, Users, Crown,
+  Check, X, Zap, Sparkles,
+  ChevronDown, ChevronUp, ArrowRight, Crown,
 } from 'lucide-react'
+import PublicNav from '@/components/marketing/PublicNav'
+import PublicFooter from '@/components/marketing/PublicFooter'
 
 /* ─── Types ──────────────────────────────────────────────── */
 type FeatureValue = boolean | string | null
@@ -34,7 +35,7 @@ const PLANS: Plan[] = [
     yearlyPrice: 0,
     tagline: 'Perfect for solo creators just getting started.',
     cta: 'Get started free',
-    ctaHref: '/auth/signup?plan=free',
+    ctaHref: '/signup?plan=free',
     popular: false,
     features: [
       '1 brand',
@@ -52,7 +53,7 @@ const PLANS: Plan[] = [
     yearlyPrice: 23,
     tagline: 'For growing creators and solo marketers.',
     cta: 'Get Started',
-    ctaHref: '/auth/signup?plan=starter',
+    ctaHref: '/signup?plan=starter',
     popular: false,
     features: [
       '2 brands',
@@ -72,7 +73,7 @@ const PLANS: Plan[] = [
     yearlyPrice: 47,
     tagline: 'For brands running campaigns and needing real depth.',
     cta: 'Get Started',
-    ctaHref: '/auth/signup?plan=pro',
+    ctaHref: '/signup?plan=pro',
     popular: true,
     features: [
       '5 brands',
@@ -97,7 +98,7 @@ const PLANS: Plan[] = [
     yearlyPrice: 79,
     tagline: 'For teams needing collaboration and advanced insights.',
     cta: 'Get Started',
-    ctaHref: '/auth/signup?plan=team',
+    ctaHref: '/signup?plan=team',
     popular: false,
     features: [
       'Everything in Pro',
@@ -121,7 +122,7 @@ const PLANS: Plan[] = [
     yearlyPrice: 159,
     tagline: 'For agencies managing multiple clients at scale.',
     cta: 'Get Started',
-    ctaHref: '/auth/signup?plan=agency',
+    ctaHref: '/signup?plan=agency',
     popular: false,
     newBadge: true,
     features: [
@@ -295,42 +296,6 @@ function CellValue({ val, highlight }: { val: FeatureValue; highlight?: boolean 
   if (val === true) return <Check size={16} className="text-emerald-500 mx-auto" />
   if (val === false) return <X size={16} className="text-slate-300 mx-auto" />
   return <span className={`text-xs font-medium ${highlight ? 'text-blue-700' : 'text-slate-700'}`}>{val}</span>
-}
-
-/* ─── Nav ────────────────────────────────────────────────── */
-function PublicNav() {
-  return (
-    <header className="sticky top-0 z-50 bg-white/95 backdrop-blur border-b border-slate-100">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16">
-          <Link href="/" className="flex items-center gap-2">
-            <Image
-              src="/caption-fox-logo-transparent.png"
-              alt="Caption Fox"
-              width={140}
-              height={32}
-              className="h-8 w-auto"
-              priority
-            />
-          </Link>
-          <nav className="hidden md:flex items-center gap-8">
-            <Link href="/features" className="text-sm text-slate-600 hover:text-slate-900 font-medium transition-colors">Features</Link>
-            <Link href="/marketplace" className="text-sm text-slate-600 hover:text-slate-900 font-medium transition-colors">Marketplace</Link>
-            <Link href="/pricing" className="text-sm text-blue-600 font-semibold">Pricing</Link>
-            <Link href="#use-cases" className="text-sm text-slate-600 hover:text-slate-900 font-medium transition-colors">Use Cases</Link>
-          </nav>
-          <div className="hidden md:flex items-center gap-3">
-            <Link href="/auth/login" className="text-sm font-medium text-slate-600 hover:text-slate-900 px-4 py-2 rounded-lg hover:bg-slate-50 transition-colors">
-              Sign in
-            </Link>
-            <Link href="/auth/signup" className="text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg transition-colors shadow-sm">
-              Start free
-            </Link>
-          </div>
-        </div>
-      </div>
-    </header>
-  )
 }
 
 /* ─── Main page ──────────────────────────────────────────── */
@@ -707,7 +672,7 @@ export default function PricingPage() {
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <Link
-              href="/auth/signup"
+              href="/signup"
               className="inline-flex items-center gap-2 bg-white text-slate-900 font-bold px-8 py-4 rounded-xl hover:bg-slate-100 transition-colors text-base"
             >
               Start Free <ArrowRight size={18} />
@@ -722,6 +687,8 @@ export default function PricingPage() {
           <p className="mt-5 text-xs text-slate-500">No credit card required · 14-day free trial · Cancel anytime</p>
         </div>
       </section>
+
+      <PublicFooter />
     </div>
   )
 }

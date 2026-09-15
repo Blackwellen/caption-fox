@@ -4,9 +4,11 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   Search, Home, Calendar, Megaphone, Wand2, Video, Inbox, BarChart2,
-  Radio, Link2, Settings, Plus, FileText, CalendarPlus, UserPlus, ArrowRight, Gift, Store,
+  Radio, Link2, Settings, Plus, FileText, CalendarPlus, UserPlus, ArrowRight, Gift, Store, Handshake,
+  Target, LibraryBig, BadgeDollarSign, Mail, Globe2, FileSearch, Users, Workflow,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { workspaceRouteSegment } from '@/lib/workspace-shared'
 
 interface Command {
   label: string
@@ -16,32 +18,53 @@ interface Command {
   keywords?: string
 }
 
-const COMMANDS: Command[] = [
-  { label: 'Home', href: '/app/home', group: 'Go to', icon: Home, keywords: 'dashboard overview' },
-  { label: 'Studio', href: '/app/studio', group: 'Go to', icon: Wand2, keywords: 'create content ai generate' },
-  { label: 'Calendar', href: '/app/calendar', group: 'Go to', icon: Calendar, keywords: 'schedule plan' },
-  { label: 'Campaigns', href: '/app/campaigns', group: 'Go to', icon: Megaphone, keywords: 'giveaways competitions' },
-  { label: 'UGC', href: '/app/ugc', group: 'Go to', icon: Video, keywords: 'creators briefs submissions' },
-  { label: 'Link in Bio', href: '/app/links', group: 'Go to', icon: Link2, keywords: 'links bio page' },
-  { label: 'Inbox', href: '/app/inbox', group: 'Go to', icon: Inbox, keywords: 'messages comments dms engage' },
-  { label: 'Analytics', href: '/app/analytics', group: 'Go to', icon: BarChart2, keywords: 'reports performance measure' },
-  { label: 'Listening', href: '/app/listening', group: 'Go to', icon: Radio, keywords: 'mentions monitoring' },
-  { label: 'Affiliates', href: '/app/affiliates', group: 'Go to', icon: Gift, keywords: 'referral earn commission affiliate' },
-  { label: 'Marketplace', href: '/marketplace', group: 'Go to', icon: Store, keywords: 'hire suppliers ugc freelancers ads agencies influencers' },
-  { label: 'Supplier workspace', href: '/supplier', group: 'Go to', icon: Store, keywords: 'sell seller listings orders payouts supplier dashboard workspace' },
-  { label: 'Settings', href: '/app/settings', group: 'Go to', icon: Settings, keywords: 'team billing workspace account' },
-  { label: 'New Post', href: '/app/studio?action=new-post', group: 'Create', icon: FileText },
-  { label: 'New Campaign', href: '/app/campaigns?action=new', group: 'Create', icon: Megaphone },
-  { label: 'Generate Content Plan', href: '/app/studio?action=plan', group: 'Create', icon: CalendarPlus },
-  { label: 'New UGC Brief', href: '/app/ugc?action=new-brief', group: 'Create', icon: Video },
-  { label: 'Invite Team Member', href: '/app/settings?tab=team&action=invite', group: 'Create', icon: UserPlus },
-  { label: 'Create Report', href: '/app/analytics?action=report', group: 'Create', icon: Plus },
-]
+// Mirrors Sidebar.tsx's information architecture so ⌘K never drifts out of
+// sync with the real sidebar. Sections only wired up on the type-first
+// surface route there instead of the still-unbuilt /app/* fixture.
+function buildCommands(typedBase: string | null): Command[] {
+  const typed = (segment: string, fallback: string) => typedBase ? `${typedBase}/${segment}` : fallback
+  return [
+    { label: 'Home', href: '/app/home', group: 'Go to', icon: Home, keywords: 'dashboard overview' },
+    { label: 'Strategy', href: '/app/strategy', group: 'Go to', icon: Target, keywords: 'plan goals north star' },
+    { label: 'Studio', href: '/app/studio', group: 'Go to', icon: Wand2, keywords: 'create content ai generate' },
+    { label: 'Calendar', href: '/app/calendar', group: 'Go to', icon: Calendar, keywords: 'schedule plan' },
+    { label: 'Campaigns', href: '/app/campaigns', group: 'Go to', icon: Megaphone, keywords: 'giveaways competitions' },
+    { label: 'Brand & Assets', href: typed('brand', '/app/brand'), group: 'Go to', icon: LibraryBig, keywords: 'logo guidelines rights assets' },
+    { label: 'Creators and UGC', href: '/app/creators', group: 'Go to', icon: Video, keywords: 'creators briefs submissions rights payments' },
+    { label: 'Link in Bio', href: '/app/links', group: 'Go to', icon: Link2, keywords: 'links bio page' },
+    { label: 'Social', href: '/app/social', group: 'Go to', icon: Radio, keywords: 'posts publishing channels' },
+    { label: 'Advertising', href: typed('advertising', '/app/advertising'), group: 'Go to', icon: BadgeDollarSign, keywords: 'ads campaigns accounts creatives audiences reports' },
+    { label: 'Messaging', href: '/app/messaging', group: 'Go to', icon: Mail, keywords: 'email sms journeys campaigns' },
+    { label: 'Web & Conversion', href: '/app/web', group: 'Go to', icon: Globe2, keywords: 'landing pages conversion forms' },
+    { label: 'SEO & Discovery', href: '/app/seo', group: 'Go to', icon: FileSearch, keywords: 'search keywords rankings' },
+    { label: 'Inbox', href: '/app/inbox', group: 'Go to', icon: Inbox, keywords: 'messages comments dms engage' },
+    { label: 'Analytics', href: '/app/analytics', group: 'Go to', icon: BarChart2, keywords: 'reports performance measure' },
+    { label: 'Listening', href: '/app/listening', group: 'Go to', icon: Radio, keywords: 'mentions monitoring' },
+    { label: 'PR & Reputation', href: '/app/reputation', group: 'Go to', icon: Radio, keywords: 'reviews reputation press' },
+    { label: 'Community', href: '/app/community', group: 'Go to', icon: Users, keywords: 'community members engagement' },
+    { label: 'Events', href: typed('events', '/app/events'), group: 'Go to', icon: Calendar, keywords: 'webinars podcasts sponsorships registrations' },
+    { label: 'Leads & Audiences', href: '/app/audiences', group: 'Go to', icon: Users, keywords: 'leads segments crm' },
+    { label: 'Affiliates', href: '/app/affiliates', group: 'Go to', icon: Gift, keywords: 'referral earn commission affiliate' },
+    { label: 'Partnerships', href: '/app/partnerships', group: 'Go to', icon: Handshake, keywords: 'affiliates referrals ambassadors loyalty resellers co-marketing programmes partners commissions payouts' },
+    { label: 'Marketplace', href: '/app/marketplace', group: 'Go to', icon: Store, keywords: 'hire suppliers ugc freelancers ads agencies influencers' },
+    { label: 'Supplier workspace', href: '/supplier', group: 'Go to', icon: Store, keywords: 'sell seller listings orders payouts supplier dashboard workspace' },
+    { label: 'Finance', href: '/app/finance', group: 'Go to', icon: BadgeDollarSign, keywords: 'invoices spend budget billing' },
+    { label: 'Automations', href: '/app/automations', group: 'Go to', icon: Workflow, keywords: 'recipes triggers actions workflows' },
+    { label: 'Settings', href: '/app/settings', group: 'Go to', icon: Settings, keywords: 'team billing workspace account' },
+    { label: 'New Post', href: '/app/studio?action=new-post', group: 'Create', icon: FileText },
+    { label: 'New Campaign', href: '/app/campaigns?action=new', group: 'Create', icon: Megaphone },
+    { label: 'Generate Content Plan', href: '/app/studio?action=plan', group: 'Create', icon: CalendarPlus },
+    { label: 'New UGC Brief', href: '/app/creators/briefs?action=new', group: 'Create', icon: Video },
+    { label: 'Invite Team Member', href: '/app/settings?tab=team&action=invite', group: 'Create', icon: UserPlus },
+    { label: 'Create Report', href: '/app/analytics?action=report', group: 'Create', icon: Plus },
+  ]
+}
 
-export default function CommandPalette({ open, onClose }: { open: boolean; onClose: () => void }) {
+export default function CommandPalette({ open, onClose, workspaceType }: { open: boolean; onClose: () => void; workspaceType?: string | null }) {
   const router = useRouter()
   const [query, setQuery] = useState('')
   const [active, setActive] = useState(0)
+  const COMMANDS = useMemo(() => buildCommands(workspaceRouteSegment(workspaceType)), [workspaceType])
   const inputRef = useRef<HTMLInputElement>(null)
 
   const results = useMemo(() => {
