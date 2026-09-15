@@ -6,71 +6,8 @@ import { usePathname, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { cn } from '@/lib/utils'
 import { workspaceRouteSegment } from '@/lib/workspace-shared'
-import {
-  Home, Calendar, Megaphone, Wand2, Video, Inbox, BarChart2, Settings,
-  LogOut, ChevronRight, Radio, Link2, Gift, Store, Target, BadgeDollarSign,
-  Workflow, Users, Globe2, Mail, FileSearch, LibraryBig,
-} from 'lucide-react'
-
-type NavItem = { id: string; label: string; href: string; icon: typeof Home }
-type NavGroup = { group: string | null; items: NavItem[] }
-
-// Sections keyed by stable id, independent of href — some sections (brand,
-// advertising, events) route to the type-first surface (/creator/events) when
-// that's where the real, DB-backed implementation lives, instead of the still
-// -unbuilt /app/* fixture. DO NOT restyle or restructure this sidebar's chrome
-// without reason — only add/remove/rewire entries here as sections come online.
-const workspaceNavAllowlist: Record<string, string[]> = {
-  creator: ['home', 'campaigns', 'calendar', 'studio', 'links', 'social', 'marketplace', 'partnerships', 'inbox', 'analytics', 'settings'],
-  small_business: ['home', 'strategy', 'campaigns', 'calendar', 'studio', 'brand', 'links', 'social', 'messaging', 'web', 'marketplace', 'partnerships', 'creators', 'inbox', 'audiences', 'analytics', 'settings'],
-  brand: [],
-  agency: [],
-}
-
-// Existing mature routes and newly route-backed structural shells live in one
-// information architecture. Shell routes are clearly labelled by their page header
-// until their individual data/integration release gates are complete.
-function buildNavGroups(typedBase: string | null): NavGroup[] {
-  const typed = (segment: string, fallback: string) => typedBase ? `${typedBase}/${segment}` : fallback
-  return [
-    { group: null, items: [{ id: 'home', label: 'Home', href: '/app/home', icon: Home }] },
-    { group: 'Plan', items: [
-      { id: 'strategy', label: 'Strategy', href: '/app/strategy', icon: Target },
-      { id: 'campaigns', label: 'Campaigns', href: '/app/campaigns', icon: Megaphone },
-      { id: 'calendar', label: 'Calendar', href: '/app/calendar', icon: Calendar },
-    ] },
-    { group: 'Create', items: [
-      { id: 'studio', label: 'Studio', href: '/app/studio', icon: Wand2 },
-      { id: 'brand', label: 'Brand & Assets', href: typed('brand', '/app/brand'), icon: LibraryBig },
-      { id: 'links', label: 'Link in Bio', href: '/app/links', icon: Link2 },
-    ] },
-    { group: 'Promote', items: [
-      { id: 'social', label: 'Social', href: '/app/social', icon: Radio },
-      { id: 'advertising', label: 'Advertising', href: typed('advertising', '/app/advertising'), icon: BadgeDollarSign },
-      { id: 'messaging', label: 'Messaging', href: '/app/messaging', icon: Mail },
-      { id: 'web', label: 'Web & Conversion', href: '/app/web', icon: Globe2 },
-      { id: 'seo', label: 'SEO & Discovery', href: '/app/seo', icon: FileSearch },
-    ] },
-    { group: 'Collaborate', items: [
-      { id: 'creators', label: 'Creators & UGC', href: '/app/creators', icon: Video },
-      { id: 'marketplace', label: 'Marketplace', href: '/app/marketplace', icon: Store },
-      { id: 'partnerships', label: 'Partnerships', href: '/app/partnerships', icon: Gift },
-      { id: 'reputation', label: 'PR & Reputation', href: '/app/reputation', icon: Radio },
-      { id: 'community', label: 'Community', href: '/app/community', icon: Users },
-      { id: 'events', label: 'Events', href: typed('events', '/app/events'), icon: Calendar },
-    ] },
-    { group: 'Engage', items: [
-      { id: 'inbox', label: 'Inbox', href: '/app/inbox', icon: Inbox },
-      { id: 'audiences', label: 'Leads & Audiences', href: '/app/audiences', icon: Users },
-    ] },
-    { group: 'Measure', items: [
-      { id: 'analytics', label: 'Analytics', href: '/app/analytics', icon: BarChart2 },
-      { id: 'finance', label: 'Finance', href: '/app/finance', icon: BadgeDollarSign },
-    ] },
-    { group: 'Operate', items: [{ id: 'automations', label: 'Automations', href: '/app/automations', icon: Workflow }] },
-    { group: 'Manage', items: [{ id: 'settings', label: 'Settings', href: '/app/settings', icon: Settings }] },
-  ]
-}
+import { visibleNavGroups } from '@/lib/nav-config'
+import { LogOut, ChevronRight, Settings } from 'lucide-react'
 
 interface SidebarProps { userEmail?: string | null; userName?: string | null; isAdmin?: boolean; workspaceType?: string | null }
 
@@ -87,17 +24,13 @@ export default function Sidebar({ userEmail, userName, isAdmin, workspaceType }:
   }
 
   const typedBase = workspaceRouteSegment(workspaceType)
-  const navGroups = buildNavGroups(typedBase)
-  const allowlist = workspaceType ? workspaceNavAllowlist[workspaceType] : undefined
-  const visibleNavGroups = navGroups
-    .map(group => ({ ...group, items: allowlist?.length ? group.items.filter(item => allowlist.includes(item.id)) : group.items }))
-    .filter(group => group.items.length > 0)
+  const groups = visibleNavGroups(workspaceType)
 
   return <aside className="hidden h-screen w-[240px] shrink-0 flex-col border-r border-navy-800 bg-navy-900 lg:flex">
     <div className="border-b border-navy-800 px-4 py-4"><Link href="/app/home" className="flex items-center gap-2.5"><Image src="/caption fox favicon.png" alt="Caption Fox" width={32} height={32} className="rounded-lg" /><span className="text-[15px] font-bold tracking-tight text-white">Caption Fox</span></Link></div>
-    <nav className="flex-1 space-y-0.5 overflow-y-auto px-2.5 py-3" aria-label="Campaign Manager navigation">{visibleNavGroups.map(({ group, items }) => <div key={group ?? 'top'} className={cn(group && 'pt-3')}>
-      {group && <p className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-slate-600">{group}</p>}
-      {items.map(({ label, href, icon: Icon }) => { const active = pathname.startsWith(href); return <Link key={href} href={href} className={cn('group flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all', active ? 'bg-blue-600 text-white' : 'text-slate-400 hover:bg-navy-800 hover:text-white')}><Icon size={16} className={cn('shrink-0', active ? 'text-white' : 'text-slate-400 group-hover:text-white')} /><span className="truncate">{label}</span>{active && <ChevronRight size={12} className="ml-auto opacity-60" />}</Link> })}
+    <nav className="flex-1 space-y-0.5 overflow-y-auto px-2.5 py-3" aria-label="Campaign Manager navigation">{groups.map(({ label: groupLabel, items }) => <div key={groupLabel ?? 'top'} className={cn(groupLabel && 'pt-3')}>
+      {groupLabel && <p className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-slate-600">{groupLabel}</p>}
+      {items.map(({ id, label, href: hrefFor, icon: Icon }) => { const href = hrefFor(typedBase); const active = pathname.startsWith(href); return <Link key={id} href={href} className={cn('group flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all', active ? 'bg-blue-600 text-white' : 'text-slate-400 hover:bg-navy-800 hover:text-white')}><Icon size={16} className={cn('shrink-0', active ? 'text-white' : 'text-slate-400 group-hover:text-white')} /><span className="truncate">{label}</span>{active && <ChevronRight size={12} className="ml-auto opacity-60" />}</Link> })}
     </div>)}
     {isAdmin && <Link href="/admin" className={cn('mt-2 flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium', pathname.startsWith('/admin') ? 'bg-violet-600 text-white' : 'text-slate-400 hover:bg-navy-800 hover:text-white')}><Settings size={16} />Admin</Link>}
     </nav>
