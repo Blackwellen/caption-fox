@@ -1,67 +1,36 @@
 import { redirect } from 'next/navigation'
-import { createClient } from '@/lib/supabase/server'
-import { getActiveWorkspace } from '@/lib/workspace'
-import SupplierSidebar from '@/components/supplier/SupplierSidebar'
-import TopNav from '@/components/layout/TopNav'
-import type { SupplierType } from '@/lib/marketplace/types'
+import { loadWorkspaceShell } from '@/lib/navigation/session'
+import { getNavigationForContext } from '@/lib/navigation/resolver'
+import CaptionFoxAppShell from '@/components/shell/app-shell/CaptionFoxAppShell'
 
-// Standalone supplier/seller WORKSPACE shell (a supplier logs into their own
-// workspace — not a portal controlled from a marketer workspace). Requires the
-// user to have a marketplace_suppliers row; otherwise routes them to onboarding.
-// Uses the same shell chrome as the marketer workspace so the workspace switcher,
-// search, notifications and account menu stay available here too.
+// Standalone supplier/seller WORKSPACE (a supplier logs into their own
+// workspace — not a portal controlled from a marketer workspace). Requires a
+// marketplace_suppliers row; otherwise routes the user to onboarding.
 export default async function SupplierLayout({ children }: { children: React.ReactNode }) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/login?next=/supplier')
+  const session = await loadWorkspaceShell()
+  if (!session) redirect('/login?next=/supplier')
+  if (!session.supplier) redirect('/marketplace/sell')
 
-  const { data: supplier } = await supabase
-    .from('marketplace_suppliers')
-    .select('display_name, type, verified')
-    .eq('user_id', user.id)
-    .maybeSingle()
-
-  if (!supplier) redirect('/marketplace/sell')
-
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('full_name, is_platform_admin')
-    .eq('id', user.id)
-    .single()
-
-  // The switcher needs every workspace the user can reach so they can move
-  // between the supplier workspace and their marketer workspaces.
-  const { active, workspaces } = await getActiveWorkspace(supabase, user.id)
-
-  const { data: notifications } = await supabase
-    .from('notifications')
-    .select('id, title, body, link, is_read, created_at')
-    .eq('user_id', user.id)
-    .order('created_at', { ascending: false })
-    .limit(10)
+  const nav = getNavigationForContext({
+    context: 'supplier',
+    isPlatformAdmin: session.isPlatformAdmin,
+    hasWorkspaces: session.workspaces.length > 0,
+  })
 
   return (
-    <div className="flex h-screen bg-slate-50 overflow-hidden">
-      <SupplierSidebar
-        name={supplier.display_name}
-        type={supplier.type as SupplierType}
-        verified={supplier.verified}
-        email={user.email}
-      />
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        <TopNav
-          workspaces={workspaces}
-          activeWorkspaceId={active?.id ?? null}
-          supplier={supplier}
-          supplierActive
-          variant="supplier"
-          userName={profile?.full_name ?? null}
-          userEmail={user.email ?? null}
-          isAdmin={profile?.is_platform_admin ?? false}
-          notifications={notifications ?? []}
-        />
-        <main className="flex-1 overflow-y-auto">{children}</main>
-      </div>
-    </div>
+    <CaptionFoxAppShell
+      nav={nav}
+      user={{ ...session.shellUser, secondary: `${session.supplier.display_name} · Supplier workspace` }}
+      context={{ kind: 'supplier', label: session.supplier.display_name }}
+      userId={session.user.id}
+      workspaces={session.workspaces}
+      activeWorkspaceId={session.active?.id ?? null}
+      supplier={session.supplier}
+      defaultWorkspaceId={session.profile?.default_workspace_id ?? null}
+      notifications={session.notifications}
+      initialCollapsed={session.collapsed}
+    >
+      {children}
+    </CaptionFoxAppShell>
   )
 }

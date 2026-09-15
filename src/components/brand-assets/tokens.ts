@@ -12,6 +12,8 @@ export const layout = {
   contentMaxWidth: 'max-w-[1600px]',
   sectionGap: 'gap-4',
   rightRail: 'w-[264px]',
+  /** Main + right-rail grid shared by every Brand & Assets page (reference: ~230px rail, 14px gap). */
+  railGrid: 'grid gap-3.5 xl:grid-cols-[minmax(0,1fr)_232px]',
 } as const
 
 export const surface = {

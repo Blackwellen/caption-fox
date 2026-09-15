@@ -24,7 +24,7 @@ export type HeaderAction = {
 }
 
 export default function PageHeader({
-  title, hint, subtitle, actions = [], children, className,
+  title, hint, subtitle, actions = [], children, className, nav, toolbar,
 }: {
   title: string
   hint?: string
@@ -32,35 +32,47 @@ export default function PageHeader({
   actions?: HeaderAction[]
   children?: ReactNode
   className?: string
+  /** Section tabs, rendered directly under the title block. */
+  nav?: ReactNode
+  /** Secondary controls (date range, compare, filters) right-aligned under the actions, as in design (1). */
+  toolbar?: ReactNode
 }) {
   return (
-    <header className={cn('mb-4 flex flex-wrap items-start justify-between gap-x-6 gap-y-3', className)}>
+    <div className={cn('mb-3', className)}>
+    <header className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
       <div className="min-w-0">
-        <div className="flex items-center gap-1.5">
-          <h1 className="truncate text-[26px] font-bold leading-tight tracking-[-0.01em] text-slate-900">
+        <div className="flex items-center gap-2">
+          <h1 className="truncate text-[22px] font-semibold leading-tight tracking-[-0.015em] text-slate-900">
             {title}
           </h1>
           {hint && <InfoDot label={hint} />}
         </div>
-        <p className="mt-1 max-w-3xl text-[13px] leading-relaxed text-slate-500">{subtitle}</p>
+        <p className="mt-1 max-w-3xl text-[12.5px] leading-snug text-slate-500 lg:text-[11.5px]">{subtitle}</p>
       </div>
 
-      {(actions.length > 0 || children) && (
-        <div className="flex shrink-0 flex-wrap items-center gap-2">
-          {children}
-          {actions.map(action => <HeaderActionButton key={action.key} action={action} />)}
+      {(actions.length > 0 || children || toolbar) && (
+        <div className="flex shrink-0 flex-col items-end gap-2">
+          {(actions.length > 0 || children) && (
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              {children}
+              {actions.map(action => <HeaderActionButton key={action.key} action={action} />)}
+            </div>
+          )}
+          {toolbar && <div className="flex flex-wrap items-center justify-end gap-2">{toolbar}</div>}
         </div>
       )}
     </header>
+    {nav && <div className="mt-2.5">{nav}</div>}
+    </div>
   )
 }
 
-function HeaderActionButton({ action }: { action: HeaderAction }) {
+export function HeaderActionButton({ action }: { action: HeaderAction }) {
   const disabled = !!action.disabledReason
   const primary = action.variant === 'primary'
 
   const classes = cn(
-    'inline-flex h-9 items-center gap-1.5 whitespace-nowrap rounded-lg px-3 text-[13px] font-medium transition-colors',
+    'inline-flex h-8 items-center gap-1.5 whitespace-nowrap rounded-lg px-3 text-[12.5px] font-medium transition-colors',
     'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600',
     primary
       ? 'bg-blue-600 text-white shadow-sm hover:bg-blue-700'

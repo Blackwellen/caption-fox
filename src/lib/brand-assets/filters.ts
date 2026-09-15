@@ -48,14 +48,14 @@ export interface BaseFilters {
   pageSize: number
 }
 
-function baseFrom(params: RawParams, defaultSort: string): BaseFilters {
+function baseFrom(params: RawParams, defaultSort: string, defaultPageSize = DEFAULT_PAGE_SIZE): BaseFilters {
   return {
     q: one(params, 'q') ?? null,
     brandId: one(params, 'brand') ?? null,
     ownerId: one(params, 'owner') ?? null,
     sort: one(params, 'sort') ?? defaultSort,
     page: intIn(params, 'page', 1, 1, 10_000),
-    pageSize: intIn(params, 'pageSize', DEFAULT_PAGE_SIZE, 1, MAX_PAGE_SIZE),
+    pageSize: intIn(params, 'pageSize', defaultPageSize, 1, MAX_PAGE_SIZE),
   }
 }
 
@@ -69,11 +69,14 @@ export interface KitFilters extends BaseFilters {
   familyId: string | null
   approval: string | null
   tags: string[]
+  /** Kit whose brand system fills the lower panels; defaults to the first kit. */
+  kitId: string | null
 }
 
 export function parseKitFilters(params: RawParams): KitFilters {
   return {
     ...baseFrom(params, 'recently_updated'),
+    kitId: one(params, 'kit') ?? null,
     view: pick(params, 'view', ['cards', 'table'] as const, 'cards'),
     team: one(params, 'team') ?? null,
     status: one(params, 'status') ?? null,
@@ -99,9 +102,16 @@ export interface AssetFilters extends BaseFilters {
   favouritesOnly: boolean
 }
 
+/** "Date Added" presets (days back) → ISO lower bound. */
+export const ADDED_PRESETS = { '7': 'Last 7 days', '30': 'Last 30 days', '90': 'Last 90 days', '365': 'Last 12 months' } as const
+
 export function parseAssetFilters(params: RawParams): AssetFilters {
+  const added = one(params, 'added')
+  const addedFrom = added && added in ADDED_PRESETS
+    ? new Date(Date.now() - Number(added) * 86_400_000).toISOString()
+    : (one(params, 'addedFrom') ?? null)
   return {
-    ...baseFrom(params, 'newest'),
+    ...baseFrom(params, 'newest', 10),
     view: pick(params, 'view', ['grid', 'list', 'table'] as const, 'grid'),
     kind: one(params, 'type') ?? null,
     status: one(params, 'status') ?? null,
@@ -109,7 +119,7 @@ export function parseAssetFilters(params: RawParams): AssetFilters {
     folderId: one(params, 'folder') ?? null,
     collectionId: one(params, 'collection') ?? null,
     productId: one(params, 'product') ?? null,
-    addedFrom: one(params, 'addedFrom') ?? null,
+    addedFrom,
     addedTo: one(params, 'addedTo') ?? null,
     favouritesOnly: one(params, 'favourites') === '1',
   }
@@ -133,7 +143,7 @@ export interface RightsFilters extends BaseFilters {
 
 export function parseRightsFilters(params: RawParams): RightsFilters {
   return {
-    ...baseFrom(params, 'expiry_asc'),
+    ...baseFrom(params, 'expiry_asc', 6),
     view: pick(params, 'view', ['table', 'calendar', 'cards'] as const, 'table'),
     territory: one(params, 'territory') ?? null,
     channel: one(params, 'channel') ?? null,
@@ -162,7 +172,7 @@ export interface ProductFilters extends BaseFilters {
 
 export function parseProductFilters(params: RawParams): ProductFilters {
   return {
-    ...baseFrom(params, 'recently_updated'),
+    ...baseFrom(params, 'recently_updated', 6),
     view: pick(params, 'view', ['cards', 'list', 'table'] as const, 'cards'),
     categoryId: one(params, 'category') ?? null,
     collectionId: one(params, 'collection') ?? null,
@@ -182,7 +192,7 @@ export function parseProductFilters(params: RawParams): ProductFilters {
 /** Keys that reset paging when changed — a new filter must return to page 1. */
 const PAGE_RESETTING = new Set([
   'q', 'brand', 'owner', 'sort', 'view', 'team', 'status', 'family', 'approval',
-  'tags', 'type', 'rights', 'folder', 'collection', 'product', 'addedFrom',
+  'tags', 'type', 'rights', 'folder', 'collection', 'product', 'addedFrom', 'added',
   'addedTo', 'favourites', 'territory', 'channel', 'licenseType', 'expiryFrom',
   'expiryTo', 'category', 'market', 'readiness', 'missing', 'line', 'pageSize',
 ])

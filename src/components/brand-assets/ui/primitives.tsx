@@ -11,12 +11,12 @@ export function PageHeading({
   title, subtitle, actions,
 }: { title: string; subtitle: string; actions?: React.ReactNode }) {
   return (
-    <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+    <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between lg:mb-[18px]">
       <div className="min-w-0">
-        <h1 className="text-[26px] font-bold leading-tight tracking-tight text-slate-900">{title}</h1>
-        <p className="mt-1 text-sm text-slate-500">{subtitle}</p>
+        <h1 className="text-[23px] font-bold leading-tight tracking-tight text-slate-900 lg:text-[19px]">{title}</h1>
+        <p className="mt-1 text-[13px] text-slate-500 lg:text-[10px]">{subtitle}</p>
       </div>
-      {actions && <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div>}
+      {actions && <div className="flex shrink-0 flex-wrap items-center gap-2 lg:mt-1.5">{actions}</div>}
     </div>
   )
 }
@@ -37,7 +37,7 @@ export function ActionLink({
   title?: string
 }) {
   const cls = cn(
-    'inline-flex h-10 items-center gap-2 rounded-lg px-4 text-sm font-semibold transition-colors',
+    'inline-flex h-10 items-center gap-2 rounded-lg px-4 text-sm font-semibold transition-colors lg:px-5 lg:text-[11px]',
     tone === 'primary'
       ? 'bg-blue-600 text-white hover:bg-blue-700'
       : 'border border-slate-200 bg-white text-slate-700 hover:bg-slate-50',
@@ -72,7 +72,7 @@ export function KpiStrip({ items }: { items: KpiSpec[] }) {
   return (
     <section
       aria-label="Key metrics"
-      className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6"
+      className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:mb-2.5 xl:grid-cols-6"
     >
       {items.map(({ key, ...kpi }) => <KpiCard key={key} kpiKey={key} {...kpi} />)}
     </section>
@@ -84,26 +84,32 @@ function KpiCard(kpi: Omit<KpiSpec, 'key'> & { kpiKey: string }) {
   const Icon = kpi.icon
   const up = (kpi.delta ?? 0) >= 0
   const good = up === kpi.riseIsGood
+  // Reference (1491px): 77px card, 36px round wash icon ~20px from the text,
+  // 9px label / 17px value / 8.5px delta — each on one line, never wrapping.
+  // Phone/tablet keep larger type for legibility.
   const body = (
-    <div className="flex h-full items-start gap-3 rounded-xl border border-slate-200 bg-white p-4 transition-shadow hover:shadow-sm">
+    <div className="relative flex h-[84px] items-center gap-3 rounded-xl border border-slate-200 bg-white pl-3.5 pr-6 shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition-shadow hover:shadow-sm lg:h-[77px] lg:gap-5 lg:pl-3">
       {kpi.ring !== undefined
-        ? <ProgressRing value={kpi.ring} className={tone.ring} />
+        ? <ProgressRing value={kpi.ring} className={tone.ring} size={38} stroke={4} />
         : (
-          <span className={cn('flex h-10 w-10 shrink-0 items-center justify-center rounded-lg', tone.wash)}>
+          <span className={cn('flex h-11 w-11 shrink-0 items-center justify-center rounded-full lg:h-9 lg:w-9', tone.wash)}>
             <Icon size={18} className={tone.icon} />
           </span>
         )}
       <div className="min-w-0 flex-1">
-        <p className="truncate text-[13px] font-medium text-slate-500">{kpi.label}</p>
-        <p className="mt-0.5 text-2xl font-bold leading-tight text-slate-900">{kpi.value}</p>
+        <p className="line-clamp-2 text-[11.5px] font-semibold leading-4 text-slate-700 sm:line-clamp-none sm:truncate lg:text-[9px] lg:leading-3">{kpi.label}</p>
+        <p className="text-[19px] font-bold leading-6 tracking-tight text-slate-900 lg:mt-0.5 lg:text-[17px] lg:leading-[22px]">{kpi.value}</p>
         {kpi.delta !== null && (
-          <p className={cn('mt-1 flex items-center gap-0.5 text-xs font-medium', good ? 'text-emerald-600' : 'text-rose-600')}>
-            {up ? <ArrowUpRight size={13} /> : <ArrowDownRight size={13} />}
-            {Math.abs(kpi.delta)} {kpi.deltaSuffix}
+          <p className="flex items-center gap-1 whitespace-nowrap text-[10.5px] leading-4 text-slate-500 lg:mt-0.5 lg:text-[8.5px] lg:leading-3">
+            <span className={cn('inline-flex items-center', good ? 'text-emerald-600' : 'text-rose-600')}>
+              {up ? <ArrowUpRight size={11} strokeWidth={2.5} /> : <ArrowDownRight size={11} strokeWidth={2.5} />}
+              {Math.abs(kpi.delta)}
+            </span>
+            <span className="truncate">{kpi.deltaSuffix}</span>
           </p>
         )}
       </div>
-      <span className="text-slate-300" aria-hidden="true"><MoreVertical size={16} /></span>
+      <span className="absolute right-1.5 top-1/2 -translate-y-1/2 text-slate-300" aria-hidden="true"><MoreVertical size={15} /></span>
     </div>
   )
   if (!kpi.href) return <div title={kpi.tooltip}>{body}</div>
@@ -143,10 +149,10 @@ export function Panel({
   dense?: boolean
 }) {
   return (
-    <section className={cn('flex flex-col rounded-xl border border-slate-200 bg-white', className)}>
+    <section className={cn('flex min-w-0 flex-col rounded-xl border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)]', className)}>
       {title && (
-        <div className={cn('flex items-center justify-between border-b border-slate-100', dense ? 'px-4 py-3' : 'px-5 py-3.5')}>
-          <h2 className="flex items-center gap-2 text-[15px] font-semibold text-slate-900">
+        <div className={cn('flex items-center justify-between gap-2', dense ? 'px-3.5 pb-2 pt-3' : 'px-4 pb-2.5 pt-3.5')}>
+          <h2 className="flex min-w-0 items-center gap-2 truncate whitespace-nowrap text-[13.5px] font-semibold tracking-tight text-slate-900 lg:text-[11px]">
             {title}
             {count !== undefined && (
               <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-500">
@@ -155,7 +161,7 @@ export function Panel({
             )}
           </h2>
           {action && actionHref && (
-            <Link href={actionHref} className="inline-flex items-center gap-0.5 text-[13px] font-medium text-blue-600 hover:text-blue-700">
+            <Link href={actionHref} className="inline-flex shrink-0 items-center gap-0.5 whitespace-nowrap text-[11px] font-medium text-blue-600 hover:text-blue-700 lg:text-[9.5px]">
               {action}
             </Link>
           )}
@@ -169,10 +175,11 @@ export function Panel({
 // ---------------------------------------------------------------------------
 // Status badge — colour always paired with a text label
 // ---------------------------------------------------------------------------
-export function StatusBadge({ status, label }: { status: string | null | undefined; label?: string }) {
+export function StatusBadge({ status, label, size = 'sm' }: { status: string | null | undefined; label?: string; size?: 'xs' | 'sm' }) {
   return (
     <span className={cn(
-      'inline-flex items-center rounded-md border px-2 py-0.5 text-[11px] font-semibold whitespace-nowrap',
+      'inline-flex items-center rounded-md border font-semibold whitespace-nowrap',
+      size === 'xs' ? 'px-1.5 py-px text-[9px] lg:py-[2px] lg:text-[7.5px]' : 'px-2 py-0.5 text-[11px] lg:text-[9px]',
       toneFor(status),
     )}>
       {label ?? humanise(status)}
@@ -291,8 +298,8 @@ export function Pagination({
   }
 
   return (
-    <nav className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 px-5 py-3" aria-label="Pagination">
-      <p className="text-[13px] text-slate-500">
+    <nav className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 px-5 py-3 lg:px-3.5 lg:py-1.5" aria-label="Pagination">
+      <p className="text-[13px] text-slate-500 lg:text-[9px]">
         Showing {formatCount(from)} to {formatCount(to)} of {formatCount(total)} results
       </p>
       <div className="flex items-center gap-1">
@@ -306,7 +313,7 @@ export function Pagination({
                 href={hrefFor({ page: p })}
                 aria-current={p === page ? 'page' : undefined}
                 className={cn(
-                  'flex h-8 min-w-8 items-center justify-center rounded-md px-2 text-sm font-medium',
+                  'flex h-8 min-w-8 items-center justify-center rounded-md px-2 text-sm font-medium lg:h-6 lg:min-w-6 lg:text-[9.5px]',
                   p === page ? 'bg-blue-600 text-white' : 'text-slate-600 hover:bg-slate-100',
                 )}
               >
@@ -316,7 +323,7 @@ export function Pagination({
         )}
         <PageBtn href={hrefFor({ page: page + 1 })} disabled={page >= pages} label="Next">›</PageBtn>
         <select
-          className="ml-2 h-8 rounded-md border border-slate-200 bg-white px-2 text-sm text-slate-600"
+          className="ml-2 h-8 rounded-md border border-slate-200 bg-white px-2 text-sm text-slate-600 lg:h-6 lg:text-[9px]"
           defaultValue={pageSize}
           aria-label="Results per page"
           disabled
@@ -330,10 +337,10 @@ export function Pagination({
 
 function PageBtn({ href, disabled, label, children }: { href: string; disabled: boolean; label: string; children: React.ReactNode }) {
   if (disabled) {
-    return <span aria-disabled="true" className="flex h-8 w-8 items-center justify-center rounded-md text-slate-300">{children}</span>
+    return <span aria-disabled="true" className="flex h-8 w-8 items-center justify-center rounded-md text-slate-300 lg:h-6 lg:w-6">{children}</span>
   }
   return (
-    <Link href={href} aria-label={label} className="flex h-8 w-8 items-center justify-center rounded-md text-slate-600 hover:bg-slate-100">
+    <Link href={href} aria-label={label} className="flex h-8 w-8 items-center justify-center rounded-md text-slate-600 hover:bg-slate-100 lg:h-6 lg:w-6">
       {children}
     </Link>
   )

@@ -16,6 +16,12 @@
   See CAPTION_FOX_BUILD_GRADE_AUDIT.md (Section 19) for the current commercial-depth audit.
 -->
 
+## STANDING BUILD RULES — ALL WORKSPACE TYPES (Creator / Business / Brand / Agency / every other workspace type)
+
+1. **1:1 pixel-perfect designs.** When a section has approved design images under `designs/` (e.g. `designs/Universal Sections/<Section>/*.png`), each image is the authoritative spec for one page. Build every page 1:1 pixel-perfect to its image at the image's native viewport (e.g. 1491 × 1055): same layout, proportions, spacing, typography, colours, card sizes, density and component placement. Build with real components and live data — never embed the image as the UI. Verify with Chrome MCP screenshots compared side-by-side against the reference and iterate until they match. Correct obvious image-generation typos only.
+2. **Do not alter the side menu.** The sidebar/side menu must stay exactly as it is in every workspace type. The ONLY permitted sidebar change is adding the entry for the section currently being built (e.g. Advertising). Do not rename, reorder, restyle, remove, regroup or add any other sidebar items, and do not replace the sidebar with the one shown in a design image — design-image sidebars are context only.
+3. These rules apply identically across all workspace types; one shared implementation per section, gated by workspace type / plan / role / feature flag.
+
 Claude Code: before doing anything, read CLAUDE.md and AGENTS.md in full and follow them as the standing project rules. Then treat the section checklist pasted below as the exact release-readiness contract for this Caption Fox area: inspect the real app with Chrome MCP across desktop/tablet/mobile/PWA, click and test every relevant route/control/action, fix all UI, data, Supabase/RLS, permissions, feature flags, gates, integrations, tests and security issues, create the required /release-gated/docs/... and /release-gated/user-fixes/... files, and do not mark complete until the section is 100/100 release-ready.
 
 ___________________________________________________________________

@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useState } from 'react'
-import { ChevronDown, MoreHorizontal, Plus, Search, X } from 'lucide-react'
+import { MoreHorizontal, Plus, Search, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { getShellItem, shellConfigs, type ShellSurface } from '@/lib/shell/caption-fox-shell'
 

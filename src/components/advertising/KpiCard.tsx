@@ -57,33 +57,31 @@ export default function KpiCard({ kpi, icon, accent, comparisonLabel, className 
   return (
     <div
       className={cn(
-        'flex min-w-0 flex-col rounded-xl border border-slate-200 bg-white px-4 pb-3 pt-3.5',
+        // Design (1) spec: ~18px inset, label → value → comparison → thin sparkline.
+        // Measured against design (3): 118px tall at 1491 wide.
+        'flex min-w-0 flex-col rounded-xl border border-slate-200/80 bg-white px-4 pb-2.5 pt-3.5',
         'shadow-[0_1px_2px_rgba(15,23,42,0.04)]',
         className,
       )}
     >
       <div className="flex items-center gap-2">
-        <span
-          className="flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-md"
-          style={{ backgroundColor: `${accent}14`, color: accent }}
-          aria-hidden
-        >
+        <span className="flex shrink-0 items-center justify-center [&>svg]:h-[15px] [&>svg]:w-[15px]" style={{ color: accent }} aria-hidden>
           {icon}
         </span>
-        <span className="truncate text-[12.5px] font-medium text-slate-600" title={kpi.tooltip}>
+        <span className="truncate text-[12px] font-medium text-slate-600 lg:text-[10.5px]" title={kpi.tooltip}>
           {kpi.label}
         </span>
       </div>
 
-      <div className="mt-2 flex flex-wrap items-baseline gap-x-2 gap-y-1">
-        <span className="text-[26px] font-bold leading-none tracking-tight text-slate-900">
+      <div className="mt-2 flex items-baseline gap-x-1.5 whitespace-nowrap">
+        <span className="text-[21px] font-semibold leading-none tracking-[-0.02em] text-slate-900 tabular-nums lg:text-[19px]">
           {main}
-          {fraction && <span className="text-slate-400">{fraction}</span>}
+          {fraction && <span className="text-[16px] font-semibold text-slate-500 lg:text-[14px]">{fraction}</span>}
         </span>
         {hasDelta ? (
           <span
             className={cn(
-              'inline-flex items-center gap-0.5 text-[12px] font-semibold leading-none',
+              'inline-flex items-center gap-0.5 text-[12px] font-semibold leading-none lg:text-[10.5px]',
               good && 'text-emerald-600',
               bad && 'text-red-500',
               !good && !bad && 'text-slate-400',
@@ -100,13 +98,13 @@ export default function KpiCard({ kpi, icon, accent, comparisonLabel, className 
         )}
       </div>
 
-      <p className="mt-1.5 truncate text-[11px] text-slate-400">vs {comparisonLabel}</p>
+      <p className="mt-1.5 truncate text-[11px] leading-4 text-slate-400 lg:text-[10px]">vs {comparisonLabel}</p>
 
-      <div className="mt-2 h-[34px]">
+      <div className="mt-2 h-[18px]">
         <Sparkline
           points={kpi.spark}
           color={accent}
-          height={34}
+          height={18}
           summary={`${kpi.label} trend across the selected period`}
         />
       </div>

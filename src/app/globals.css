@@ -28,9 +28,114 @@
   --color-ai-500: #8b5cf6;
   --color-ai-600: #7c3aed;
 
+  /* Public marketing site (homepage redesign, 2026-09) */
+  --color-cf-ink: #0a1630;
+  --color-cf-body: #22324a;
+  --color-cf-muted: #5f6f86;
+  --color-cf-subtle: #647389;
+  --color-cf-blue: #1769ff;
+  --color-cf-blue-bright: #2e8bff;
+  --color-cf-blue-deep: #0f57e0;
+  --color-cf-surface: #f8fafd;
+  --color-cf-tint: #f4f8ff;
+  --color-cf-tint-2: #eff5ff;
+  --color-cf-line: #e4ebf5;
+  --color-cf-line-strong: #d3ddec;
+  --color-cf-rail: #d9e6fa;
+  --color-cf-violet: #7357ff;
+  --color-cf-violet-soft: #f1eeff;
+  --shadow-cf-card: 0 1px 2px rgb(10 22 48 / 0.04), 0 10px 28px -16px rgb(23 105 255 / 0.18);
+  --shadow-cf-float: 0 2px 6px rgb(10 22 48 / 0.04), 0 22px 48px -22px rgb(23 105 255 / 0.3);
+  --shadow-cf-button: 0 1px 2px rgb(10 22 48 / 0.08), 0 8px 20px -10px rgb(23 105 255 / 0.55);
+  --ease-cf: cubic-bezier(0.22, 1, 0.36, 1);
+
+  /* Caption Fox permanent application shell — see APP_SHELL_DESIGN_LOCK.md.
+     Do not change these from feature work. */
+  --color-shell-canvas: #f8fafd;
+  --color-shell-text: #0a1630;
+  --color-shell-text-2: #425474;
+  --color-shell-muted: #7888a3;
+  --color-shell-icon: #5b6b86;
+  --color-shell-blue: #1769ff;
+  --color-shell-blue-hover: #0f5ce5;
+  --color-shell-blue-soft: #eef5ff;
+  --color-shell-blue-soft-2: #e5f0ff;
+  --color-shell-border: #e1e8f2;
+  --color-shell-border-soft: #edf1f6;
+  --shadow-shell-pop: 0 2px 6px rgb(10 22 48 / 0.05), 0 16px 36px -14px rgb(10 22 48 / 0.2);
+  --shadow-shell-button: 0 1px 2px rgb(10 22 48 / 0.08), 0 6px 14px -8px rgb(23 105 255 / 0.55);
+
   /* Font */
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+}
+
+/* Inlined so var(--font-caveat) resolves where it is set (homepage wrapper), not at :root. */
+@theme inline {
+  --font-hand: var(--font-caveat), "Segoe Print", cursive;
+}
+
+/* Homepage typography (scoped — the authenticated app keeps Geist). */
+.cf-home { font-family: var(--font-inter), var(--font-geist-sans), system-ui, sans-serif; }
+.cf-home h1, .cf-home h2, .cf-home h3 { font-family: var(--font-inter-tight), var(--font-inter), system-ui, sans-serif; }
+
+/* ── Public marketing motion primitives ──────────────────────────────────── */
+@keyframes cf-rise {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes cf-pop {
+  from { opacity: 0; transform: translate(var(--fx, 0), var(--fy, 0)) scale(0.97); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes cf-draw {
+  from { stroke-dashoffset: 1; }
+  to { stroke-dashoffset: 0; }
+}
+.cf-rise { animation: cf-rise 0.6s var(--ease-cf) both; animation-delay: var(--d, 0ms); }
+.cf-pop { animation: cf-pop 0.65s var(--ease-cf) both; animation-delay: var(--d, 0ms); }
+/* Connector paths declare pathLength="1" so the dash trick is length-agnostic. */
+.cf-draw { stroke-dasharray: 1; stroke-dashoffset: 1; animation: cf-draw 0.9s var(--ease-cf) forwards; animation-delay: var(--d, 450ms); }
+.cf-draw-wait { stroke-dasharray: 1; stroke-dashoffset: 1; }
+[data-inview] .cf-draw-wait { animation: cf-draw 0.9s var(--ease-cf) forwards; animation-delay: var(--d, 150ms); }
+/* Measured-length connector draw (see components/home/ConnectorPath). */
+.cf-draw-real { transition: stroke-dashoffset 0.9s var(--ease-cf); transition-delay: var(--d, 0ms); }
+[data-inview] .cf-draw-real { stroke-dashoffset: 0 !important; }
+.cf-reveal {
+  opacity: 0;
+  transform: translateY(18px);
+  transition: opacity 0.6s var(--ease-cf), transform 0.6s var(--ease-cf);
+  transition-delay: var(--d, 0ms);
+}
+[data-inview] .cf-reveal, .cf-reveal[data-inview] { opacity: 1; transform: none; }
+@keyframes cf-step-in {
+  from { opacity: 0; transform: translateX(10px); }
+  to { opacity: 1; transform: none; }
+}
+.cf-step-in { animation: cf-step-in 0.24s var(--ease-cf) both; }
+/* Shell popovers: opacity 0 -> 1, scale .985 -> 1. */
+@keyframes cf-shell-pop {
+  from { opacity: 0; transform: scale(0.985); }
+  to { opacity: 1; transform: none; }
+}
+.cf-shell-pop { animation: cf-shell-pop 0.16s var(--ease-cf) both; transform-origin: top right; }
+@keyframes cf-shell-drawer {
+  from { transform: translateX(-100%); }
+  to { transform: none; }
+}
+.cf-shell-drawer { animation: cf-shell-drawer 0.2s var(--ease-cf) both; }
+/* Shell navigation: a thin scrollbar that only shows while hovered, so it
+   never sits over the sidebar edge at rest. */
+.cf-shell-scroll { scrollbar-width: thin; scrollbar-color: transparent transparent; }
+.cf-shell-scroll:hover, .cf-shell-scroll:focus-within { scrollbar-color: #d3ddec transparent; }
+.cf-hide-scrollbar { scrollbar-width: none; }
+.cf-hide-scrollbar::-webkit-scrollbar { display: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .cf-rise, .cf-pop, .cf-step-in, .cf-shell-pop, .cf-shell-drawer { animation: none; }
+  .cf-draw, .cf-draw-wait, [data-inview] .cf-draw-wait { animation: none; stroke-dashoffset: 0; }
+  .cf-reveal { opacity: 1 !important; transform: none !important; transition: none; }
+  .cf-draw-real { transition: none; stroke-dashoffset: 0 !important; }
 }
 
 /* Scrollbar */

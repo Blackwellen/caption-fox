@@ -15,7 +15,7 @@ export default function VerifyEmailPage() {
     const supabase = createClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (user?.email) {
-      await supabase.auth.resend({ type: 'signup', email: user.email, options: { emailRedirectTo: `${window.location.origin}/callback?next=${encodeURIComponent('/onboarding')}` } })
+      await supabase.auth.resend({ type: 'signup', email: user.email, options: { emailRedirectTo: `${window.location.origin}/callback?next=${encodeURIComponent('/continue')}` } })
     }
     setResent(true)
     setResending(false)

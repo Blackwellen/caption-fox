@@ -9,8 +9,8 @@ import { syncNowAction } from '@/lib/advertising/actions'
 // server's own success/error message rather than a generic toast.
 
 export default function SyncNowButton({
-  workspaceId, workspaceType, connectionId, accountId,
-}: { workspaceId: string; workspaceType: string; connectionId: string; accountId?: string }) {
+  workspaceId, workspaceType, connectionId, accountId, iconOnly,
+}: { workspaceId: string; workspaceType: string; connectionId: string; accountId?: string; iconOnly?: boolean }) {
   const [pending, startTransition] = useTransition()
   const [message, setMessage] = useState<{ text: string; ok: boolean } | null>(null)
 
@@ -27,11 +27,14 @@ export default function SyncNowButton({
     <span className="relative inline-flex">
       <button
         type="button" onClick={sync} disabled={pending}
-        className="inline-flex items-center gap-1 rounded border border-slate-200 px-2 py-1 text-[11.5px] font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+        className={iconOnly
+          ? 'flex h-6 w-6 items-center justify-center rounded-md text-slate-500 hover:bg-slate-100 hover:text-slate-800 disabled:opacity-50'
+          : 'inline-flex items-center gap-1 rounded border border-slate-200 px-2 py-1 text-[11.5px] font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-50'}
         aria-label="Sync now"
+        title="Sync now"
       >
-        {pending ? <Loader2 size={12} className="animate-spin" /> : <RefreshCw size={12} />}
-        Sync
+        {pending ? <Loader2 size={iconOnly ? 13 : 12} className="animate-spin" /> : <RefreshCw size={iconOnly ? 13 : 12} />}
+        {!iconOnly && 'Sync'}
       </button>
       {message && (
         <span

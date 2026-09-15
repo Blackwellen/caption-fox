@@ -2,6 +2,7 @@ import { notFound, redirect } from 'next/navigation'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase/server'
 import { getActiveWorkspace } from '@/lib/workspace'
+import { requireWorkspaceModule } from '@/lib/navigation/session'
 import type { WorkspaceLite } from '@/lib/workspace-shared'
 import {
   canAccessEventsCapability, EVENTS_ROUTE_SURFACES, eventsCapabilityBlocker,
@@ -42,6 +43,9 @@ export async function getEventsPageContext(
 ): Promise<EventsPageContext> {
   const surface = EVENTS_ROUTE_SURFACES[routeSegment]
   if (!surface) notFound()
+  // Shell navigation parity: Events is absent from Creator and plan-gated for
+  // Business, so a workspace without it in its sidebar cannot open it by URL.
+  await requireWorkspaceModule('events')
 
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()

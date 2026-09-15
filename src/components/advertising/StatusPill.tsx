@@ -90,7 +90,10 @@ export default function StatusPill({ status, map = CAMPAIGN_STATUS, dot = true, 
   return (
     <span
       className={cn(
-        'inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2 py-0.5 text-[11.5px] font-medium ring-1 ring-inset',
+        // Compact rounded-rectangle pill from the Advertising designs (~18px tall),
+        // so dense table rows stay at design height. `cn` is plain clsx, so
+        // callers cannot override these utilities reliably — change them here.
+        'inline-flex h-[18px] items-center gap-1.5 whitespace-nowrap rounded-md px-2 text-[11px] font-medium leading-4',
         TONES[entry.tone],
         className,
       )}

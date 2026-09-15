@@ -16,7 +16,7 @@ export function Panel({
   return (
     <section
       className={cn(
-        'flex min-w-0 flex-col rounded-xl border border-slate-200 bg-white',
+        'flex min-w-0 flex-col rounded-xl border border-slate-200/80 bg-white',
         'shadow-[0_1px_2px_rgba(15,23,42,0.04)]',
         padded && 'p-4',
         className,
@@ -41,7 +41,7 @@ export function PanelHeader({
   return (
     <div className={cn('flex flex-wrap items-center justify-between gap-2', className)}>
       <div className="flex min-w-0 items-center gap-1.5">
-        <h2 className="truncate text-[15px] font-semibold text-slate-900">{title}</h2>
+        <h2 className="truncate text-[14px] font-semibold text-slate-900">{title}</h2>
         {hint && <InfoDot label={hint} />}
       </div>
       <div className="flex shrink-0 items-center gap-2">

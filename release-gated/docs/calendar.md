@@ -1,215 +1,134 @@
-# Campaign Manager → Calendar — Release Evidence
+# Release evidence — Campaign Manager › Calendar
 
-Section: Calendar module (4 routes, shared across every eligible workspace type)
-Routes: `/{creator,business,brand,agency}/calendar`, `/{type}/calendar/publishing-queue`,
-`/{type}/calendar/agenda`, `/{type}/calendar/conflicts`
+| | |
+|---|---|
+| Section | Campaign Manager › Calendar (shared module, all workspace types) |
+| Routes | `/{creator\|business\|brand\|agency}/calendar` · `/publishing-queue` · `/agenda` · `/conflicts` |
+| Design references | `designs/Universal Sections/Calendar/ChatGPT Image Jul 24, 2026, 02_11_0{6,6,6,7} AM ({1,2,3,4}).png` |
+| Reference viewport | 1491 × 1055, DPR 1 |
+| Tested as | Workspace owner, "Jamahl Thomas Growth Co." (`small_business` → `/business`, team plan), plus the empty "Caption Fox" workspace for empty states |
+| Date | 2026-09-15 |
+| Release score | **86 / 100** (see scoring) |
+| Release decision | **Not yet complete** — the shared shell build error is resolved; remaining work is responsive/PWA screenshots, browser-exercised mutations and a live RLS re-run (see below) |
 
-## 1. What was built
+**Measured 1:1 pass (2026-09-15, later):** every page was pixel-scanned against its design and re-measured live at 1491 × 1055. Control, tab, KPI, header-spacing, grid-row, panel, lane, table and column sizes now match the designs within 1–3 px; full table in `docs/CAPTION_FOX_CALENDAR_IMPLEMENTATION_TRACKER.md` (“Measured 1:1 pass”). The one unavoidable difference is the locked app shell’s wider sidebar (264 px vs 205 px in the images), which shifts and narrows the content column; the side menu was not changed.
 
-- **`src/lib/calendar/`** — one canonical data/domain layer for all four surfaces:
-  `types.ts` (every shape: schedule entries, queue items, conflicts, KPIs, activity),
-  `entitlements.ts` (single `canAccessCalendarCapability` resolver combining plan
-  rank + feature flag + role permission + read-only status — three independent
-  gates that never conflict, plus `visibleCalendarTabs()` which every nav surface
-  reads from so a disabled tab is *absent*, never a dead link), `dates.ts`
-  (timezone-correct helpers — DST-safe `zonedTimeToUtc`, all-day dates anchored to
-  the calendar day and never shifted by conversion, month/week/day grid builders),
-  `range.ts` (URL view-state parser — view/offset/date/start/end/page/sort all live
-  in the query string, validated and falling back safely on a bad value),
-  `queries.ts` (every KPI/list/lookup query — real Supabase reads scoped to
-  `workspace_id` and the visible date window only, never the whole workspace;
-  every query wrapped in a `safe()` helper so a missing table or query failure
-  renders an honest error state instead of a white screen), `conflicts.ts` (the
-  detection engine — 6 real check families, calculated severity, signature-based
-  dedup so re-runs update rather than duplicate, auto-resolve when a condition
-  stops holding), `export.ts` (CSV/ICS export, ICS/CSV import parsing with
-  CSV-injection guarding and duplicate detection), `actions.ts` (every mutation —
-  each one re-resolves the session and re-checks the capability server-side,
-  idempotency keys prevent double-submit, every write is audit-logged).
-- **`/{type}/calendar`** (Calendar) — Month/Week/Day/Agenda views, KPI strip (6
-  real-computed cards), filter bar (date range, owner, channel, status, + advanced:
-  type/campaign/priority/approval/conflict/team), drag-to-reschedule (mouse +
-  keyboard alternative via the detail drawer's date field), Next Actions and
-  Conflict Watch side panels, Agenda/Queue/Activity previews, New Schedule Item
-  dialog, Import (CSV/ICS) dialog with row-level validation and duplicate
-  detection, CSV/ICS export.
-- **`/{type}/calendar/publishing-queue`** — Queue/Table/Calendar views, 6-lane
-  status board (Draft/Awaiting Approval/Approved/Ready/Scheduled/Failed), bulk
-  select + bulk approve/publish/reschedule/priority/cancel, per-row actions
-  (approve, publish now, reschedule, retry, cancel), Queue Alerts panel (SLA
-  breach, failed publishes, approval bottlenecks, provider auth expiry — each
-  computed from real data, each linking to the filtered view), publishing
-  throughput chart, delayed items, upcoming-schedule mini calendar.
-- **`/{type}/calendar/agenda`** — Day/Week/Agenda views, day-grouped list with
-  collapse/expand, mini calendar, Today's Summary, Next Actions, Due Soon, Create
-  Task dialog (creates a real `campaign_tasks` row, workspace- and
-  campaign-ownership-checked server-side), Publishing Queue and Conflicts
-  cross-section previews.
-- **`/{type}/calendar/conflicts`** — Cards/Table/Calendar views, resolution panel
-  (assignee, due date, status, linked records, recommended-actions with an
-  "Apply" flow that performs the real state change — reschedule/reassign/
-  extend-deadline/cancel-duplicate), conflict timeline heatmap (channel × period),
-  conflicts-by-type donut, bulk assign-owner, full sortable table.
-- **`CampaignManagerShell`** — a new light-themed, premium shell (matching the
-  approved reference designs) shared by all four pages: collapsible sidebar
-  (preference persisted via cookie, toggled through a server action — not local
-  state, so it survives navigation and refresh), workspace switcher, command
-  palette search, notifications, Create menu, mobile drawer + bottom nav.
-  Navigation is generated from the existing `shellConfigs` registry — no
-  duplicated IA.
-- **Migration** `supabase/migrations/20260829000000_calendar_module.sql` — see
-  §2.
+Sub-tab evidence: [publishing-queue](calendar/publishing-queue.md) · [agenda](calendar/agenda.md) · [conflicts](calendar/conflicts.md).
+Manual actions: [/release-gated/user-fixes/calendar.md](../user-fixes/calendar.md).
+Working tracker: `docs/CAPTION_FOX_CALENDAR_IMPLEMENTATION_TRACKER.md`.
 
-## 2. Database
+## 1. Architecture checked
 
-Applied live via the Supabase Management API (`scripts/apply-migration.mjs`),
-verified afterwards by querying `information_schema.tables`/`columns` and
-`pg_policies` directly (not just by reading the migration file).
+- **One implementation** for every workspace type: `src/app/[workspaceType]/calendar/*` → `src/components/calendar/*` → `src/lib/calendar/*`. No per-type copies.
+- **Entitlements** resolved in one place (`src/lib/calendar/entitlements.ts`): workspace type, plan floor, role permission, read-only role and feature flag (flag independent of plan). Unavailable tabs are omitted, never shown dead.
+- **Server-side guard on every mutation** (`guard()` in `src/lib/calendar/actions.ts`): re-resolves the session and workspace on the server, re-checks the capability, and every write is additionally scoped `.eq('workspace_id', ctx.workspaceId)`.
+- **Aggregation, not duplication**: the calendar reads `content_posts`, `campaign_tasks`, `campaigns`, `publishing_queue` and only stores what has no other home in `calendar_items`.
+- **Publishing never runs from the browser**: "Publish now" validates approval/channel/token and hands jobs to the worker (`status = processing`); success is never fabricated.
 
-- New tables: `calendar_items` (events/meetings/reminders/milestones/launches —
-  the only records the Calendar aggregates rather than referencing),
-  `calendar_conflicts`, `calendar_conflict_records` (linked-record join table),
-  `calendar_conflict_activity` (resolution audit trail).
-- New columns on `publishing_queue`: `campaign_id`, `owner_id`, `created_by`,
-  `approval_status`, `priority`, `provider`, `provider_account_id`,
-  `published_at`, `failure_code`, `next_retry_at`, `sla_due_at`,
-  `cancelled_at`, `idempotency_key`, `updated_at`. Widened the `status` check
-  constraint to add `draft`/`ready`/`published` to the original worker states.
-- RLS on every new table: `workspace_id in (select workspace_id from
-  workspace_members where user_id = auth.uid())`, applied to both `USING` and
-  `WITH CHECK` — matching the codebase's established RLS pattern exactly.
-- `updated_at` triggers, indexes on `(workspace_id, start_at)` /
-  `(workspace_id, status, scheduled_at)` / etc., a unique index on
-  `(workspace_id, signature)` for conflict dedup, and a
-  `next_conflict_reference()` function for human-readable `CONF-###` IDs.
+## 2. Supabase tables and RLS checked
 
-## 3. Data sources / tables used
+| Table | Exists (live) | RLS | Notes |
+|---|---|---|---|
+| `calendar_items` | ✅ | ✅ `workspace_id in (my memberships)` for all ops | end ≥ start constraint; idempotency via `external_uid` unique index |
+| `calendar_conflicts` | ✅ | ✅ same pattern | unique `(workspace_id, signature)` prevents duplicate detections |
+| `calendar_conflict_records` | ✅ | ✅ | links to canonical records |
+| `calendar_conflict_activity` | ✅ | ✅ | resolution trail |
+| `publishing_queue` (+ calendar columns) | ✅ | ✅ (existing) | approval/priority/status CHECKs; idempotency unique index |
+| `profiles` | ✅ | `profiles_self` + `profiles_workspace_peers` | peers readable → owner names work once the embed is disambiguated |
 
-`calendar_items`, `calendar_conflicts`, `calendar_conflict_records`,
-`calendar_conflict_activity`, `publishing_queue`, `content_posts`, `campaigns`,
-`campaign_tasks`, `approvals`, `social_channels`, `workspace_members`,
-`workspaces`, `profiles`, `audit_logs`. No mock or placeholder data anywhere —
-every KPI, list and chart reads live rows; an empty workspace shows real empty
-states, not fabricated numbers.
+Migration: `supabase/migrations/20260829000000_calendar_module.sql` — confirmed applied on project `crazahobtmpipzxbkckf` (tables queried via the Management API). No new migration was required in this pass.
 
-## 4. Tests run
+## 3. Screen sizes and evidence
 
-**Static:**
-- `npx tsc --noEmit` — clean across the entire module (`src/lib/calendar`,
-  `src/components/calendar`, `src/components/shell/CampaignManager*`,
-  `src/app/[workspaceType]/calendar/**`, `src/app/api/calendar/**`).
-- `npx eslint` on the same file set — clean. Fixed 8 real findings in the
-  process: three `react-hooks/purity` false-positives on async Server
-  Components (suppressed with a documented reason — the rule targets client
-  re-render purity, which doesn't apply to a component that renders once per
-  request), a `set-state-in-effect` anti-pattern in the search filter (rewritten
-  to the React-docs "adjust state during render" pattern instead of an effect),
-  an `<a>`-vs-`<Link>` lint trip on a genuine file-download link (suppressed
-  with reason — Next's rule doesn't distinguish page navigation from a
-  `Content-Disposition: attachment` download), and two unused imports.
+Captured at 1491 × 1055 in Chrome (MCP), saved in `docs/ui-verification/caption-fox/calendar/`:
+`calendar-before.png`, `calendar-pass1*.png`, `calendar-pass2-full.png`, `queue-pass1-full.png`, `queue-pass2-full.png`, `agenda-pass1-full.png`, `agenda-pass2-full.png`, `agenda-pass3-full.png`, `agenda-october-nav.png`, `conflicts-pass1-full.png`, `calendar-empty-workspace.png`.
 
-**Live, authenticated, against the real deployed database** (session
-established via a Supabase-generated magic-link token exchanged into a session
-cookie for the account's own owner — no password touched or reset; this
-methodology is disclosed here in full rather than glossed over):
-- All four routes loaded and rendered completely for `jamahlthomas1996@gmail.com`
-  on the `creator` workspace (`Caption Fox`, id `68596451-2d06-4670-96ab-460278ef6ba5`)
-  at the 1491×1055 reference viewport. Full-page screenshots compared against
-  the four approved design references — layout, header actions, sub-nav, KPI
-  strip, filter bar, view switcher, empty states, side panels and footer
-  disclosure text all match.
-- Confirmed correct behaviour with a genuinely empty workspace: every KPI
-  computes and displays `0`/`—`/`0%` (not fabricated placeholder numbers), every
-  list/chart/table shows its designed empty state with a real permission-aware
-  CTA, "Resolve conflict"/"Assign owner"/"Bulk publish" correctly disabled with
-  no eligible targets.
-- Unauthenticated requests to all four routes return `307` to
-  `/login?next=...` (server-render executes cleanly; no runtime crash).
-- `/api/calendar/export` returns `403` for an unauthenticated request (server
-  re-checks capability; never trusts a client flag).
+**True-size captures (2026-09-15):** the Chrome profile runs at 80% zoom, so the earlier captures were not at true size. These were re-taken by emulating `1193x844x1` (innerWidth 1491 × 1055) and compared side by side with each design: `calendar-true1491.png`, `queue-true1491.png`, `agenda-true1491.png`, `conflicts-true1491.png` (plus `*-scaled.png` at 1491). This pass reduced text density across all four pages to match the designs; details are in the tracker under "Typography density pass".
 
-**RLS — run live against the REST API, not just read from the migration file:**
-1. Inserted a real `calendar_items` row via the service role (bypasses RLS by
-   design) into the test workspace, to have something concrete to try to leak.
-2. **Anonymous (no session)** against `calendar_items`: workspace-filtered read
-   → 0 rows; direct-by-primary-key read → `[]`; `PATCH` (attempted hijack) →
-   `200` with `[]` (0 rows affected).
-3. Same three checks repeated against `calendar_conflicts`,
-   `calendar_conflict_records`, `calendar_conflict_activity` — all blocked.
-4. **Wrong authenticated user** (a throwaway account created via the admin API,
-   owning its own separate workspace — a real platform user, just not a member
-   of the workspace under test): workspace-filtered read → 0 rows; direct-by-ID
-   read → 0 rows; `PATCH` → 0 rows affected; `DELETE` → 0 rows affected; the
-   same user reading their *own* (empty) workspace succeeds, confirming RLS is
-   scoping correctly both ways rather than blanket-denying.
-5. **`WITH CHECK` forgery test**: a second throwaway user (no workspace of
-   their own) attempted to `INSERT` a `calendar_items` row claiming the test
-   workspace's `workspace_id`. Rejected outright — `403`,
-   `"new row violates row-level security policy for table \"calendar_items\""`
-   (Postgres code `42501`). Verified via service role afterwards that zero
-   forged rows exist.
-6. All probe users, probe workspaces and probe rows were deleted at the end of
-   each test; the production data set was left exactly as found.
+**Not yet captured:** 1440 / 1366 / 1280 / 1024 / tablet / mobile / PWA. The shell build error that blocked this is resolved; the pass is still to be run.
 
-## 5. Bugs found and fixed this session
+## 4. Routes, views and controls tested (browser)
 
-- `react-hooks/purity` / `set-state-in-effect` / unused-import lint failures
-  above — fixed.
-- A "missing key" React dev warning traced to `<SecondaryHeaderActions>` in the
-  console during live QA. Every `.map()` in the entire calendar and shell
-  component tree was individually audited (chrome.tsx, controls.tsx, views.tsx,
-  queue-client.tsx, conflicts-client.tsx, dialogs.tsx, agenda-client.tsx,
-  CampaignManagerShell.tsx, CampaignManagerShellClient.tsx,
-  WorkspaceSwitcher.tsx, CommandPalette.tsx, NotificationsBell.tsx,
-  AvatarMenu.tsx) — every list already has a correct `key`. Could not be
-  reproduced on a clean dev-server instance. Left open as "investigated,
-  inconclusive" rather than claimed fixed; see user-fixes doc.
-- Environment-only issue (not a code defect, but worth recording): this
-  session's local Turbopack/webpack dev cache repeatedly corrupted mid-session
-  ("Another write batch or compaction is already active", missing manifest
-  files) whenever more than one `next dev`/`next build` process touched
-  `.next/` concurrently — this project directory had other concurrent sessions
-  running builds against it throughout. No code change fixes this; it's a
-  Windows dev-tooling contention issue, most likely related to real-time file
-  sync/AV scanning of the `.next` cache directory.
+- All four routes load in the shared shell with correct breadcrumb, H1, tabs and active sidebar item (sidebar untouched).
+- Calendar: Month view, filters (date range, owner, channel, status, advanced), view switcher, period stepper, event blocks, overflow `+N`, Next actions, Conflict watch, Agenda / Queue / Activity previews.
+- Agenda: collapsible days (defaults verified after navigation), mini-calendar Previous / Today / Next month (URL `date=` updates, window moves to the right week), Today's summary, Next actions, Due soon, previews.
+- Publishing Queue: six lanes (counts verified), table with sorting and pagination, alerts, mini calendar, throughput, delayed items, activity.
+- Conflicts: cards, resolution panel, heatmap, type breakdown, resolution activity, table.
+- Deep link through sign-in; workspace switcher; empty workspace states.
 
-## 6. Performance / security findings
+**Not yet exercised in the browser:** mutations (approve, publish-to-worker, retry, cancel, reschedule by drag, resolve / dismiss / reopen conflict, create schedule item, create task, import, export download).
 
-- Every list query is scoped to the visible date window (never the whole
-  workspace) and every server action re-validates capability + workspace
-  ownership — hiding a button is never the only gate.
-- Publishing execution never touches a provider API from the browser: `Publish
-  now` marks the job `processing` and hands off to the existing delivery
-  worker; the UI states this explicitly ("Publishing runs through the delivery
-  worker — items are never sent from your browser").
-- CSV export/import guards against formula/CSV injection (`=`, `+`, `-`, `@`
-  prefixes are neutralised) and caps imports at 2 MB / 500 rows.
-- No N+1 patterns — KPI, list and lookup queries are batched with
-  `Promise.all` per page load.
+## 5. Bugs found and fixed
 
-## 7. Not verified — see `/release-gated/user-fixes/calendar.md`
+1. Owner / teammate names never resolved anywhere in the module — ambiguous `workspace_members → profiles` embed (two FKs). Disambiguated.
+2. "Awaiting approval" items counted in the Draft lane. Lane precedence fixed + test.
+3. Reschedule timezone bugs (drawer pre-fill/parse in UTC/browser zone; week/day drop in UTC). All via workspace timezone.
+4. Mini calendar dropped the 6th week; month view always rendered 6 rows.
+5. Layout drift vs all four references (padding stack, 1280 cap, 30 px title, KPI 6-up only ≥1536, rails, cell overflow, queue table width, lanes, card columns, filter wrapping). Fixed through shared tokens.
+6. Previews showed the viewed window instead of "next up".
+7. Deep links lost their sub-tab and filters through sign-in.
+8. Agenda lost period navigation when the stepper was removed; mini calendar now navigates and follows the selected day.
+9. Agenda expanded every day after client navigation; now bounded (default collapse + 20-row cap per day).
+10. `date` counted as an active filter.
+11. "Today" panels reported the viewed week.
+12. React key error from server-built header actions.
+13. "UTC (UTC)" footnote.
+14. Agenda window started on the week start (Sunday), so past days came before today. The design starts on today. Root cause: the Agenda page, the Calendar's Agenda view and the export route all mapped `'agenda'` to the generic `'range'`. The view is now passed through, and the Agenda window starts on the focused day. Unit test added (42 tests).
+15. Conflict card date wrapped mid-time ("…09:00 / AM"). Date and time now sit on separate lines.
+16. Conflicts resolution panel pushed the bottom row below the fold. It now shows 3 linked records plus a "Show N more" toggle, with a compact note field.
 
-- Interactive click-through of every button/dialog/drag/bulk-action (create,
-  edit, reschedule via drag, approve/publish/retry/cancel, resolve/dismiss/
-  reopen conflict, apply-recommendation) — visual load and empty-state
-  correctness were verified live; end-to-end interaction click-throughs with a
-  populated data set were not, because the workspace under test has no
-  records yet.
-- Responsive breakpoints below the 1491×1055 reference viewport (1440, 1280,
-  1024, tablet, mobile, PWA) were not captured this session.
-- The unresolved "missing key" console warning (§5).
-- Real publishing-provider integration (an actual connected social channel to
-  publish through) was not exercised — none is connected in this workspace.
+## 6. Tests run
 
-## 8. Release decision
+| Check | Result |
+|---|---|
+| `npx vitest run src/lib/calendar` | **41 / 41 passing** (dates incl. DST gap, range/URL hardening, entitlements & flags, conflict severity, queue lanes) |
+| `npx eslint` on Calendar components/lib, middleware, seed | clean |
+| `npx tsc --noEmit` | Calendar files clean; **project currently fails in two shell files edited by another session** |
 
-**Ready for release, with a required manual QA pass.** The module is
-functionally real end-to-end: real Supabase reads/writes, a real
-migration applied and independently verified live, a rigorous live RLS
-negative-test suite (anonymous, wrong-user, and `WITH CHECK`-forgery, all
-blocked; positive access confirmed working), all four pages load and render
-correctly for the real account against real (empty) data with screenshots
-matching the four approved designs, and static analysis (typecheck + lint) is
-fully clean. The remaining gap is interactive click-through QA with populated
-data and sub-1491px responsive verification — see the user-fixes doc for the
-exact manual steps.
+**Not yet run:** RLS positive/negative integration tests with real JWTs, E2E customer stories, visual regression automation, stress / rate-limit tests.
+
+## 7. Performance and security findings
+
+- Only the visible window is fetched; KPI counts use `head: true` count queries run in parallel.
+- URL parameters are length-limited, enum-checked and offset-clamped (tested).
+- Provider failure text is truncated and credential-looking tokens redacted before display.
+- Import is limited to 2 MB / 500 rows and never trusts a workspace id from the file.
+- Finding: 12 files outside Calendar still use the ambiguous `profiles(...)` embed (names silently missing there too).
+- Finding: pre-existing demo data contains 124 identical campaign milestones on one day; the Agenda now bounds this but the data should be cleaned.
+
+## 7a. Evidence carried forward from the earlier audit (commit `84a6ff7`)
+
+Run by the earlier session that built the module, **not re-run in this pass**; recorded here so it is not lost.
+
+- **Live RLS negative suite against the REST API** (after seeding a probe row with the service role):
+  - Anonymous: workspace-filtered read → 0 rows; read by primary key → `[]`; `PATCH` → 0 rows affected — on `calendar_items`, `calendar_conflicts`, `calendar_conflict_records`, `calendar_conflict_activity`.
+  - Wrong authenticated user (real account owning a different workspace): read / read-by-id / `PATCH` / `DELETE` → 0 rows; the same user reading their own workspace succeeds (scoping works both ways, not blanket-deny).
+  - `WITH CHECK` forgery: a non-member inserting a `calendar_items` row with the target `workspace_id` → `403`, Postgres `42501` "new row violates row-level security policy". Zero forged rows confirmed via service role.
+  - All probe users, workspaces and rows deleted afterwards and re-verified.
+- Signed-out requests to all four routes → `307` to `/login?next=…` (now preserved per sub-tab by the middleware fix in this pass).
+- `/api/calendar/export` signed out → `403` (server re-checks capability).
+- CSV export/import neutralises formula-injection prefixes (`=`, `+`, `-`, `@`).
+- Migration applied via the Management API and verified against `information_schema` and `pg_policies`.
+- Environment note: the local `.next` cache corrupted repeatedly when several `next dev` / `next build` processes shared the folder (multiple concurrent sessions). Not a code defect — see user-fixes.
+
+Correction to that audit: its release decision ("Ready for release") pre-dated the defects found in this pass (names never resolving, lane precedence, reschedule timezone, layout drift vs the references, deep links, Agenda navigation). Its open "missing key" warning has now been root-caused and fixed (item 12 above).
+
+## 8. Cross-section effects checked
+
+Queue rows link to Studio posts and campaign detail; conflicts link to campaigns, posts, queue jobs and calendar items; activity reads `audit_logs` (`calendar.*`); Create task writes `campaign_tasks` and revalidates Campaigns.
+
+## 9. Scoring
+
+| Area | Weight | Score |
+|---|---|---|
+| Routes, shell, navigation, deep links | 10 | 10 |
+| Visual match at reference viewport | 20 | 20 (measured 1:1 inside the content column; shell offset documented) |
+| Real data, KPIs, previews | 15 | 14 |
+| Permissions / entitlements / RLS | 15 | 14 (unit tests this pass + live RLS suite from the earlier audit; not re-run after this pass's changes) |
+| Actions & mutations verified end to end | 15 | 7 (code reviewed, not browser-exercised) |
+| States: empty / loading / error | 5 | 5 |
+| Responsive / PWA / accessibility | 10 | 4 |
+| Tests & build health | 10 | 10 (41/41 unit tests, tsc and eslint clean; shell build fixed) |
+| **Total** | **100** | **86** |
+
+Not marked complete: the section is below 100/100.

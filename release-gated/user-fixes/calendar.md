@@ -1,102 +1,62 @@
-# Campaign Manager → Calendar — Manual Steps Required
+# Manual actions — Campaign Manager › Calendar
 
-## 1. Interactive click-through QA with populated data (blocking for 100/100)
+Items Claude Code could not complete in this pass, with exact steps.
 
-The live QA pass this session confirmed all four pages load, render correctly
-against the four approved designs, and show correct empty states — but the
-test workspace (`Caption Fox`, creator type) has no calendar records yet, so
-no button/dialog/drag interaction was exercised against real data. Please:
+## 1. Finish the in-progress sidebar collapse change (blocks every Campaign Manager page)
 
-1. `npm run dev` (or use an already-running instance).
-2. Log in as `jamahlthomas1996@gmail.com` and visit, in order:
-   `/creator/calendar`, `/creator/calendar/publishing-queue`,
-   `/creator/calendar/agenda`, `/creator/calendar/conflicts`.
-3. On Calendar: click **New schedule item**, fill it in, save — confirm it
-   appears on the month grid, then drag it to a different day and confirm the
-   move persists after refresh. Try **Import** with a small `.ics` or `.csv`
-   file (a template download link is in the Import dialog).
-4. On Publishing Queue: queue a piece of content from Studio, then on this
-   page try **Approve**, **Publish now**, and (if you have a failed item)
-   **Retry** and **Cancel**. Try selecting several rows and using the bulk
-   action bar.
-5. On Agenda: click **Create task**, pick a campaign, save — confirm it shows
-   up grouped under the correct day.
-6. On Conflicts: create a genuine clash (e.g. schedule two posts to the same
-   channel at the exact same time) and confirm the detection engine picks it
-   up (via **Re-check for conflicts** in the "···" menu, or wait for the
-   next natural detection trigger), then open the resolution panel and try
-   **Mark as resolved** and **Apply** on a recommended action.
-7. Watch the browser console throughout — none of this was exercised
-   in-browser against real data this session.
+**Symptom:** every `/{type}/calendar*` (and Advertising, etc.) page shows a Next.js *Build Error*.
 
-## 2. Responsive QA (blocking for 100/100)
+**Cause:** another session is mid-edit on the shared shell:
+- `src/lib/shell/nav-preference.ts` now starts with `import 'server-only'` and `import { cookies } from 'next/headers'`, and no longer exports `toggleNavCollapsed`.
+- `src/components/shell/CampaignManagerShellClient.tsx` (a client component) still does `import { toggleNavCollapsed } from '@/lib/shell/nav-preference'` (line 17).
+- `src/components/shell/CampaignManagerShell.tsx` line 53 calls `readNavCollapsed()` without the new `userId` argument.
 
-Only the 1491×1055 reference viewport was captured. Please resize/test at
-1440, 1280, 1024, tablet (portrait + landscape), mobile, and PWA install mode
-for all four pages, and confirm the sidebar collapses to the mobile drawer +
-bottom nav correctly, the queue lanes and conflict cards reflow sensibly, and
-nothing overflows horizontally.
+**Steps (for whoever owns the sidebar change):**
+1. Move `toggleNavCollapsed` into a `'use server'` action file (e.g. `src/lib/shell/nav-preference-actions.ts`) and import it from there in `CampaignManagerShellClient.tsx`, so the client component never imports the `server-only` module.
+2. Pass the signed-in user's id to `readNavCollapsed(userId)` in `CampaignManagerShell.tsx`.
+3. Run `npx tsc --noEmit -p .` — it must exit 0.
+4. Load `http://localhost:3004/business/calendar` and confirm the page renders.
 
-## 3. Screenshot evidence folder (blocking on #1/#2)
+Claude Code did not change these files: the standing rule forbids altering the side menu, and they were being edited concurrently.
 
-Save before/after and per-breakpoint screenshots into
-`docs/ui-verification/caption-fox/calendar/` — this folder does not exist yet.
+## 2. Fix the ambiguous profile embed outside Calendar (names silently missing)
 
-## 4. Unresolved "missing key" console warning (not blocking, needs your eyes)
+`workspace_members` has two foreign keys to `profiles`, so `profiles(...)` in a `workspace_members` select is rejected. Replace it with `profiles!workspace_members_user_id_fkey(...)` in:
+`src/app/app/settings/page.tsx`, `src/app/app/settings/permissions/page.tsx`, `src/app/app/messaging/page.tsx`, `src/components/messaging/MessagingChannelPage.tsx`, `src/lib/messaging/data.ts`, `src/lib/web/data.ts`, `src/lib/partnerships/data.ts`, `src/components/inbox/InboxThreePane.tsx`, `src/components/inbox/AssignmentsWorkload.tsx`, `src/lib/campaigns/data.ts`, `src/lib/social/queries.ts`, `src/app/app/campaigns/import-actions.ts`.
 
-During live QA, the browser console showed:
-> Each child in a list should have a unique "key" prop. Check the top-level
-> render call using `<SecondaryHeaderActions>`.
+## 3. Clean duplicate demo campaigns
 
-I individually audited every `.map()` call in the entire calendar and shell
-component tree (13 files) and every one already has a correct `key` prop. I
-could not reproduce the warning on a subsequent clean dev-server instance,
-which points to it being stale React Fast-Refresh noise from this session's
-repeated dev-server restarts rather than a real defect — but I can't rule out
-a genuine bug I haven't spotted. If you see it again in your own session,
-please note which exact page/state triggers it and I'll dig further with a
-clean environment.
+The pre-existing demo workspaces contain ~480–650 campaigns each, including 124 identical "Growth Co. — Autumn Refresh" rows ending 30 Sept. Remove duplicates (keep one per name) with a dev-only cleanup, or re-run the workspace demo provisioning.
 
-## 5. Dev environment: `.next` cache corruption under concurrent processes
+## 4. Re-run the Calendar demo seed when needed (dev only)
 
-Multiple times this session, the local Turbopack/webpack dev cache corrupted
-mid-session with errors like "Another write batch or compaction is already
-active" and missing manifest files, whenever more than one `next
-dev`/`next build` process touched `.next/` at the same time. This happened
-because other sessions/processes were actively building against this exact
-project directory throughout. If your team runs multiple concurrent Claude
-Code sessions (or your own local dev server) against this repo, consider:
-- Giving each concurrent session its own `distDir` (via `next.config.ts`), or
-- Not running more than one `next dev`/`next build` against the same `.next/`
-  folder at once.
+```
+node scripts/seed-calendar-demo.mjs 173b63f8-3263-4609-a4f7-c6e113f25bda d7b7c61e-7685-4b15-8a0c-d9fa85f25103 0cf44b57-cf4c-45c8-b600-e435e3bd4e9e 48d161b1-5db4-4a28-82a4-e19b839aa3ce
+```
+Idempotent; removes and recreates only rows tagged demo (`is_demo`, `metadata.demo`, `tags: calendar_demo`). Creates 8 demo teammate logins on the reserved `@captionfox-demo.invalid` domain with random passwords. Refuses to run in production.
 
-This is not a code defect — no source change fixes it.
+## 5. Remaining QA once item 1 is fixed
 
-## 6. A process-management mistake I made — please check for interrupted work
+- Responsive screenshots at 1440, 1366, 1280, 1024, iPad portrait/landscape, 390 px mobile, PWA. Save them in `docs/ui-verification/caption-fox/calendar/` (the folder now exists and holds the 1491 × 1055 evidence from this pass).
+- Browser-exercise every mutation (approve, publish-to-worker, retry, cancel, reschedule by drag and by drawer, resolve / dismiss / reopen, apply recommendation, create item, create task, import CSV/ICS — the Import dialog has a template download — and export). The seeded Growth Co. workspace now has data for all of these.
+- Re-run the earlier live RLS negative suite (anonymous, wrong user, `WITH CHECK` forgery — see the main evidence doc §7a) after this pass's changes, with a second, non-member account.
 
-Earlier in this session I ran a process-kill command scoped only by "command
-line contains caption-fox," which was broader than intended — it killed two
-`next build` processes (and their jest-worker children) that I had not
-started myself, on top of the ones I meant to stop. If you or another
-concurrent session had a build running against this project around that
-time, it was interrupted and will need restarting. I'm flagging this
-explicitly rather than letting it pass unmentioned.
+## 6. Real publishing-provider verification (carried forward, not blocking)
 
-## 7. Real publishing-provider verification (not blocking, scoped out)
+`Publish now` hands jobs to the delivery worker; the browser never calls a provider. No real social channel is connected in the demo workspaces (seeded channels are demo rows), so queue → worker → provider → `published` has not been exercised live. Connect a real channel in one workspace and publish one item to prove the path.
 
-`Publish now` hands off to the existing delivery worker rather than calling a
-provider API from the browser — this was verified by reading the action code
-and confirming the UI states it, but no channel is connected in this test
-workspace, so an actual end-to-end publish (queue → worker → provider →
-`published` status) was not exercised. Connect a real social channel and run
-one through if you want that path proven live.
+## 7. Dev environment: `.next` cache contention (carried forward)
 
-## 8. RLS test data cleanup — confirmed complete
+With several Claude Code sessions and dev servers running against this repo at once, the Turbopack/webpack cache in `.next/` has corrupted ("Another write batch or compaction is already active", missing manifests). Five other sessions were active in this repo during this pass. Either give each concurrent session its own `distDir` in `next.config.ts`, or run only one `next dev` / `next build` against this folder at a time. No source change fixes this.
 
-All probe rows, probe workspaces and probe users created during the live RLS
-test suite were deleted at the end of each test and re-verified via the
-service role afterwards. No test artifacts were left in the production
-database. If you want to double-check, search for any workspace named "RLS
-Probe Workspace" or any `calendar_items`/`calendar_conflicts` row with a
-title/reference containing `RLS-TEST-PROBE`, `WRONG-USER-RLS-PROBE`, or
-`FORGED-WORKSPACE-ID` — none should exist.
+## 8. Earlier process-kill incident — check for interrupted work (carried forward)
+
+The earlier audit session disclosed that it killed processes by matching "caption-fox" in the command line, which also stopped two `next build` runs it had not started. If a build of yours was interrupted around then, restart it. (This pass did not kill any processes.)
+
+## 9. RLS probe clean-up — verify (carried forward)
+
+The earlier audit reported deleting all probe data. To double-check, confirm no workspace named "RLS Probe Workspace" exists and no `calendar_items` / `calendar_conflicts` row contains `RLS-TEST-PROBE`, `WRONG-USER-RLS-PROBE` or `FORGED-WORKSPACE-ID`.
+
+## Resolved since the earlier audit
+
+- The "missing key" console warning under `<SecondaryHeaderActions>` was root-caused (server-built `primary` elements passed into client header actions without a key) and fixed on Agenda, Queue and Conflicts; the console is clean.

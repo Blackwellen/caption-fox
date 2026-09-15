@@ -113,7 +113,7 @@ export default function HomePage() {
 
   // Shared
   const [workspaceId, setWorkspaceId] = useState<string | null>(null)
-  const [userId, setUserId] = useState<string | null>(null)
+  const [, setUserId] = useState<string | null>(null)
   const [profile, setProfile] = useState<Profile | null>(null)
   const [bootstrapping, setBootstrapping] = useState(true)
 
@@ -403,7 +403,9 @@ export default function HomePage() {
     }
   }, [workspaceId])
 
-  // Trigger loads when workspace ready
+  // Trigger loads when workspace ready. These loaders set their own loading
+  // flags before awaiting Supabase — an intentional fetch-on-dependency pattern.
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (!workspaceId) return
     loadKpi()
@@ -424,11 +426,12 @@ export default function HomePage() {
 
   useEffect(() => {
     if (tab === 'activity' && workspaceId) { setActivityPage(0); loadAllActivity(0) }
-  }, [tab, workspaceId])
+  }, [tab, workspaceId, loadAllActivity])
 
   useEffect(() => {
     if (tab === 'health' && workspaceId) loadHealth()
   }, [tab, workspaceId, loadHealth])
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   // ── Approval actions ──────────────────────────────────────────────────────
 
@@ -514,7 +517,7 @@ export default function HomePage() {
     try {
       const supabase = createClient()
       const { data: { user } } = await supabase.auth.getUser()
-      let title = ideaForm.title
+      const title = ideaForm.title
       let description = ideaForm.description
 
       if (ideaForm.aiGenerate) {
@@ -632,7 +635,7 @@ export default function HomePage() {
                         <div className="flex-1 min-w-0">
                           <p className="text-sm text-slate-700 truncate">
                             <span className="font-medium">{log.profile?.full_name ?? 'Someone'}</span>
-                            {' '}<span className="capitalize">{log.action}</span>
+                            {' '}<span>{log.action === 'onboarding.completed' ? 'completed setup of this' : log.action.replace(/[._]/g, ' ')}</span>
                             {' '}<span className="text-slate-500">{log.resource_type?.replace(/_/g, ' ')}</span>
                           </p>
                         </div>
@@ -936,7 +939,7 @@ export default function HomePage() {
                           <p className="text-sm text-slate-800">
                             <span className="font-semibold">{log.profile?.full_name ?? 'System'}</span>
                             {' '}
-                            <span className="capitalize">{log.action}</span>
+                            <span>{log.action === 'onboarding.completed' ? 'completed setup of this' : log.action.replace(/[._]/g, ' ')}</span>
                             {' '}
                             <span className="text-slate-500">{log.resource_type?.replace(/_/g, ' ')}</span>
                             {log.resource_id && (

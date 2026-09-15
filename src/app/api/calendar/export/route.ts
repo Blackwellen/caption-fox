@@ -69,7 +69,7 @@ export async function GET(request: NextRequest) {
     }
 
     const view = pickView(filters.view, ['month', 'week', 'day', 'agenda'] as const, surface === 'agenda' ? 'agenda' : 'month')
-    const range = resolveRange(ctx, filters, view === 'agenda' ? 'range' : view)
+    const range = resolveRange(ctx, filters, view)
     const result = await fetchScheduleEntries(session, range, filters)
     if (result.error) return NextResponse.json({ error: result.error }, { status: 500 })
 

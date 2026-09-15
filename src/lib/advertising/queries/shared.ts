@@ -60,6 +60,20 @@ export function previousRange(range: DateRange): DateRange {
   return { since: toDay(prevSince), until: toDay(prevUntil), label: 'Previous period' }
 }
 
+/**
+ * The comparison window for a range: the immediately preceding period
+ * (default) or the same dates one year earlier.
+ */
+export function comparisonRange(range: DateRange, mode: string | null | undefined): DateRange {
+  if (mode !== 'year') return previousRange(range)
+  const shift = (day: string) => {
+    const date = new Date(`${day}T00:00:00Z`)
+    date.setUTCFullYear(date.getUTCFullYear() - 1)
+    return toDay(date)
+  }
+  return { since: shift(range.since), until: shift(range.until), label: 'Same period last year' }
+}
+
 export type MetricRow = {
   entity_id: string
   entity_type: string

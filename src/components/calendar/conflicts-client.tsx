@@ -12,7 +12,7 @@ import type { CalendarContext } from '@/lib/calendar/entitlements'
 import { canAccessCalendarCapability } from '@/lib/calendar/entitlements'
 import type { CalendarConflict, CalendarLookups } from '@/lib/calendar/types'
 import { CONFLICT_TYPE_LABELS } from '@/lib/calendar/constants'
-import { formatDateTime, formatShortDate } from '@/lib/calendar/dates'
+import { formatShortDate, formatTime } from '@/lib/calendar/dates'
 import { applyConflictRecommendation, updateConflict } from '@/lib/calendar/actions'
 import { CalendarModal, DialogField, dialogInputClass } from './dialogs'
 import { Avatar, ChannelIcon, EmptyState, SeverityBadge, T } from './primitives'
@@ -30,11 +30,26 @@ const STATUS_LABEL: Record<string, string> = {
   resolved: 'Resolved', dismissed: 'Dismissed',
 }
 
+/** Reference linked-record type pills. */
+const RECORD_PILL: Record<string, string> = {
+  campaign: 'bg-blue-50 text-blue-700',
+  content_post: 'bg-violet-50 text-violet-700',
+  publishing_job: 'bg-emerald-50 text-emerald-700',
+  calendar_item: 'bg-sky-50 text-sky-700',
+  task: 'bg-amber-50 text-amber-700',
+  approval: 'bg-orange-50 text-orange-700',
+  profile: 'bg-slate-100 text-slate-600',
+}
+const RECORD_LABEL: Record<string, string> = {
+  campaign: 'Campaign', content_post: 'Content', publishing_job: 'Queue',
+  calendar_item: 'Event', task: 'Task', approval: 'Approval', profile: 'Person',
+}
+
 function Toast({ tone, children, onDismiss }: { tone: 'success' | 'error'; children: React.ReactNode; onDismiss: () => void }) {
   useEffect(() => { const t = setTimeout(onDismiss, 6000); return () => clearTimeout(t) }, [onDismiss])
   return (
     <div role="status" aria-live="polite"
-      className={cn('fixed bottom-5 left-1/2 z-[70] flex -translate-x-1/2 items-start gap-2 rounded-xl px-4 py-3 text-[13px] shadow-lg',
+      className={cn('fixed bottom-5 left-1/2 z-[70] flex -translate-x-1/2 items-start gap-2 rounded-xl px-4 py-3 text-[13px] lg:text-[11.5px] shadow-lg',
         tone === 'success' ? 'bg-slate-900 text-white' : 'bg-red-600 text-white')}>
       {tone === 'success' ? <CheckCircle2 size={15} className="mt-0.5" /> : <AlertCircle size={15} className="mt-0.5" />}
       <span className="max-w-md">{children}</span>
@@ -88,46 +103,45 @@ export function ConflictCards({
 
   return (
     <div className={cn(T.card, 'overflow-hidden')}>
-      <header className="flex items-center justify-between border-b border-slate-100 px-5 py-3.5">
-        <h2 className="text-[14px] font-semibold text-slate-900">Active conflicts</h2>
-        <span className="text-[12px] text-slate-500">{total} total</span>
+      {/* Reference: dividerless 36px header, cards on an 11px grid. */}
+      <header className="flex h-9 items-center px-3.5 pt-0.5">
+        <h2 className="text-[13px] lg:text-[11.5px] font-semibold text-slate-900">Active conflicts</h2>
       </header>
-      <div className="grid gap-3 p-4 md:grid-cols-2 2xl:grid-cols-3">
+      <div className="grid gap-[11px] px-3.5 pb-2 md:grid-cols-2 xl:grid-cols-3">
         {conflicts.map(conflict => (
           <article
             key={conflict.id}
             className={cn(
-              'relative rounded-xl border bg-white p-3.5 transition-shadow hover:shadow-sm',
-              selectedId === conflict.id ? 'border-blue-400 ring-1 ring-blue-200' : 'border-slate-200',
+              // Reference card: severity pill, title, one-line description, 3 facts, hairline, owner/due footer.
+              'relative flex flex-col rounded-[10px] border bg-white px-3 pt-2.5 transition-shadow hover:shadow-sm',
+              selectedId === conflict.id ? 'border-blue-400 ring-1 ring-blue-200' : 'border-[#e8ebf0]',
             )}
           >
-            <div className="mb-2 flex items-start justify-between gap-2">
+            <div className="mb-2 flex items-start">
               <SeverityBadge severity={conflict.severity} />
-              <span className={cn('rounded-full px-2 py-0.5 text-[10.5px] font-medium', STATUS_CHIP[conflict.status])}>
-                {STATUS_LABEL[conflict.status]}
-              </span>
+              <span className="sr-only">Status: {STATUS_LABEL[conflict.status]}</span>
             </div>
             <button type="button" onClick={() => select(conflict.id)} className={cn('block w-full text-left', T.focus)}>
-              <h3 className="text-[13.5px] font-semibold text-slate-900">{conflict.title}</h3>
-              <p className="mt-0.5 line-clamp-2 text-[12px] leading-4 text-slate-500">{conflict.description}</p>
+              <h3 className="truncate text-[11.5px] lg:text-[10px] font-semibold leading-[14px] text-slate-900">{conflict.title}</h3>
+              <p className="mt-0.5 truncate text-[10.5px] lg:text-[9px] leading-[13px] text-slate-600">{conflict.description}</p>
             </button>
 
-            <dl className="mt-3 grid grid-cols-3 gap-2 border-t border-slate-100 pt-2.5 text-[11px]">
+            <dl className="mt-2.5 grid grid-cols-[48px_minmax(0,1.6fr)_minmax(0,1fr)] gap-2 text-[10.5px] lg:text-[9px]">
               <div>
-                <dt className="text-slate-400">Channels</dt>
+                <dt className="text-[10px] lg:text-[9px] text-slate-400">Channels</dt>
                 <dd className="mt-1 flex gap-1">
                   {conflict.channels.length === 0 ? <span className="text-slate-400">—</span>
                     : conflict.channels.slice(0, 3).map(channel => <ChannelIcon key={channel} channel={channel} size={11} />)}
                 </dd>
               </div>
               <div>
-                <dt className="text-slate-400">Date</dt>
-                <dd className="mt-1 text-[11px] font-medium text-slate-700">
-                  {conflict.startAt ? formatDateTime(conflict.startAt, ctx.timezone, ctx.locale) : formatShortDate(conflict.detectedAt, ctx.timezone, ctx.locale)}
+                <dt className="text-[10px] lg:text-[9px] text-slate-400">Date</dt>
+                <dd className="mt-1 text-[10.5px] lg:text-[9px] leading-[13px] font-medium text-slate-700">
+                  {conflict.startAt ? <>{formatShortDate(conflict.startAt, ctx.timezone, ctx.locale)}<br />{formatTime(conflict.startAt, ctx.timezone, ctx.locale)}</> : formatShortDate(conflict.detectedAt, ctx.timezone, ctx.locale)}
                 </dd>
               </div>
               <div>
-                <dt className="text-slate-400">Impact</dt>
+                <dt className="text-[10px] lg:text-[9px] text-slate-400">Impact</dt>
                 <dd className={cn('mt-1 font-semibold capitalize',
                   conflict.impact === 'high' ? 'text-red-600' : conflict.impact === 'medium' ? 'text-amber-600' : 'text-emerald-600')}>
                   {conflict.impact}
@@ -135,37 +149,37 @@ export function ConflictCards({
               </div>
             </dl>
 
-            <div className="mt-3 flex items-center justify-between gap-2 border-t border-slate-100 pt-2.5">
+            <div className="-mx-3 mt-2.5 flex items-center justify-between gap-2 border-t border-[#eef0f4] px-3 py-2">
               <span className="flex min-w-0 items-center gap-1.5">
                 <Avatar name={conflict.assigneeName ?? conflict.ownerName} size={20} />
                 <span className="min-w-0">
-                  <span className="block text-[10px] text-slate-400">Owner</span>
-                  <span className="block truncate text-[11.5px] font-medium text-slate-700">{conflict.assigneeName ?? conflict.ownerName ?? 'Unassigned'}</span>
+                  <span className="block text-[10px] lg:text-[9px] text-slate-400">Owner</span>
+                  <span className="block truncate text-[11px] lg:text-[9.5px] font-medium text-slate-700">{conflict.assigneeName ?? conflict.ownerName ?? 'Unassigned'}</span>
                 </span>
               </span>
               <span className="text-right">
-                <span className="block text-[10px] text-slate-400">Due</span>
-                <span className="block text-[11.5px] font-medium text-slate-700">
+                <span className="block text-[10px] lg:text-[9px] text-slate-400">Due</span>
+                <span className="block text-[11px] lg:text-[9.5px] font-medium text-slate-700">
                   {conflict.dueAt ? formatShortDate(conflict.dueAt, ctx.timezone, ctx.locale) : '—'}
                 </span>
               </span>
               <div className="relative">
                 <button type="button" aria-label={`Actions for ${conflict.reference}`} aria-expanded={openMenu === conflict.id}
                   onClick={() => setOpenMenu(openMenu === conflict.id ? null : conflict.id)}
-                  className={cn('flex h-7 w-7 items-center justify-center rounded-md text-slate-400 hover:bg-slate-100', T.focus)}>
-                  <MoreVertical size={15} />
+                  className={cn('flex h-[26px] w-[26px] items-center justify-center rounded-md border border-[#e3e7ed] text-slate-500 hover:bg-slate-50', T.focus)}>
+                  <MoreVertical size={14} />
                 </button>
                 {openMenu === conflict.id && (
                   <>
                     <button type="button" className="fixed inset-0 z-20 cursor-default" aria-label="Close menu" onClick={() => setOpenMenu(null)} />
                     <div className="absolute right-0 top-full z-30 mt-1 w-44 rounded-xl border border-slate-200 bg-white p-1 shadow-lg">
                       <button type="button" onClick={() => { select(conflict.id); setOpenMenu(null) }}
-                        className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-[13px] text-slate-700 hover:bg-slate-50">
+                        className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-[13px] lg:text-[11.5px] text-slate-700 hover:bg-slate-50">
                         <ArrowUpRight size={13} />Open in panel
                       </button>
                       {canAssign && (
                         <button type="button" onClick={() => { select(conflict.id); setOpenMenu(null) }}
-                          className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-[13px] text-slate-700 hover:bg-slate-50">
+                          className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-[13px] lg:text-[11.5px] text-slate-700 hover:bg-slate-50">
                           <UserPlus size={13} />Assign owner
                         </button>
                       )}
@@ -178,23 +192,25 @@ export function ConflictCards({
         ))}
       </div>
 
-      <div className="flex items-center justify-between border-t border-slate-200 px-5 py-2.5">
-        <p className="text-[12.5px] text-slate-500">
+      {/* Reference: count on the left, pagination centred, no divider. */}
+      <div className="grid grid-cols-[1fr_auto_1fr] items-center px-3.5 pb-3 pt-1">
+        <p className="text-[11px] lg:text-[9.5px] text-slate-500">
           Showing {(page - 1) * pageSize + 1} to {Math.min(page * pageSize, total)} of {total} conflicts
         </p>
         <nav aria-label="Pagination" className="flex items-center gap-0.5">
           <button type="button" disabled={page <= 1} onClick={() => goToPage(page - 1)} aria-label="Previous page"
-            className={cn('h-7 w-7 rounded-md text-[12.5px] text-slate-500 hover:bg-slate-100 disabled:opacity-30', T.focus)}>‹</button>
+            className={cn('h-7 w-7 rounded-md text-[12.5px] lg:text-[11px] text-slate-500 hover:bg-slate-100 disabled:opacity-30', T.focus)}>‹</button>
           {Array.from({ length: Math.min(pageCount, 5) }, (_, i) => i + 1).map(n => (
             <button key={n} type="button" onClick={() => goToPage(n)} aria-current={n === page ? 'page' : undefined}
-              className={cn('h-7 min-w-7 rounded-md px-2 text-[12.5px] font-medium', n === page ? 'bg-blue-600 text-white' : 'text-slate-600 hover:bg-slate-100', T.focus)}>
+              className={cn('h-6 min-w-6 rounded-md px-1.5 text-[11.5px] lg:text-[10px] font-medium', n === page ? 'bg-blue-50 text-blue-700' : 'text-slate-600 hover:bg-slate-100', T.focus)}>
               {n}
             </button>
           ))}
-          {pageCount > 5 && <span className="px-1 text-[12.5px] text-slate-400">… {pageCount}</span>}
+          {pageCount > 5 && <span className="px-1 text-[12.5px] lg:text-[11px] text-slate-400">… {pageCount}</span>}
           <button type="button" disabled={page >= pageCount} onClick={() => goToPage(page + 1)} aria-label="Next page"
-            className={cn('h-7 w-7 rounded-md text-[12.5px] text-slate-500 hover:bg-slate-100 disabled:opacity-30', T.focus)}>›</button>
+            className={cn('h-7 w-7 rounded-md text-[12.5px] lg:text-[11px] text-slate-500 hover:bg-slate-100 disabled:opacity-30', T.focus)}>›</button>
         </nav>
+        <span aria-hidden />
       </div>
     </div>
   )
@@ -217,6 +233,8 @@ export function ResolutionPanel({
   const [notes, setNotes] = useState('')
   const [noteError, setNoteError] = useState<string | null>(null)
   const [applying, setApplying] = useState<{ action: string; label: string } | null>(null)
+  // Reference panel lists three linked records; the rest sit behind a toggle.
+  const [showAllRecords, setShowAllRecords] = useState(false)
 
   const canResolve = canAccessCalendarCapability(ctx, 'conflicts.resolve')
   const canAssign = canAccessCalendarCapability(ctx, 'conflicts.assign')
@@ -261,39 +279,44 @@ export function ResolutionPanel({
 
   return (
     <section className={cn(T.card, 'overflow-hidden')}>
-      <header className="flex items-center justify-between gap-2 border-b border-slate-100 px-5 py-3.5">
-        <h2 className="text-[14px] font-semibold text-slate-900">Resolution panel</h2>
-        <button type="button" onClick={hide} className={cn('text-[12px] font-medium text-blue-600 hover:text-blue-700', T.focus)}>Hide</button>
+      <header className="flex h-9 items-center justify-between gap-2 px-3.5 pt-0.5">
+        <h2 className="text-[13px] lg:text-[11.5px] font-semibold text-slate-900">Resolution panel</h2>
+        <button type="button" onClick={hide} className={cn('text-[11.5px] lg:text-[10px] font-medium text-blue-600 hover:text-blue-700', T.focus)}>Hide</button>
       </header>
 
-      <div className="space-y-4 p-5">
+      {/* Reference: the selected conflict sits in an inner bordered card. */}
+      <div className="px-3.5 pb-3.5">
+      <div className="space-y-3 rounded-[10px] border border-[#eef0f4] p-3">
         <div>
           <div className="flex items-center gap-2">
             <SeverityBadge severity={conflict.severity} />
-            <span className="text-[13.5px] font-semibold text-slate-900">{conflict.title}</span>
+            <span className="text-[12.5px] lg:text-[11px] font-semibold text-slate-900">{conflict.title}</span>
           </div>
-          <p className="mt-1 text-[12px] leading-4 text-slate-500">{conflict.description}</p>
-          <p className="mt-1.5 text-[11px] text-slate-400">
+          <p className="mt-1 text-[10.5px] lg:text-[9px] leading-[14px] text-slate-500">{conflict.description}</p>
+          {/* Not shown in the reference panel; kept for assistive tech and support references. */}
+          <p className="sr-only">
             {conflict.reference} · {CONFLICT_TYPE_LABELS[conflict.type]} · detected {formatShortDate(conflict.detectedAt, ctx.timezone, ctx.locale)}
           </p>
         </div>
 
         {conflict.recommendations.length > 0 && (
           <div>
-            <p className={T.label}>Recommended actions</p>
+            <p className="text-[11px] lg:text-[9.5px] font-medium text-slate-600">Recommended actions</p>
             <ul className="mt-1.5 space-y-1.5">
               {conflict.recommendations.map(recommendation => (
                 <li key={recommendation.id} className="flex items-start gap-2">
-                  <CheckCircle2 size={14} className="mt-0.5 shrink-0 text-emerald-500" aria-hidden />
-                  <span className="min-w-0 flex-1 text-[12.5px] leading-4 text-slate-700">
+                  <span className="mt-px flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-emerald-500 text-white" aria-hidden>
+                    <Check size={10} strokeWidth={3} />
+                  </span>
+                  <span className="min-w-0 flex-1 text-[11px] lg:text-[9.5px] leading-[14px] text-slate-700">
                     {recommendation.label}
-                    {recommendation.advisory && <span className="ml-1 text-[10.5px] text-slate-400">(suggestion — review before applying)</span>}
+                    {recommendation.advisory && <span className="ml-1 text-[10.5px] lg:text-[9px] text-slate-400">(suggestion — review before applying)</span>}
                   </span>
                   {recommendation.action && canResolve && !resolved && (
                     <button
                       type="button"
                       onClick={() => setApplying({ action: recommendation.action as string, label: recommendation.label })}
-                      className={cn('shrink-0 rounded-md border border-slate-200 px-1.5 py-0.5 text-[11px] font-medium text-slate-600 hover:bg-slate-50', T.focus)}
+                      className={cn('shrink-0 rounded-md border border-slate-200 px-1.5 py-0.5 text-[11px] lg:text-[9.5px] font-medium text-slate-600 hover:bg-slate-50', T.focus)}
                     >
                       Apply
                     </button>
@@ -305,31 +328,31 @@ export function ResolutionPanel({
         )}
 
         <div className="grid grid-cols-2 gap-3">
-          <label className="text-[11px] font-medium uppercase tracking-wide text-slate-500">
+          <label className="text-[11px] lg:text-[9.5px] font-medium text-slate-600">
             Assignee
             <select
               defaultValue={conflict.assigneeId ?? ''}
               disabled={!canAssign || pending}
               onChange={e => run('Assignee updated', () => updateConflict({ basePath: ctx.basePath, id: conflict.id, assigneeId: e.target.value || null }))}
-              className={cn(dialogInputClass, 'mt-1 w-full normal-case')}
+              className={cn(dialogInputClass, 'mt-1 !h-8 w-full text-[11px] lg:text-[9.5px] normal-case')}
             >
               <option value="">Unassigned</option>
               {lookups.owners.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
             </select>
           </label>
-          <label className="text-[11px] font-medium uppercase tracking-wide text-slate-500">
+          <label className="text-[11px] lg:text-[9.5px] font-medium text-slate-600">
             Due date
             <input
               type="date"
               defaultValue={conflict.dueAt ? conflict.dueAt.slice(0, 10) : ''}
               disabled={!canAssign || pending}
               onChange={e => run('Due date updated', () => updateConflict({ basePath: ctx.basePath, id: conflict.id, dueDate: e.target.value || null }))}
-              className={cn(dialogInputClass, 'mt-1 w-full')}
+              className={cn(dialogInputClass, 'mt-1 !h-8 w-full text-[11px] lg:text-[9.5px]')}
             />
           </label>
         </div>
 
-        <label className="block text-[11px] font-medium uppercase tracking-wide text-slate-500">
+        <label className="block text-[11px] lg:text-[9.5px] font-medium text-slate-600">
           Status
           <select
             value={conflict.status}
@@ -338,7 +361,7 @@ export function ResolutionPanel({
               const value = e.target.value as 'open' | 'in_progress' | 'reopened'
               run('Status updated', () => updateConflict({ basePath: ctx.basePath, id: conflict.id, status: value }))
             }}
-            className={cn(dialogInputClass, 'mt-1 w-full normal-case')}
+            className={cn(dialogInputClass, 'mt-1 !h-8 w-full text-[11px] lg:text-[9.5px] normal-case')}
           >
             <option value="open">Open</option>
             <option value="in_progress">In progress</option>
@@ -349,57 +372,63 @@ export function ResolutionPanel({
 
         {conflict.linkedRecords.length > 0 && (
           <div>
-            <p className={T.label}>Linked records</p>
-            <ul className="mt-1.5 space-y-1">
-              {conflict.linkedRecords.map(record => (
-                <li key={`${record.kind}-${record.id}`} className="flex items-center justify-between gap-2 rounded-lg bg-slate-50 px-2.5 py-1.5">
+            <p className="text-[11px] lg:text-[9.5px] font-medium text-slate-600">Linked records</p>
+            <ul className="mt-1.5 divide-y divide-[#eef0f4] overflow-hidden rounded-lg border border-[#eef0f4]">
+              {(showAllRecords ? conflict.linkedRecords : conflict.linkedRecords.slice(0, 3)).map(record => (
+                <li key={`${record.kind}-${record.id}`} className="flex items-center justify-between gap-2 px-2.5 py-[5px]">
                   {record.href
-                    ? <Link href={record.href} className={cn('min-w-0 flex-1 truncate text-[12.5px] font-medium text-blue-700 hover:underline', T.focus)}>{record.label}</Link>
-                    : <span className="min-w-0 flex-1 truncate text-[12.5px] text-slate-700">{record.label}</span>}
-                  <span className="shrink-0 rounded bg-white px-1.5 py-0.5 text-[10px] font-medium capitalize text-slate-500 ring-1 ring-slate-200">
-                    {record.kind.replace('_', ' ')}
+                    ? <Link href={record.href} className={cn('min-w-0 flex-1 truncate text-[11px] lg:text-[9.5px] font-medium text-slate-800 hover:text-blue-700 hover:underline', T.focus)}>{record.label}</Link>
+                    : <span className="min-w-0 flex-1 truncate text-[11px] lg:text-[9.5px] text-slate-700">{record.label}</span>}
+                  <span className={cn('shrink-0 rounded-md px-1.5 py-px text-[10px] lg:text-[9px] font-medium', RECORD_PILL[record.kind] ?? RECORD_PILL.profile)}>
+                    {RECORD_LABEL[record.kind] ?? record.kind.replace('_', ' ')}
                   </span>
                 </li>
               ))}
             </ul>
+            {conflict.linkedRecords.length > 3 && (
+              <button type="button" onClick={() => setShowAllRecords(v => !v)} aria-expanded={showAllRecords}
+                className={cn('mt-1 text-[10.5px] lg:text-[9px] font-medium text-blue-600 hover:text-blue-700', T.focus)}>
+                {showAllRecords ? 'Show fewer' : `Show ${conflict.linkedRecords.length - 3} more`}
+              </button>
+            )}
           </div>
         )}
 
         {resolved ? (
           <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3">
-            <p className="text-[12.5px] font-semibold text-emerald-800">
+            <p className="text-[12.5px] lg:text-[11px] font-semibold text-emerald-800">
               {STATUS_LABEL[conflict.status]}{conflict.resolvedByName ? ` by ${conflict.resolvedByName}` : ''}
             </p>
-            {conflict.resolutionNotes && <p className="mt-1 text-[12px] text-emerald-900">{conflict.resolutionNotes}</p>}
+            {conflict.resolutionNotes && <p className="mt-1 text-[12px] lg:text-[10.5px] text-emerald-900">{conflict.resolutionNotes}</p>}
             {canReopen && (
               <button type="button" disabled={pending}
                 onClick={() => run('Conflict reopened', () => updateConflict({ basePath: ctx.basePath, id: conflict.id, status: 'reopened' }))}
-                className={cn('mt-2 inline-flex h-8 items-center gap-1.5 rounded-lg border border-emerald-300 bg-white px-2.5 text-[12.5px] font-medium text-emerald-800 hover:bg-emerald-100', T.focus)}>
+                className={cn('mt-2 inline-flex h-8 items-center gap-1.5 rounded-lg border border-emerald-300 bg-white px-2.5 text-[12.5px] lg:text-[11px] font-medium text-emerald-800 hover:bg-emerald-100', T.focus)}>
                 <RotateCcw size={13} />Reopen
               </button>
             )}
           </div>
         ) : (canResolve || canDismiss) && (
-          <div className="border-t border-slate-100 pt-3">
-            <label className="block text-[11px] font-medium uppercase tracking-wide text-slate-500">
-              Resolution note
+          <div>
+            <label className="block">
+              <span className="sr-only">Resolution note</span>
               <textarea
                 value={notes}
                 onChange={e => setNotes(e.target.value)}
-                rows={2}
+                rows={1}
                 maxLength={2000}
                 placeholder="What did you change to resolve this?"
-                className={cn(dialogInputClass, 'mt-1 h-auto w-full py-2 normal-case')}
+                className={cn(dialogInputClass, 'h-auto min-h-8 w-full py-1.5 text-[11px] lg:text-[9.5px] normal-case')}
               />
             </label>
-            {noteError && <p role="alert" className="mt-1 text-[11.5px] text-red-600">{noteError}</p>}
-            <div className="mt-2.5 flex gap-2">
+            {noteError && <p role="alert" className="mt-1 text-[11.5px] lg:text-[10px] text-red-600">{noteError}</p>}
+            <div className="mt-2 flex gap-2">
               {canResolve && (
                 <button
                   type="button"
                   disabled={pending}
                   onClick={() => run('Conflict marked as resolved', () => updateConflict({ basePath: ctx.basePath, id: conflict.id, status: 'resolved', resolutionNotes: notes }))}
-                  className={cn('inline-flex h-9 flex-1 items-center justify-center gap-1.5 rounded-lg bg-blue-600 text-[13px] font-medium text-white hover:bg-blue-700 disabled:opacity-60', T.focus)}
+                  className={cn('inline-flex h-8 flex-1 items-center justify-center gap-1.5 rounded-lg bg-blue-600 text-[12.5px] lg:text-[11px] font-semibold text-white shadow-sm hover:bg-blue-700 disabled:opacity-60', T.focus)}
                 >
                   {pending ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}Mark as resolved
                 </button>
@@ -412,7 +441,7 @@ export function ResolutionPanel({
                     if (!window.confirm('Dismiss this conflict as a false positive? It will stop appearing in active conflicts.')) return
                     run('Conflict dismissed', () => updateConflict({ basePath: ctx.basePath, id: conflict.id, status: 'dismissed', resolutionNotes: notes || 'Dismissed as a false positive.' }))
                   }}
-                  className={cn('inline-flex h-9 items-center justify-center rounded-lg border border-slate-200 px-3 text-[13px] font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-60', T.focus)}
+                  className={cn('inline-flex h-8 items-center justify-center rounded-lg border border-[#e3e7ed] px-3 text-[12.5px] lg:text-[11px] font-semibold text-slate-800 hover:bg-slate-50 disabled:opacity-60', T.focus)}
                 >
                   Dismiss
                 </button>
@@ -420,6 +449,7 @@ export function ResolutionPanel({
             </div>
           </div>
         )}
+      </div>
       </div>
 
       {applying && (
@@ -462,7 +492,7 @@ function ApplyRecommendationDialog({
       onClose={onClose}
       footer={
         <>
-          <button type="button" onClick={onClose} className={cn('h-9 rounded-lg border border-slate-200 px-3 text-[13px] font-medium text-slate-700 hover:bg-slate-50', T.focus)}>Cancel</button>
+          <button type="button" onClick={onClose} className={cn('h-9 rounded-lg border border-slate-200 px-3 text-[13px] lg:text-[11.5px] font-medium text-slate-700 hover:bg-slate-50', T.focus)}>Cancel</button>
           <button
             type="button"
             disabled={pending}
@@ -482,7 +512,7 @@ function ApplyRecommendationDialog({
                 onDone('Recommended action applied')
               })
             }}
-            className={cn('inline-flex h-9 items-center gap-1.5 rounded-lg bg-blue-600 px-3.5 text-[13px] font-medium text-white hover:bg-blue-700 disabled:opacity-60', T.focus)}
+            className={cn('inline-flex h-8 items-center gap-1.5 rounded-lg bg-blue-600 px-3.5 text-[12.5px] lg:text-[11px] font-semibold text-white shadow-sm hover:bg-blue-700 disabled:opacity-60', T.focus)}
           >
             {pending && <Loader2 size={14} className="animate-spin" />}Apply
           </button>
@@ -491,7 +521,7 @@ function ApplyRecommendationDialog({
     >
       <form ref={formRef} className="space-y-4" onSubmit={e => e.preventDefault()}>
         {error && (
-          <p role="alert" className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[12.5px] text-red-700">
+          <p role="alert" className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[12.5px] lg:text-[11px] text-red-700">
             <AlertCircle size={14} className="mt-0.5 shrink-0" />{error}
           </p>
         )}
@@ -521,7 +551,7 @@ function ApplyRecommendationDialog({
           </DialogField>
         )}
         {action.action === 'cancel_duplicate' && (
-          <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[12.5px] text-amber-800">
+          <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[12.5px] lg:text-[11px] text-amber-800">
             The selected record will be cancelled and will not publish. This is recorded in the audit log.
           </p>
         )}
@@ -563,14 +593,14 @@ export function ConflictPrimaryActions({
             next.set('selected', firstUnresolved.id)
             router.push(`${pathname}?${next}`, { scroll: false })
           }}
-          className={cn('inline-flex h-9 items-center gap-1.5 rounded-lg bg-blue-600 px-3.5 text-[13px] font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50', T.focus)}
+          className={cn('inline-flex h-8 items-center gap-1.5 rounded-lg bg-blue-600 px-3.5 text-[11.5px] lg:text-[10px] font-semibold text-white shadow-sm hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50', T.focus)}
         >
           <ShieldCheck size={15} />Resolve conflict
         </button>
       )}
       {canAssign && (
         <button type="button" onClick={() => setAssignOpen(true)} disabled={!firstUnresolved}
-          className={cn('inline-flex h-9 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 text-[13px] font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50', T.focus)}>
+          className={cn('inline-flex h-8 items-center gap-1.5 rounded-lg border border-[#e3e7ed] bg-white px-3 text-[11.5px] lg:text-[10px] font-semibold text-slate-800 shadow-[0_1px_1px_rgba(16,24,40,0.03)] hover:bg-slate-50 disabled:opacity-50', T.focus)}>
           <UserPlus size={14} />Assign owner
         </button>
       )}
@@ -582,9 +612,9 @@ export function ConflictPrimaryActions({
           onClose={() => setAssignOpen(false)}
           footer={
             <>
-              <button type="button" onClick={() => setAssignOpen(false)} className={cn('h-9 rounded-lg border border-slate-200 px-3 text-[13px] font-medium text-slate-700 hover:bg-slate-50', T.focus)}>Cancel</button>
+              <button type="button" onClick={() => setAssignOpen(false)} className={cn('h-9 rounded-lg border border-slate-200 px-3 text-[13px] lg:text-[11.5px] font-medium text-slate-700 hover:bg-slate-50', T.focus)}>Cancel</button>
               <button type="submit" form="assign-conflicts" disabled={pending}
-                className={cn('inline-flex h-9 items-center gap-1.5 rounded-lg bg-blue-600 px-3.5 text-[13px] font-medium text-white hover:bg-blue-700 disabled:opacity-60', T.focus)}>
+                className={cn('inline-flex h-8 items-center gap-1.5 rounded-lg bg-blue-600 px-3.5 text-[12.5px] lg:text-[11px] font-semibold text-white shadow-sm hover:bg-blue-700 disabled:opacity-60', T.focus)}>
                 {pending && <Loader2 size={14} className="animate-spin" />}Assign
               </button>
             </>
@@ -611,7 +641,7 @@ export function ConflictPrimaryActions({
             }}
             className="space-y-4"
           >
-            <p className="rounded-lg bg-slate-50 px-3 py-2 text-[12.5px] text-slate-600">
+            <p className="rounded-lg bg-slate-50 px-3 py-2 text-[12.5px] lg:text-[11px] text-slate-600">
               This applies to the {conflicts.filter(c => c.status !== 'resolved' && c.status !== 'dismissed').length} unresolved
               conflict(s) matching your current filters — not the whole workspace.
             </p>

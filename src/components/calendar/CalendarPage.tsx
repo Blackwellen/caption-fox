@@ -12,8 +12,8 @@ import {
 } from '@/lib/calendar/queries'
 import { fetchConflicts } from '@/lib/calendar/queries'
 import {
-  formatDateTime, formatDuration, formatRelativeShort, formatShortDate, formatTime,
-  timezoneAbbrev, zonedDateKey,
+  addDays, formatCompactWhen, formatDateTime, formatDuration, formatRelativeShort, formatShortDate, formatTime,
+  timezoneLabel, todayKey, zonedDateKey,
 } from '@/lib/calendar/dates'
 import { pickView, readParams, resolveRange, type SearchParamsInput } from '@/lib/calendar/range'
 import { CalendarPageChrome, HeaderButton } from './chrome'
@@ -21,7 +21,7 @@ import {
   AdvancedFilters, DateRangeControl, FilterBar, FilterSelect, PeriodStepper, ViewSwitcher,
 } from './controls'
 import {
-  Avatar, ChannelIcon, EmptyState, ErrorState, KindIcon, KpiStrip, Panel,
+  ActivityTile, Avatar, ChannelIcon, EmptyState, ErrorState, KindTile, KpiStrip, Panel,
   SeverityBadge, StatusBadge, T, type KpiDefinition,
 } from './primitives'
 import { AgendaView, DayView, MonthView, WeekView } from './views'
@@ -43,16 +43,26 @@ export default async function CalendarPage({
   // rendering a blank surface.
   const view = (requestedView === 'week' && !canWeek) || (requestedView === 'day' && !canDay) ? 'month' : requestedView
 
-  const range = resolveRange(ctx, filters, view === 'agenda' ? 'range' : view)
+  const range = resolveRange(ctx, filters, view)
+
+  // Computed once per request and reused below instead of calling Date.now() inline in JSX.
+  // Server Component: renders once per request with no client re-render/memoization, so
+  // eslint-disable-next-line react-hooks/purity
+  const nowMs = Date.now()
+  const nowIso = new Date(nowMs).toISOString()
 
   const [kpis, entries, lookups, conflicts, queue, activity] = await Promise.all([
     fetchCalendarKpis(session),
     fetchScheduleEntries(session, range, filters),
     fetchLookups(session),
     fetchConflicts(session, { startIso: range.startIso, endIso: range.endIso }, { pageSize: 6 }),
-    fetchQueueItems(session, range, { pageSize: 5, sort: 'scheduled_at' }),
+    // The preview is "what publishes next", independent of the month being viewed.
+    fetchQueueItems(session, { startIso: nowIso, endIso: addDays(nowIso, 30).toISOString() }, {
+      pageSize: MAX_PAGE_SIZE, sort: 'scheduled_at',
+    }),
     fetchCalendarActivity(session, 5),
   ])
+  const upcomingQueue = queue.data.items.filter(item => !['published', 'sent', 'cancelled'].includes(item.deliveryStatus))
 
   const canReschedule = canAccessCalendarCapability(ctx, 'calendar.reschedule')
   const canCreate = canAccessCalendarCapability(ctx, 'calendar.create')
@@ -65,20 +75,18 @@ export default async function CalendarPage({
     { id: 'due', label: 'Publishing due today', value: String(kpis.data.publishingDueToday), tone: 'orange', icon: <Send size={17} />, delta: kpis.data.publishingDueTodayDelta !== null ? { value: kpis.data.publishingDueTodayDelta, suffix: 'vs yesterday' } : null },
     { id: 'conflicts', label: 'Conflict alerts', value: String(kpis.data.conflictAlerts), tone: 'red', icon: <AlertTriangle size={17} />, delta: kpis.data.conflictAlertsDelta !== null ? { value: kpis.data.conflictAlertsDelta, suffix: 'vs last week', goodWhenUp: false } : null },
     { id: 'ontime', label: 'On-time rate', value: kpis.data.onTimeRate === null ? '—' : `${kpis.data.onTimeRate}%`, tone: 'emerald', icon: <CheckCircle2 size={17} />, delta: kpis.data.onTimeRateDelta !== null ? { value: kpis.data.onTimeRateDelta, suffix: 'vs last 30 days' } : null, footnote: kpis.data.onTimeRate === null ? 'No completed publishes yet' : null },
-    { id: 'capacity', label: 'Capacity utilisation', value: kpis.data.capacityUtilisation === null ? '—' : `${kpis.data.capacityUtilisation}%`, tone: 'sky', icon: <TrendingUp size={17} />, footnote: 'Open deliverables vs team capacity' },
+    { id: 'capacity', label: 'Capacity utilisation', value: kpis.data.capacityUtilisation === null ? '—' : `${kpis.data.capacityUtilisation}%`, tone: 'sky', icon: <TrendingUp size={17} />, footnote: 'Of team capacity' },
     { id: 'launches', label: 'Upcoming launches', value: String(kpis.data.upcomingLaunches), tone: 'violet', icon: <Rocket size={17} />, footnote: kpis.data.nextLaunchLabel ? `Next: ${kpis.data.nextLaunchLabel}` : 'No launches scheduled' },
   ]
 
-  // Computed once per request and reused below instead of calling Date.now() inline in JSX.
-  // Server Component: renders once per request with no client re-render/memoization, so
-  // eslint-disable-next-line react-hooks/purity
-  const nowMs = Date.now()
   const conflictWatch = conflicts.data.conflicts.slice(0, 3)
   const upcoming = nextActions(entries.data, new Date(nowMs), 5)
-  const agendaDays = groupIntoAgendaDays(entries.data, ctx).slice(0, 4)
+  // The preview looks forward from today, like the full Agenda, rather than from the grid's first cell.
+  const today = todayKey(ctx.timezone)
+  const agendaDays = groupIntoAgendaDays(entries.data, ctx).filter(day => day.date >= today).slice(0, 4)
 
   return (
-    <div className={cn(T.page, 'py-6')}>
+    <div className={cn(T.page, 'pb-8')}>
       <CalendarPageChrome
         ctx={ctx}
         active="calendar"
@@ -88,9 +96,9 @@ export default async function CalendarPage({
       />
 
       {kpis.error ? (
-        <div className={cn(T.card, 'mb-5')}><ErrorState message={kpis.error} /></div>
+        <div className={cn(T.card, 'mb-[13px]')}><ErrorState message={kpis.error} /></div>
       ) : (
-        <div className="mb-5"><KpiStrip items={kpiItems} /></div>
+        <div className="mb-[13px]"><KpiStrip items={kpiItems} /></div>
       )}
 
       <FilterBar
@@ -129,7 +137,7 @@ export default async function CalendarPage({
         }
       />
 
-      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_312px]">
+      <div className="grid gap-[10px] xl:grid-cols-[minmax(0,1fr)_268px]">
         <div className="min-w-0">
           {entries.error ? (
             <div className={T.card}><ErrorState message={entries.error} /></div>
@@ -156,24 +164,25 @@ export default async function CalendarPage({
           )}
         </div>
 
-        <div className="min-w-0 space-y-5">
+        <div className="min-w-0 space-y-[11px]">
           <Panel
             title="Next actions"
             action={canAgenda ? { label: 'View all', href: `${ctx.basePath}/calendar/agenda` } : null}
-            bodyClassName="divide-y divide-slate-100"
+            bodyClassName="pb-2"
           >
             {upcoming.length === 0 ? (
               <EmptyState title="Nothing due" body="You have no upcoming items in this period." />
             ) : upcoming.map(entry => {
               const due = new Date(entry.startAt).getTime() - nowMs
               return (
-                <div key={entry.id} className="flex items-start gap-2.5 px-5 py-2.5 first:pt-4 last:pb-4">
-                  <span className="mt-0.5 text-slate-400"><KindIcon kind={entry.kind} size={14} /></span>
+                <div key={entry.id} className="flex items-center gap-2.5 px-3.5 py-[3px]">
+                  {/* Reference: channel items show the platform mark; everything else a kind tile. */}
+                  {entry.channel ? <ChannelIcon channel={entry.channel} size={16} className="!h-[26px] !w-[26px]" /> : <KindTile kind={entry.kind} />}
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-[13px] font-medium text-slate-900">{entry.title}</p>
-                    <p className="truncate text-[11.5px] text-slate-500">{entry.campaignName ?? entry.subtitle ?? CHANNEL_LABELS[entry.channel ?? ''] ?? 'Schedule item'}</p>
+                    <p className="truncate text-[11px] lg:text-[9.5px] font-semibold leading-[14px] text-slate-900">{entry.title}</p>
+                    <p className="truncate text-[10px] lg:text-[9px] leading-[13px] text-slate-500">{entry.campaignName ?? CHANNEL_LABELS[entry.channel ?? ''] ?? entry.subtitle ?? 'Schedule item'}</p>
                   </div>
-                  <span className={cn('shrink-0 text-[11px] font-medium', due < 0 ? 'text-red-600' : due < 4 * 3600_000 ? 'text-amber-600' : 'text-slate-400')}>
+                  <span className={cn('shrink-0 text-[10.5px] lg:text-[9px] font-medium', due < 0 ? 'text-red-600' : due < 4 * 3600_000 ? 'text-amber-600' : 'text-slate-400')}>
                     {due < 0 ? `${formatDuration(due)} late` : due < 24 * 3600_000 ? `Due in ${formatDuration(due)}` : formatShortDate(entry.startAt, ctx.timezone, ctx.locale)}
                   </span>
                 </div>
@@ -186,17 +195,17 @@ export default async function CalendarPage({
               title="Conflict watch"
               count={conflicts.data.total}
               action={{ label: 'View all', href: `${ctx.basePath}/calendar/conflicts` }}
-              bodyClassName="divide-y divide-slate-100"
+              bodyClassName="pb-2"
             >
               {conflicts.error ? <ErrorState message={conflicts.error} /> : conflictWatch.length === 0 ? (
                 <EmptyState icon={<CheckCircle2 size={18} />} title="No open conflicts" body="Your schedule is clear of clashes for this period." />
               ) : conflictWatch.map(conflict => (
                 <Link key={conflict.id} href={`${ctx.basePath}/calendar/conflicts?selected=${conflict.id}`}
-                  className={cn('flex items-start gap-2.5 px-5 py-2.5 first:pt-4 last:pb-4 hover:bg-slate-50', T.focus)}>
+                  className={cn('flex items-start gap-2.5 px-3.5 py-[5px] hover:bg-slate-50', T.focus)}>
                   <ChannelIcon channel={conflict.channels[0]} size={13} />
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-[13px] font-medium text-slate-900">{conflict.title}</p>
-                    <p className="truncate text-[11.5px] text-slate-500">
+                    <p className="truncate text-[11px] lg:text-[9.5px] font-semibold leading-[14px] text-slate-900">{conflict.title}</p>
+                    <p className="truncate text-[10px] lg:text-[9px] leading-[13px] text-slate-500">
                       {conflict.startAt ? formatDateTime(conflict.startAt, ctx.timezone, ctx.locale) : formatShortDate(conflict.detectedAt, ctx.timezone, ctx.locale)}
                     </p>
                   </div>
@@ -208,27 +217,32 @@ export default async function CalendarPage({
         </div>
       </div>
 
-      <div className="mt-5 grid gap-5 xl:grid-cols-3">
+      {/* Reference bottom row is unequal: 302 / 508 / 370. */}
+      <div className="mt-[13px] grid gap-[11px] xl:grid-cols-[302fr_508fr_370fr]">
         <Panel
           title="Agenda preview"
           action={canAgenda ? { label: 'View full agenda', href: `${ctx.basePath}/calendar/agenda` } : null}
-          bodyClassName="divide-y divide-slate-100"
+          bodyClassName="pb-2"
         >
           {agendaDays.length === 0 ? (
             <EmptyState title="Nothing coming up" body="Items scheduled in this period will be listed here." />
           ) : agendaDays.flatMap(day => [...day.allDay, ...day.timed].slice(0, 1).map(entry => (
-            <div key={entry.id} className="flex items-center gap-3 px-5 py-2.5 first:pt-4 last:pb-4">
-              <span className={cn('flex h-10 w-11 shrink-0 flex-col items-center justify-center rounded-lg text-center', day.isToday ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600')}>
-                <span className="text-[9px] font-semibold uppercase leading-none">{day.isToday ? 'Today' : new Intl.DateTimeFormat(ctx.locale, { weekday: 'short', timeZone: ctx.timezone }).format(new Date(entry.startAt))}</span>
-                <span className="text-[14px] font-bold leading-tight">{new Intl.DateTimeFormat(ctx.locale, { day: 'numeric', timeZone: ctx.timezone }).format(new Date(entry.startAt))}</span>
+            <div key={entry.id} className="flex items-center gap-3 px-3.5 py-[5px]">
+              {/* Reference date badge: weekday tag (solid for today), day number, month. */}
+              <span className="flex w-[34px] shrink-0 flex-col items-center overflow-hidden rounded-md border border-[#eef0f4] bg-white text-center">
+                <span className={cn('w-full py-px text-[8px] font-bold uppercase leading-[11px] tracking-wide', day.isToday ? 'bg-blue-600 text-white' : 'bg-blue-50 text-blue-600')}>
+                  {day.isToday ? 'Today' : new Intl.DateTimeFormat(ctx.locale, { weekday: 'short', timeZone: ctx.timezone }).format(new Date(entry.startAt))}
+                </span>
+                <span className="pt-0.5 text-[15px] font-bold leading-[17px] text-slate-900">{new Intl.DateTimeFormat(ctx.locale, { day: 'numeric', timeZone: ctx.timezone }).format(new Date(entry.startAt))}</span>
+                <span className="pb-0.5 text-[7.5px] font-semibold uppercase leading-[10px] text-slate-500">{new Intl.DateTimeFormat(ctx.locale, { month: 'short', timeZone: ctx.timezone }).format(new Date(entry.startAt))}</span>
               </span>
               <div className="min-w-0 flex-1">
-                <p className="truncate text-[13px] font-medium text-slate-900">{entry.title}</p>
-                <p className="truncate text-[11.5px] text-slate-500">
+                <p className="truncate text-[11px] lg:text-[9.5px] font-semibold leading-[14px] text-slate-900">{entry.title}</p>
+                <p className="truncate text-[10px] lg:text-[9px] leading-[13px] text-slate-500">
                   {CHANNEL_LABELS[entry.channel ?? ''] ?? entry.kind} · {entry.allDay ? 'All day' : formatTime(entry.startAt, ctx.timezone, ctx.locale)}
                 </p>
               </div>
-              <StatusBadge status={entry.status} />
+              <StatusBadge status={entry.status} variant="dot" />
             </div>
           )))}
         </Panel>
@@ -236,45 +250,60 @@ export default async function CalendarPage({
         {canQueue ? (
           <Panel
             title="Publishing queue"
-            count={queue.data.total}
+            count={upcomingQueue.length}
             action={{ label: 'View full queue', href: `${ctx.basePath}/calendar/publishing-queue` }}
-            bodyClassName="p-0"
+            bodyClassName="flex flex-col p-0"
           >
-            {queue.error ? <ErrorState message={queue.error} /> : queue.data.items.length === 0 ? (
+            {queue.error ? <ErrorState message={queue.error} /> : upcomingQueue.length === 0 ? (
               <EmptyState icon={<Send size={18} />} title="Queue is empty" body="Queued content waiting to publish appears here." />
             ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[420px] text-left">
-                  <caption className="sr-only">Upcoming publishing queue items</caption>
-                  <thead>
-                    <tr className="border-b border-slate-100 text-[11px] font-medium uppercase tracking-wide text-slate-500">
-                      <th scope="col" className="px-5 py-2">Item</th>
-                      <th scope="col" className="px-2 py-2">Channel</th>
-                      <th scope="col" className="px-2 py-2">Scheduled</th>
-                      <th scope="col" className="px-2 py-2">Status</th>
-                      <th scope="col" className="px-5 py-2">Owner</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {queue.data.items.map(item => (
-                      <tr key={item.id} className="hover:bg-slate-50">
-                        <td className="max-w-[150px] px-5 py-2.5">
-                          <span className="flex items-center gap-2">
-                            <ChannelIcon channel={item.channel} size={12} />
-                            <span className="truncate text-[12.5px] font-medium text-slate-800">{item.title}</span>
-                          </span>
-                        </td>
-                        <td className="px-2 py-2.5 text-[12px] text-slate-600">{CHANNEL_LABELS[item.channel ?? ''] ?? '—'}</td>
-                        <td className="whitespace-nowrap px-2 py-2.5 text-[12px] text-slate-600">
-                          {item.scheduledAt ? formatDateTime(item.scheduledAt, ctx.timezone, ctx.locale) : '—'}
-                        </td>
-                        <td className="px-2 py-2.5"><StatusBadge status={deliveryToStatus(item.deliveryStatus, item.approvalStatus)} /></td>
-                        <td className="px-5 py-2.5"><Avatar name={item.ownerName} /></td>
+              <>
+                <div className="overflow-x-auto">
+                  {/* Fixed proportional columns, as in the reference, so the table never scrolls sideways. */}
+                  <table className="w-full table-fixed text-left">
+                    <caption className="sr-only">Next items due to publish</caption>
+                    <colgroup>
+                      <col className="w-[26%]" /><col className="w-[15%]" /><col className="w-[25%]" /><col className="w-[14%]" /><col className="w-[20%]" />
+                    </colgroup>
+                    <thead>
+                      <tr className="border-y border-[#eef0f4] bg-[#f8f9fb] text-[10.5px] lg:text-[9px] font-medium text-slate-500">
+                        <th scope="col" className="px-4 py-[6px]">Item</th>
+                        <th scope="col" className="px-2 py-[6px]">Channel</th>
+                        <th scope="col" className="px-2 py-[6px]">Scheduled</th>
+                        <th scope="col" className="px-2 py-[6px]">Status</th>
+                        <th scope="col" className="px-4 py-[6px]">Owner</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {upcomingQueue.slice(0, 5).map(item => (
+                        <tr key={item.id} className="hover:bg-slate-50">
+                          <td className="max-w-[112px] px-4 py-[5px]">
+                            <Link href={`${ctx.basePath}/calendar/publishing-queue?selected=${item.id}`} className={cn('flex items-center gap-2 hover:text-blue-600', T.focus)}>
+                              <ChannelIcon channel={item.channel} size={11} />
+                              <span className="truncate text-[11px] lg:text-[9.5px] font-medium text-slate-800">{item.title}</span>
+                            </Link>
+                          </td>
+                          <td className="whitespace-nowrap px-2 py-[5px] text-[11px] lg:text-[9.5px] text-slate-600">{CHANNEL_LABELS[item.channel ?? ''] ?? '—'}</td>
+                          <td className="whitespace-nowrap px-2 py-[5px] text-[11px] lg:text-[9.5px] text-slate-600">
+                            {item.scheduledAt ? formatCompactWhen(item.scheduledAt, ctx.timezone, ctx.locale, new Date(nowMs)) : '—'}
+                          </td>
+                          <td className="px-2 py-[5px]"><StatusBadge status={deliveryToStatus(item.deliveryStatus, item.approvalStatus)} /></td>
+                          <td className="px-4 py-[5px]">
+                            <span className="flex items-center gap-1.5" title={item.ownerName ?? 'Unassigned'}>
+                              <Avatar name={item.ownerName} size={20} />
+                              <span className="truncate text-[11px] lg:text-[9.5px] text-slate-700" aria-hidden>{item.ownerName?.split(' ')[0] ?? '—'}</span>
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <div className="mt-auto flex items-center justify-between border-t border-[#eef0f4] px-4 py-2.5 text-[11.5px] lg:text-[10px]">
+                  <span className="text-slate-500">{upcomingQueue.length} item{upcomingQueue.length === 1 ? '' : 's'} in queue</span>
+                  <Link href={`${ctx.basePath}/calendar/publishing-queue`} className={cn('font-medium text-blue-600 hover:text-blue-700', T.focus)}>Show all</Link>
+                </div>
+              </>
             )}
           </Panel>
         ) : (
@@ -291,26 +320,25 @@ export default async function CalendarPage({
         <Panel
           title="Recent activity"
           action={{ label: 'View all activity', href: `${ctx.basePath}/settings/data-and-governance` }}
-          bodyClassName="divide-y divide-slate-100"
+          bodyClassName="pb-2"
         >
           {activity.error ? <ErrorState message={activity.error} /> : activity.data.length === 0 ? (
             <EmptyState icon={<Clock size={18} />} title="No activity yet" body="Schedule changes, approvals and publishes will be logged here." />
           ) : activity.data.map(item => (
-            <div key={item.id} className="flex items-start gap-2.5 px-5 py-2.5 first:pt-4 last:pb-4">
-              <span className={cn('mt-1 h-1.5 w-1.5 shrink-0 rounded-full',
-                item.tone === 'success' ? 'bg-emerald-500' : item.tone === 'danger' ? 'bg-red-500' : item.tone === 'warning' ? 'bg-amber-500' : 'bg-blue-500')} aria-hidden />
+            <div key={item.id} className="flex items-start gap-2.5 px-3.5 py-[5px]">
+              <ActivityTile tone={item.tone} />
               <div className="min-w-0 flex-1">
-                <p className="truncate text-[13px] font-medium text-slate-900">{item.summary}</p>
-                <p className="truncate text-[11.5px] text-slate-500">by {item.actorName ?? 'System'}</p>
+                <p className="truncate text-[11px] lg:text-[9.5px] font-medium leading-[14px] text-slate-900">{item.summary}</p>
+                <p className="truncate text-[10px] lg:text-[9px] leading-[13px] text-slate-500">by {item.actorName ?? 'System'}</p>
               </div>
-              <span className="shrink-0 text-[11px] text-slate-400">{formatRelativeShort(item.createdAt)}</span>
+              <span className="shrink-0 text-[10.5px] lg:text-[9px] text-slate-400">{formatRelativeShort(item.createdAt)}</span>
             </div>
           ))}
         </Panel>
       </div>
 
-      <p className="mt-5 text-[11.5px] text-slate-400">
-        All times shown in {ctx.timezone} ({timezoneAbbrev(ctx.timezone)}).
+      <p className="mt-5 text-[11.5px] lg:text-[10px] text-slate-400">
+        All times shown in {timezoneLabel(ctx.timezone)}.
       </p>
     </div>
   )

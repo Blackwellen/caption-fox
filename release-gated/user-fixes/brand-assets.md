@@ -4,6 +4,67 @@ Items I could not complete, with exact steps. Ordered by what blocks release.
 
 ---
 
+## Status update — 2026-09-15
+
+**Resolved since 2026-08-29:** Chrome MCP browser access (§1), test framework (§6 — Vitest, 21 unit tests passing), storage choice (§5 — Cloudflare R2, pipeline built), and the cross-module TypeScript errors (§3 — `tsc` reports 0 errors repo-wide). The sections below are kept for history.
+
+### RESOLVED 2026-09-15 — R2 access key
+
+The corrected 32-character key is in `.env.local`; list/write/delete probes pass and all demo media is served from R2 via signed URLs. **Remaining manual step:** put the same corrected `CLOUDFLARE_ACCESS_KEY_ID` (and the other four `CLOUDFLARE_*` values) into Vercel Production + Preview, or deployed builds will still fail every storage call.
+
+### (history) R2 access key was truncated
+
+`CLOUDFLARE_ACCESS_KEY_ID` in `.env.local` is **29 characters**; R2 access key IDs are **32**. Cloudflare rejects every request:
+
+```
+InvalidArgument 400: Credential access key has length 29, should be 32
+```
+
+Everything downstream is built and waiting on this: thumbnails, avatars, brand logos, uploads, signed downloads and agreement uploads.
+
+**Steps:**
+
+1. Cloudflare dashboard → **R2 → Manage R2 API Tokens** → open (or create) the token for bucket `CLOUDFLARE_S3_BUCKET`, with **Object Read & Write** on that bucket only.
+2. Copy the **Access Key ID** (32 hex characters) into `CLOUDFLARE_ACCESS_KEY_ID` in `.env.local`. If creating a new token, also update `CLOUDFLARE_SECRET_ACCESS` (64 characters).
+3. Add the same five `CLOUDFLARE_*` variables to Vercel (Production + Preview). Names are listed in `.env.local.example`.
+4. Tell me, and I will run:
+   ```bash
+   node scripts/seed-brand-media-r2.mjs      # uploads rendered demo media to R2
+   ```
+   then complete the pixel passes against the five references (they cannot finish while every image slot is blank), and the upload/download E2E checks.
+
+### Configure CORS on the R2 bucket (required for browser uploads)
+
+Uploads PUT directly from the browser to a signed R2 URL. In the bucket's **Settings → CORS policy**, add:
+
+```json
+[{ "AllowedOrigins": ["http://localhost:3004", "https://caption-fox.vercel.app"],
+   "AllowedMethods": ["PUT", "GET"], "AllowedHeaders": ["Content-Type"], "MaxAgeSeconds": 3600 }]
+```
+
+### Pre-existing bug — `workspace_members` update trigger (not Brand & Assets code)
+
+`workspace_members` has a `handle_updated_at` trigger but **no `updated_at` column**, so *any* UPDATE on it fails:
+
+```
+ERROR 42703: record "new" has no field "updated_at"
+```
+
+This breaks role changes wherever the app updates a membership (e.g. Settings → People). I did not change a shared table owned by other modules. Fix (needs your approval — pick one):
+
+```sql
+-- Option A (recommended): add the column the trigger expects
+alter table public.workspace_members add column if not exists updated_at timestamptz not null default now();
+-- Option B: drop the trigger
+-- drop trigger if exists <trigger_name> on public.workspace_members;
+```
+
+### Review: demo teammates added to the Brand demo workspace
+
+`supabase/seed_brand_assets_media.sql` adds seven demo teammates (Emily Johnson, Michael Chen, …) to the Brand demo workspace only, so records have real, distinct owners. They use `@demo.captionfox.invalid` addresses, have no password and cannot sign in. Remove them with the cleanup query at the end of that file's header comment if you prefer an owner-only workspace.
+
+---
+
 ## 1. BLOCKER — Free the Chrome DevTools MCP browser profile
 
 **Why it's blocked:** the profile is held by another running agent session:

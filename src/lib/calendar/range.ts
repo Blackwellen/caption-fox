@@ -104,10 +104,13 @@ export function resolveRange(
     }
   }
 
-  // Agenda / generic range: a rolling window anchored on the selected week.
+  // Agenda: a rolling window that starts on the selected day (today by default), as in the
+  // reference ("May 20 – May 26" with the 20th as today). Generic ranges anchor on the week.
   const days = opts?.agendaDays ?? 7
   const base = addDays(now, offset * days)
-  const start = startOfWeekUtc(base, ctx.weekStartsOn, ctx.timezone)
+  const start = view === 'agenda'
+    ? startOfDayUtc(base, ctx.timezone)
+    : startOfWeekUtc(base, ctx.weekStartsOn, ctx.timezone)
   const end = endOfDayUtc(addDays(start, days - 1), ctx.timezone)
   return {
     startIso: start.toISOString(), endIso: end.toISOString(), anchorIso: start.toISOString(),

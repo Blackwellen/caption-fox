@@ -1,10 +1,11 @@
 'use client'
 
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Bell, CheckCheck } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { cn } from '@/lib/utils'
+import { usePopover } from '@/components/shell/app-shell/usePopover'
 
 export interface NotificationItem {
   id: string
@@ -25,76 +26,90 @@ function timeAgo(iso: string): string {
   return `${Math.floor(h / 24)}d`
 }
 
+/** Only same-origin app paths are followed from a notification. */
+function safeInternalLink(link: string | null): string | null {
+  if (!link || !link.startsWith('/') || link.startsWith('//')) return null
+  return link
+}
+
 export default function NotificationsBell({ initial }: { initial: NotificationItem[] }) {
   const router = useRouter()
-  const [open, setOpen] = useState(false)
+  const { open, setOpen, close, rootRef, triggerRef } = usePopover()
+  const panelRef = useRef<HTMLDivElement>(null)
   const [items, setItems] = useState<NotificationItem[]>(initial)
   const unread = items.filter(n => !n.is_read).length
 
   async function markAll() {
-    const supabase = createClient()
+    const ids = items.filter(n => !n.is_read).map(n => n.id)
     setItems(prev => prev.map(n => ({ ...n, is_read: true })))
-    await supabase.from('notifications').update({ is_read: true }).eq('is_read', false)
+    if (ids.length) await createClient().from('notifications').update({ is_read: true }).in('id', ids)
   }
 
   async function openItem(n: NotificationItem) {
     if (!n.is_read) {
-      const supabase = createClient()
       setItems(prev => prev.map(x => x.id === n.id ? { ...x, is_read: true } : x))
-      await supabase.from('notifications').update({ is_read: true }).eq('id', n.id)
+      await createClient().from('notifications').update({ is_read: true }).eq('id', n.id)
     }
-    setOpen(false)
-    if (n.link) router.push(n.link)
+    close(false)
+    const target = safeInternalLink(n.link)
+    if (target) router.push(target)
   }
 
   return (
-    <div className="relative">
+    <div ref={rootRef} className="relative">
       <button
-        onClick={() => setOpen(o => !o)}
-        className="relative p-2 rounded-lg text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+        ref={triggerRef}
+        type="button"
+        onClick={() => setOpen(!open)}
+        aria-expanded={open}
+        aria-haspopup="dialog"
+        className="relative inline-flex h-10 w-10 items-center justify-center rounded-[10px] text-shell-text-2 transition-colors duration-150 hover:bg-shell-canvas hover:text-shell-text"
         aria-label={`Notifications${unread ? `, ${unread} unread` : ''}`}
       >
-        <Bell size={18} />
-        {unread > 0 && (
-          <span className="absolute top-1 right-1 min-w-4 h-4 px-1 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
-            {unread > 9 ? '9+' : unread}
-          </span>
-        )}
+        <Bell size={20} aria-hidden />
+        {unread > 0 && <span aria-hidden className="absolute right-[9px] top-[9px] h-2 w-2 rounded-full bg-shell-blue ring-2 ring-white" />}
       </button>
 
       {open && (
-        <>
-          <div className="fixed inset-0 z-30" onClick={() => setOpen(false)} />
-          <div className="absolute right-0 top-full mt-2 w-80 bg-white border border-slate-200 rounded-xl shadow-lg z-40 overflow-hidden">
-            <div className="flex items-center justify-between px-3.5 py-2.5 border-b border-slate-100">
-              <p className="text-sm font-semibold text-slate-900">Notifications</p>
-              {unread > 0 && (
-                <button onClick={markAll} className="flex items-center gap-1 text-xs text-blue-600 hover:underline">
-                  <CheckCheck size={13} /> Mark all read
-                </button>
-              )}
-            </div>
-            <div className="max-h-96 overflow-y-auto">
-              {items.length === 0 && (
-                <p className="px-4 py-8 text-sm text-slate-400 text-center">You&apos;re all caught up.</p>
-              )}
-              {items.map(n => (
-                <button
-                  key={n.id}
-                  onClick={() => openItem(n)}
-                  className={cn('flex gap-2.5 w-full px-3.5 py-2.5 text-left hover:bg-slate-50 transition-colors border-b border-slate-50 last:border-0', !n.is_read && 'bg-blue-50/40')}
-                >
-                  <span className={cn('mt-1.5 w-1.5 h-1.5 rounded-full shrink-0', n.is_read ? 'bg-transparent' : 'bg-blue-500')} />
-                  <span className="flex-1 min-w-0">
-                    <span className="block text-sm font-medium text-slate-800 truncate">{n.title}</span>
-                    {n.body && <span className="block text-xs text-slate-500 line-clamp-2">{n.body}</span>}
-                  </span>
-                  <span className="text-[10px] text-slate-400 shrink-0">{timeAgo(n.created_at)}</span>
-                </button>
-              ))}
-            </div>
+        <div
+          ref={panelRef}
+          role="dialog"
+          aria-label="Notifications"
+          className="cf-shell-pop absolute right-0 top-full z-50 mt-2 w-[340px] max-w-[calc(100vw-24px)] overflow-hidden rounded-xl border border-shell-border bg-white shadow-shell-pop"
+        >
+          <div className="flex items-center justify-between border-b border-shell-border-soft px-4 py-3">
+            <p className="text-[14px] font-semibold text-shell-text">Notifications</p>
+            {unread > 0 && (
+              <button type="button" onClick={markAll} className="flex items-center gap-1 rounded-md px-1.5 py-1 text-[12.5px] font-medium text-shell-blue hover:bg-shell-blue-soft">
+                <CheckCheck size={14} aria-hidden /> Mark all read
+              </button>
+            )}
           </div>
-        </>
+          <div className="max-h-96 overflow-y-auto">
+            {items.length === 0 && (
+              <p className="px-4 py-10 text-center text-[13.5px] text-shell-muted">You&apos;re all caught up.</p>
+            )}
+            {items.map(n => (
+              <button
+                type="button"
+                key={n.id}
+                onClick={() => openItem(n)}
+                className={cn(
+                  'flex w-full gap-2.5 border-b border-shell-border-soft px-4 py-3 text-left transition-colors last:border-0 hover:bg-shell-canvas',
+                  !n.is_read && 'bg-shell-blue-soft/50',
+                )}
+              >
+                <span aria-hidden className={cn('mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full', n.is_read ? 'bg-transparent' : 'bg-shell-blue')} />
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-[13.5px] font-medium text-shell-text">{n.title}</span>
+                  {n.body && <span className="line-clamp-2 block text-[12.5px] text-shell-muted">{n.body}</span>}
+                  {!n.is_read && <span className="sr-only">Unread</span>}
+                </span>
+                <span className="shrink-0 text-[11px] text-shell-muted">{timeAgo(n.created_at)}</span>
+              </button>
+            ))}
+          </div>
+        </div>
       )}
     </div>
   )

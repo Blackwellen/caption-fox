@@ -1,54 +1,42 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import Link from 'next/link'
-import { LayoutDashboard, Building2, Users, CreditCard, Brain, Wifi, Video, Headphones, ShieldAlert, Settings, BarChart2, ScrollText, ArrowLeft } from 'lucide-react'
-
-const adminNav = [
-  { label: 'Admin Home',          href: '/admin',                    icon: LayoutDashboard },
-  { label: 'Workspaces',          href: '/admin/workspaces',         icon: Building2 },
-  { label: 'Users',               href: '/admin/users',              icon: Users },
-  { label: 'Plans & Billing',     href: '/admin/billing',            icon: CreditCard },
-  { label: 'Content & AI',        href: '/admin/ai',                 icon: Brain },
-  { label: 'Connections',         href: '/admin/connections',        icon: Wifi },
-  { label: 'Marketplace Ops',     href: '/admin/suppliers',          icon: Video },
-  { label: 'Support Inbox',       href: '/admin/support',            icon: Headphones },
-  { label: 'Compliance & Data',   href: '/admin/compliance',         icon: ShieldAlert },
-  { label: 'Feature Flags',       href: '/admin/flags',              icon: Settings },
-  { label: 'Automations Ops',     href: '/admin/automation-ops',     icon: Settings },
-  { label: 'Platform Analytics',  href: '/admin/platform-analytics', icon: BarChart2 },
-  { label: 'Audit & System',      href: '/admin/audit',              icon: ScrollText },
-]
+import { getNavigationForContext } from '@/lib/navigation/resolver'
+import { initialsFor } from '@/lib/navigation/session'
+import { readNavCollapsed } from '@/lib/shell/nav-preference'
+import CaptionFoxAppShell from '@/components/shell/app-shell/CaptionFoxAppShell'
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/admin-login')
 
-  const { data: profile } = await supabase.from('profiles').select('is_platform_admin').eq('id', user.id).single()
+  const { data: profile } = await supabase.from('profiles').select('full_name, is_platform_admin').eq('id', user.id).single()
   if (!profile?.is_platform_admin) redirect('/app/home')
 
+  // Platform admin requires a second factor on every session (AAL2). Checked
+  // per request, so a removed role or a password-only session is locked out.
+  const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel()
+  if (aal?.currentLevel !== 'aal2') redirect('/admin-login?reason=mfa')
+
+  const [{ data: notifications }, collapsed] = await Promise.all([
+    supabase.from('notifications')
+      .select('id, title, body, link, is_read, created_at')
+      .eq('user_id', user.id).order('created_at', { ascending: false }).limit(10),
+    readNavCollapsed(user.id),
+  ])
+
+  const name = profile.full_name ?? user.email?.split('@')[0] ?? 'Administrator'
+
   return (
-    <div className="flex h-screen bg-slate-100 overflow-hidden">
-      {/* Admin sidebar */}
-      <aside className="w-56 shrink-0 bg-slate-900 flex flex-col overflow-hidden">
-        <div className="px-4 py-4 border-b border-slate-800">
-          <p className="text-xs font-bold text-red-400 uppercase tracking-widest mb-0.5">Admin Panel</p>
-          <p className="text-white font-bold text-sm">Caption Fox</p>
-        </div>
-        <nav className="flex-1 px-2 py-3 space-y-0.5 overflow-y-auto">
-          {adminNav.map(({ label, href, icon: Icon }) => (
-            <Link key={href} href={href} className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium text-slate-400 hover:bg-slate-800 hover:text-white transition-colors">
-              <Icon size={14} className="shrink-0" />{label}
-            </Link>
-          ))}
-        </nav>
-        <div className="px-2 pb-4 border-t border-slate-800 pt-3">
-          <Link href="/app/home" className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-slate-500 hover:text-white hover:bg-slate-800 transition-colors">
-            <ArrowLeft size={13} /> Back to App
-          </Link>
-        </div>
-      </aside>
-      <main className="flex-1 overflow-y-auto">{children}</main>
-    </div>
+    <CaptionFoxAppShell
+      nav={getNavigationForContext({ context: 'admin', isPlatformAdmin: true })}
+      user={{ name, email: user.email ?? null, initials: initialsFor(profile.full_name, user.email), secondary: 'Platform administrator' }}
+      context={{ kind: 'admin', label: 'Platform Admin', badge: 'Admin Console' }}
+      userId={user.id}
+      notifications={notifications ?? []}
+      initialCollapsed={collapsed}
+    >
+      {children}
+    </CaptionFoxAppShell>
   )
 }

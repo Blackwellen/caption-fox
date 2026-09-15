@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useState, useTransition, type ReactNode } from 'react'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import ProviderLogo from '../ProviderLogo'
@@ -18,10 +19,33 @@ type Props = {
   primary?: boolean
   compact?: boolean
   label?: string
+  icon?: ReactNode
+  /** Opens the dialog on arrival when the URL carries ?connect=1 (e.g. from Overview's Connect Account). */
+  autoOpenFromUrl?: boolean
+  /** Renders as a plain text link, e.g. the "Set Up Now →" footer on a provider card. */
+  linkStyle?: boolean
+  className?: string
 }
 
-export default function ConnectAccountButton({ workspaceId, workspaceType, providers, primary, compact, label }: Props) {
-  const [open, setOpen] = useState(false)
+export default function ConnectAccountButton({
+  workspaceId, workspaceType, providers, primary, compact, label, icon, autoOpenFromUrl, linkStyle, className,
+}: Props) {
+  const [clicked, setOpen] = useState(false)
+  const searchParams = useSearchParams()
+  const router = useRouter()
+  const pathname = usePathname()
+  // ?connect=1 (Overview's Connect Account) opens the dialog; closing removes the param.
+  const open = clicked || (!!autoOpenFromUrl && searchParams.get('connect') === '1')
+
+  function close() {
+    setOpen(false)
+    // Drop ?connect=1 so a refresh or back does not reopen the dialog.
+    if (autoOpenFromUrl && searchParams.get('connect')) {
+      const params = new URLSearchParams(searchParams.toString())
+      params.delete('connect')
+      router.replace(params.size ? `${pathname}?${params}` : pathname, { scroll: false })
+    }
+  }
 
   return (
     <>
@@ -29,19 +53,23 @@ export default function ConnectAccountButton({ workspaceId, workspaceType, provi
         type="button"
         onClick={() => setOpen(true)}
         className={cn(
-          compact
-            ? 'rounded border border-slate-200 px-2 py-1 text-[11px] font-medium text-slate-600 hover:bg-slate-50'
-            : primary
-              ? 'inline-flex h-9 items-center gap-1.5 rounded-lg bg-blue-600 px-4 py-2 text-[13px] font-medium text-white shadow-sm hover:bg-blue-700'
-              : 'inline-flex h-9 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 text-[13px] font-medium text-slate-700 shadow-[0_1px_2px_rgba(15,23,42,0.04)] hover:bg-slate-50',
+          linkStyle
+            ? 'inline-flex items-center gap-1 text-[12.5px] font-medium text-blue-600 hover:text-blue-700 hover:underline'
+            : compact
+              ? 'rounded border border-slate-200 px-2 py-1 text-[11px] font-medium text-slate-600 hover:bg-slate-50'
+              : primary
+                ? 'inline-flex h-8 items-center gap-1.5 rounded-lg bg-blue-600 px-3.5 text-[12.5px] font-medium text-white shadow-sm hover:bg-blue-700'
+                : 'inline-flex h-8 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 text-[12.5px] font-medium text-slate-700 shadow-[0_1px_2px_rgba(15,23,42,0.04)] hover:bg-slate-50',
+          className,
         )}
       >
+        {icon}
         {label ?? 'Connect Account'}
       </button>
       {open && (
         <ConnectDialog
           workspaceId={workspaceId} workspaceType={workspaceType} providers={providers}
-          onClose={() => setOpen(false)}
+          onClose={close}
         />
       )}
     </>

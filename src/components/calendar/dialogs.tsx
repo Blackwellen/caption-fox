@@ -155,7 +155,7 @@ export function NewScheduleItemDialog({
         <>
           <button type="button" onClick={close} className={cn('h-9 rounded-lg border border-slate-200 px-3 text-[13px] font-medium text-slate-700 hover:bg-slate-50', T.focus)}>Cancel</button>
           <button type="submit" form="new-schedule-item" disabled={pending}
-            className={cn('inline-flex h-9 items-center gap-1.5 rounded-lg bg-blue-600 px-3.5 text-[13px] font-medium text-white hover:bg-blue-700 disabled:opacity-60', T.focus)}>
+            className={cn('inline-flex h-8 items-center gap-1.5 rounded-lg bg-blue-600 px-3.5 text-[12.5px] font-semibold text-white shadow-sm hover:bg-blue-700 disabled:opacity-60', T.focus)}>
             {pending && <Loader2 size={14} className="animate-spin" />}
             {pending ? 'Saving…' : 'Create item'}
           </button>
@@ -326,7 +326,7 @@ function ImportDialog({ ctx, onClose }: { ctx: CalendarContext; onClose: () => v
           <>
             <button type="button" onClick={onClose} className={cn('h-9 rounded-lg border border-slate-200 px-3 text-[13px] font-medium text-slate-700 hover:bg-slate-50', T.focus)}>Cancel</button>
             <button type="button" onClick={commit} disabled={!preview || pending || preview.validCount === 0}
-              className={cn('inline-flex h-9 items-center gap-1.5 rounded-lg bg-blue-600 px-3.5 text-[13px] font-medium text-white hover:bg-blue-700 disabled:opacity-50', T.focus)}>
+              className={cn('inline-flex h-8 items-center gap-1.5 rounded-lg bg-blue-600 px-3.5 text-[12.5px] font-semibold text-white shadow-sm hover:bg-blue-700 disabled:opacity-50', T.focus)}>
               {pending && <Loader2 size={14} className="animate-spin" />}
               Import {preview ? `${preview.validCount} item${preview.validCount === 1 ? '' : 's'}` : ''}
             </button>
@@ -458,26 +458,26 @@ export function CalendarHeaderActions({ ctx, lookups }: { ctx: CalendarContext; 
     <>
       {canCreate && (
         <button type="button" onClick={() => setDialog('new')}
-          className={cn('inline-flex h-9 items-center gap-1.5 rounded-lg bg-blue-600 px-3.5 text-[13px] font-medium text-white hover:bg-blue-700', T.focus)}>
+          className={cn('inline-flex h-8 items-center gap-1.5 rounded-lg bg-blue-600 px-3.5 text-[12.5px] font-semibold text-white shadow-sm hover:bg-blue-700', T.focus)}>
           <Plus size={15} />New schedule item
         </button>
       )}
       {canImport && (
         <button type="button" onClick={() => setDialog('import')}
-          className={cn('inline-flex h-9 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 text-[13px] font-medium text-slate-700 hover:bg-slate-50', T.focus)}>
+          className={cn('inline-flex h-8 items-center gap-1.5 rounded-lg border border-[#e3e7ed] bg-white px-3 text-[12.5px] font-semibold text-slate-800 shadow-[0_1px_1px_rgba(16,24,40,0.03)] hover:bg-slate-50', T.focus)}>
           <Upload size={14} />Import
         </button>
       )}
       {canExport && (
         <a href={exportHref('csv')}
-          className={cn('inline-flex h-9 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 text-[13px] font-medium text-slate-700 hover:bg-slate-50', T.focus)}>
+          className={cn('inline-flex h-8 items-center gap-1.5 rounded-lg border border-[#e3e7ed] bg-white px-3 text-[12.5px] font-semibold text-slate-800 shadow-[0_1px_1px_rgba(16,24,40,0.03)] hover:bg-slate-50', T.focus)}>
           <Download size={14} />Export
         </a>
       )}
 
       <div className="relative" ref={menuRef}>
         <button type="button" onClick={() => setMenuOpen(v => !v)} aria-label="More calendar actions" aria-expanded={menuOpen}
-          className={cn('inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-50', T.focus)}>
+          className={cn('inline-flex h-8 w-8 items-center justify-center rounded-lg border border-[#e3e7ed] bg-white text-slate-600 shadow-[0_1px_1px_rgba(16,24,40,0.03)] hover:bg-slate-50', T.focus)}>
           <MoreHorizontal size={17} />
         </button>
         {menuOpen && (
@@ -548,13 +548,13 @@ export function SecondaryHeaderActions({
       {primary}
       {canExport && (
         <a href={exportHref('csv')}
-          className={cn('inline-flex h-9 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 text-[13px] font-medium text-slate-700 hover:bg-slate-50', T.focus)}>
+          className={cn('inline-flex h-8 items-center gap-1.5 rounded-lg border border-[#e3e7ed] bg-white px-3 text-[12.5px] font-semibold text-slate-800 shadow-[0_1px_1px_rgba(16,24,40,0.03)] hover:bg-slate-50', T.focus)}>
           <Download size={14} />Export
         </a>
       )}
       <div className="relative" ref={menuRef}>
         <button type="button" onClick={() => setMenuOpen(v => !v)} aria-label="More actions" aria-expanded={menuOpen}
-          className={cn('inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-50', T.focus)}>
+          className={cn('inline-flex h-8 w-8 items-center justify-center rounded-lg border border-[#e3e7ed] bg-white text-slate-600 shadow-[0_1px_1px_rgba(16,24,40,0.03)] hover:bg-slate-50', T.focus)}>
           <MoreHorizontal size={17} />
         </button>
         {menuOpen && (

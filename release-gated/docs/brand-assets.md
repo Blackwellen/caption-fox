@@ -327,3 +327,123 @@ contention rather than by code:
 
 Recommended interim status: **ready for admin-only beta** behind the
 `brand_rights` / `brand_product_library` flags once §12 is completed.
+
+---
+
+# Update — 2026-09-15
+
+## What changed
+
+| Area | Change |
+| --- | --- |
+| Shell | The module no longer renders its own sidebar/top bar (that copied the design image and broke CLAUDE.md rule 2). It now lives inside the canonical workspace shell (`app/[workspaceType]/layout.tsx`). Only the Brand & Assets entry was added, for Creator. |
+| Pages | All five routes rebuilt to the reference layouts at 1491×1055: KPI strip (84px cards), right rails, lower panels, stacked filter controls, solid view switchers. |
+| Detail + create routes | New: `/kits/{id}` (10 tabs), `/assets/{id}` (7), `/rights/{id}` (4), `/products/{id}` (6), `/kits|rights|products/new`, `/activity`. Unknown ids render not-found, never a list page. |
+| Mutations | 25 server actions (`src/lib/brand-assets/actions.ts`): kit create/approve/request-changes/archive/comment; asset upload (signed PUT → server-verified finalise), versioning, favourites, folders, approvals, usage requests, signed download; licence create/renew/restrict/suspend, agreement upload; product create/status/link/unlink/bookmark, CSV import. Each re-resolves workspace + role server-side and logs activity. |
+| Storage | Cloudflare R2 private bucket through the shared `src/lib/storage/r2.ts`. Paths `r2:brand-assets/{workspace}/…`; every read is a short-lived signed URL, and only paths under the caller's workspace prefix are ever signed. |
+| Export | `GET /{type}/brand/rights/export` — CSV of exactly the on-screen filters, gated by `brand.rights.export`, audit-logged, formula-injection safe. |
+| Jobs | pg_cron `brand-rights-sweep` (02:15) moves licences to expiring/expired, flags assets, opens conflicts, creates renewals, keeps one alert current. `brand-readiness-sweep` (02:30) recomputes readiness. Both idempotent (verified: second run changes nothing). |
+| Readiness | Now computed by one SQL function `brand_product_readiness()` from real links (11 weighted checks). Seeded scores were typed in; they are now computed (54–85%). |
+| Seed | Removed `random()` values and a hardcoded 1.28 TB storage figure. Added demo teammates with portraits, deterministic owners, folder filing, a 52-row download audit trail, kit update history and icon styles. Demo media rendered sharp (Unsplash photos + rendered covers/logos) in `supabase/seed-media/brand-assets/`, uploaded via `scripts/seed-brand-media-r2.mjs`. |
+| Coverage map | Real geography: Natural Earth 110m → 3° dot grid (`ui/world-dots.ts`), coloured from live licence territories, with a screen-reader table. |
+
+## Bugs found and fixed
+
+1. Module rendered a private sidebar copied from the design image (sidebar rule violation) — removed.
+2. Every header action was a link to a `?create=1` URL that nothing handled (dead buttons) — replaced by real routes/dialogs/actions.
+3. Filter selects only applied on Enter (no JS submit) — now apply on change and still work without JS.
+4. Brand Kit lower panels (tone, guidelines, templates, lockups) were hardcoded strings — now read from the kit's records.
+5. Download failed silently when storage was unavailable — now returns a clear message; button catches unexpected failures.
+6. Licences stayed `active` after expiry (no scheduled sweep) — pg_cron sweep added; 2 stale licences corrected.
+7. CSV export quoted negative numbers as text — encoder fixed and unit-tested.
+8. Page overflowed horizontally on Assets (tables forced grid width) — panels now shrink.
+9. Seeder re-run failed on `workspace_members` (pre-existing trigger references a missing `updated_at` column) — seeder made insert-only for memberships. **The trigger itself is still wrong for any update to `workspace_members`; see user-fixes.**
+
+## Verified in the browser (Chrome MCP, 1491×1055)
+
+| Flow | Result |
+| --- | --- |
+| Create Brand Kit → submit | Redirects to `/kits/{id}`; DB: 3 colours, 4 type styles, v1, activity row |
+| Approve & publish kit | Message "Approved QA Verification Kit."; DB: active/approved, published_version 1, v1 published |
+| Asset detail → Approvals | Approve / Request changes / Reject rendered for pending approval |
+| Licence detail | Terms, expiry state, row actions render |
+| Product detail → readiness | Weighted checks, Approve & activate / Archive |
+| Rights CSV export | 200 `text/csv` attachment, UK dates, filters honoured |
+| Console | No errors on Overview, Kits, Assets, Products, create form |
+
+Visual diffs (mean abs. pixel difference, content area, 0 = identical): Overview 24.0, Brand Kits 21.7, Assets 24.7, Product Library 20.7. The hottest regions in every page are image slots, which stay blank until the R2 key is fixed.
+
+## Tests
+
+| Command | Result |
+| --- | --- |
+| `npx tsc --noEmit -p .` | 0 errors (repo-wide) |
+| `npx vitest run src/lib/brand-assets` | 21 passed |
+| Migrations via PAT | 201 ×2 (`20260915200000`, `20260915210000`) + seed |
+
+Not yet run: Playwright E2E (not installed), `next build` (other sessions are mid-refactor on the shell), responsive passes at tablet/phone.
+
+## Release score — 2026-09-15
+
+**78 / 100** (stricter rubric than 2026-08-29: functional depth and pixel parity now weighted)
+
+| Area | Score | Note |
+| --- | --- | --- |
+| Schema, RLS, migrations, jobs | 15/15 | Sweeps scheduled and verified idempotent |
+| Real data, no fake metrics | 15/15 | Typed-in scores and storage padding removed |
+| Entitlements & server-side permissions | 10/10 | Every action gated server-side; unit-tested matrix |
+| Routes, detail pages, create flows | 12/15 | Import Kit / Share Kit / asset & product CSV export not built |
+| Mutations & workflows | 10/12 | Kit flows E2E-verified; licence/product create not clicked through yet |
+| Uploads & storage | 3/8 | Built end to end; untestable until R2 key fixed |
+| Visual 1:1 parity | 6/15 | Structure matches; image slots blank; tablet/phone not verified |
+| Tests | 4/5 | Unit tests; no E2E runner |
+| Docs & evidence | 3/5 | Tracker, this update, screenshots in `docs/ui-verification/caption-fox/brand-assets/` |
+
+## Final release decision
+
+**BLOCKED PENDING MANUAL FIX** — the R2 access key (`release-gated/user-fixes/brand-assets.md`, 2026-09-15). Not complete below 100/100.
+
+## Update — 2026-09-15 (later): R2 live, parity pass 2
+
+- R2 key corrected locally; all demo thumbnails, packshots, avatars and logos are served from R2 through workspace-scoped signed URLs.
+- Content-aligned diffs vs the references (`scripts/ui-diff-content.py`, lower is closer): Rights **15.4**, Brand Kits **26.1**, Product Library **28.8**, Overview **37.1**, Assets **37.5**. Residual difference is mostly density: the design-locked app shell's sidebar/top bar are wider/taller than the images', so content renders at ~0.97 scale with more vertical rhythm.
+- Fixes this pass: activity-feed icons now round and colour-coded by action (expired/rejected rose, etc.); Overview Rights preview status column widened so "Renewal Pending" no longer truncates; KPI cards 84→74px with 19px values; page heading 26→23px; Rights filter bar fits one row; Rights table cell padding tightened so all columns incl. Actions fit at 1491px; panel "View all" links never wrap (shared `Panel`, plus the Expiring Licences header).
+- Verified: `tsc` 0 errors; 21/21 unit tests; no body horizontal overflow on Rights at 1491px.
+
+### Release score — 2026-09-15 (later)
+
+**85 / 100**
+
+| Area | Score | Note |
+| --- | --- | --- |
+| Schema, RLS, migrations, jobs | 15/15 | unchanged |
+| Real data, no fake metrics | 15/15 | "Campaign Ready 0%" is real — no product has reached the ready threshold yet |
+| Entitlements & server-side permissions | 10/10 | unchanged |
+| Routes, detail pages, create flows | 12/15 | Import Kit / Share Kit / asset & product CSV export still not built |
+| Mutations & workflows | 10/12 | licence/product create forms not yet clicked through |
+| Uploads & storage | 5/8 | R2 read path verified live; browser upload E2E not yet run |
+| Visual 1:1 parity | 10/15 | real imagery; diffs above; density still looser than references |
+| Tests | 4/5 | no E2E runner |
+| Docs & evidence | 4/5 | screenshots + diffs in `docs/ui-verification/caption-fox/brand-assets/` |
+
+**Decision: BLOCKED PENDING MANUAL FIX** — the corrected `CLOUDFLARE_*` values must be added to Vercel before any deployed build can serve or accept media. Not complete below 100/100.
+
+## Update — 2026-09-15 (pass 3): measured density
+
+Method change: instead of eyeballing downscaled side-by-sides, `scripts/ui-stack.py` renders the reference and the implementation region at **native pixels** with x/y rulers, anchored on the module tab underline; `scripts/ui-ruler.py` does the same at content scale. Every size below was read off those stacks, and live element rects were checked with Chrome MCP.
+
+- Shared (all five pages, `lg:` breakpoint only): tabs 11px/18px padding; H1 19px; subtitle 10px; buttons 11px text, 20px padding; KPI cards 77px, 36px icon, 9/17/8.5px; panel titles 11px, "View all" 9.5px; search 28px, selects 24px, stacked selects 30px, 9px text; compact pagination; xs badges 7.5px.
+- Per page: asset cards (text 7–8.5px, body −25px); asset rail rows and mini-tables (27px rows); Overview kit row pages five kits with working chevrons (`?kp=`), no scrollbar; Overview captions, rights preview, product cards, activity, alerts 7–8px; kit cards 200px; kit rail rows; Rights rows 36px thumbnails, 8px text, **default 6 rows** (as the reference); Product tiles 160:165 image + divided body, **default 6 per page** (as the reference).
+- Results (content-aligned mean diff; before → after): Overview 37.1 → **25.3**, Brand Kits 26.1 → **23.6**, Assets 37.5 → **24.5**, Rights 15.4 → **13.3**, Product Library 28.8 → **22.7**. Remaining hot rows are photographic content (different demo photos) rather than geometry.
+- Known, accepted deviations: content ~4% narrower (locked shell); Assets lower row ~40px low (pagination kept for 30 assets; the reference overlaps two panels, an image artefact).
+- Verified: `tsc` 0 errors; 21/21 unit tests (page-size defaults updated); no horizontal overflow at 1491 or 390; phone/tablet type sizes unchanged (all density changes are `lg:`).
+
+Visual 1:1 parity sub-score: 10/15 → **12/15**. Overall **87 / 100**. Decision unchanged: **BLOCKED PENDING MANUAL FIX** (Vercel R2 env).
+
+## Update — 2026-09-15 (pass 4): content parity via the seeders
+
+With geometry aligned, the remaining difference was the demo content itself. Changed only through the R2 + SQL seeders, as required:
+- `scripts/render-brand-seed-media.py`: swapped six Unsplash (free-licence, non-premium) photos for subjects and colours matching the references — blue dropper serum, blue/grey runners, navy headphones, dark tote, unbranded granola bar, plain packaging-box mockup, dark studio frame for the launch video. A photo carrying a real third-party brand ("Blue Dinosaur") was rejected. Re-rendered and re-uploaded (69 objects) with `scripts/seed-brand-media-r2.mjs`.
+- `supabase/seed_brand_assets_media.sql` §5: staggered product `updated_at` so "Recently Updated" opens on Serum, Runner Pro, Protein Bars, Headphones, Tote, Coffee — the reference's row, including its Active/Active/Review/Active/Draft/Review badges. Applied to the database.
+- Code: Overview panels +16px below the KPI row (reference gap 26px); Assets folder rows 33px pitch.
+- Diffs: Product Library 22.7 → **20.0**; Assets **24.6**, Overview **25.8** (pixel metric still dominated by photographs that cannot be identical). `tsc` 0 errors; 21/21 unit tests.

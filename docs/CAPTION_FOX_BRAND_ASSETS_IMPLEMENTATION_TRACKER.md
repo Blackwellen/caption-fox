@@ -1,5 +1,58 @@
 # Caption Fox — Brand & Assets Implementation Tracker
 
+Last updated: 2026-09-15 · Owner: Brand & Assets session · Reference viewport: 1491 × 1055 @1x
+
+Statuses: Not Started · Audited · In Progress · Code Complete · Visual Review · Functional Review · Failed · Passed · Production Ready.
+Nothing is marked **Production Ready** yet: real thumbnails/avatars depend on the R2 access key (see `release-gated/user-fixes/brand-assets.md`), and pixel passes against the references cannot finish while every image slot is blank.
+
+## Audit summary (Phase 1)
+
+| Area | Finding |
+|---|---|
+| Framework | Next.js 16.2.9 App Router, React 19, Tailwind v4, Supabase SSR |
+| Workspace types | `creator`, `small_business` (route `/business`), `brand`, `agency` (`workspaces.type`) |
+| Routes | `/{type}/brand[/kits|/assets|/rights|/products][/new|/{id}]`, `/{type}/brand/activity`, `/{type}/brand/rights/export` |
+| Shell | Canonical shell is `app/[workspaceType]/layout.tsx` (WorkspaceShellFrame, owned by the navigation session). The module's previous private sidebar copy was removed — sidebar untouched except the Brand & Assets entry for Creator (CLAUDE.md rule 2) |
+| Entitlements | One resolver: `src/lib/brand-assets/entitlements.ts` (type × plan × flag × role × status × storage) |
+| Data | Migrations `20260829000000_brand_assets.sql`, `20260829000100_brand_rights_products.sql`, `20260915200000_brand_rights_sweep.sql`, `20260915210000_brand_product_readiness.sql`; RLS `is_workspace_member(workspace_id)` on every table |
+| Storage | Cloudflare R2 private bucket via `src/lib/storage/r2.ts` (shared with Advertising); paths `r2:brand-assets/{workspace}/…`, signed GET/PUT only |
+| Jobs | pg_cron `brand-rights-sweep` 02:15, `brand-readiness-sweep` 02:30 |
+| Tests | Vitest (`src/lib/brand-assets/brand-assets.test.ts`, 21 passing) |
+
+## Route / workflow matrix
+
+| ID | Route | Page/View | Reference | Shell | Visual Match | Real Data | Search | Filters | Views | CRUD | Upload | Download | Approvals | Rights | Products | Import | Export | Permissions | Activity | Loading | Empty | Error | Responsive | Chrome MCP | Screenshot Compared | Tests | Status | Notes |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 5.06.01 | /brand/brand | Overview | overview-reference.png | ✅ | ~ diff 24.0 | ✅ | global | Recent Assets type/sort | grid/list | links to create | via Assets | – | alerts | preview | preview | – | – | ✅ gated panels | ✅ | ⚠ no skeleton file | ✅ | ✅ blocked state | ⚠ desktop only verified | ✅ | ✅ | unit | Visual Review | Thumbnails blank until R2 |
+| 5.06.02 | /brand/brand/kits | Brand Kits | brand-kits-reference.png | ✅ | ~ diff 21.7 | ✅ | ✅ | team/status/family/approval | cards/table | create ✅ approve ✅ archive ✅ comment ✅ | – | – | ✅ E2E verified | – | – | ⚠ Import Kit route not built | ⚠ | ✅ | ✅ | ⚠ | ✅ | ✅ | ⚠ | ✅ | ✅ | unit | Functional Review | E2E create+approve verified in DB |
+| 5.06.03 | /brand/brand/assets | Assets | assets-reference.png | ✅ | ~ diff 24.7 | ✅ | ✅ | type/status/rights/brand/owner/date/folder/collection/favourites | grid/list/table | folder ✅ fav ✅ archive ✅ | ✅ built, ⛔ blocked by R2 key | ✅ honest error without R2 | ✅ | rights gate on approve | link ✅ | – | ⚠ asset CSV not built | ✅ | ✅ | ⚠ | ✅ | ✅ | ⚠ | ✅ | ✅ | unit | Functional Review | Upload path untestable until R2 key |
+| 5.06.04 | /brand/brand/rights | Rights | rights-reference.png | ✅ | not yet diffed after shell change | ✅ | ✅ | territory/channel/status/owner/product/type | table/calendar/cards | create ✅ renew ✅ restrict ✅ suspend ✅ | agreement ✅ (R2) | – | – | ✅ sweep job | – | – | ✅ CSV verified | ✅ | ✅ | ⚠ | ✅ | ✅ | ⚠ | ✅ | ⚠ | unit | Functional Review | World map from Natural Earth dots |
+| 5.06.05 | /brand/brand/products | Product Library | product-library-reference.png | ✅ | ~ diff 20.7 | ✅ computed readiness | ✅ | category/collection/status/region/owner/readiness/missing | cards/list/table | create ✅ status ✅ link/unlink ✅ bookmark ✅ | – | – | review→active gate | coverage feeds readiness | ✅ | ✅ CSV import | ⚠ product CSV not built | ✅ | ✅ | ⚠ | ✅ | ✅ | ⚠ | ✅ | ✅ | unit | Functional Review | |
+| D-1 | /kits/{id} | Kit detail (10 tabs) | – | ✅ | n/a | ✅ | – | – | tabs | approve/changes/archive/comment | – | – | ✅ | – | – | – | – | ✅ | ✅ | – | ✅ | not-found ✅ | ⚠ | ✅ | – | – | Functional Review | |
+| D-2 | /assets/{id} | Asset detail (7 tabs) | – | ✅ | n/a | ✅ | – | – | tabs | approve/reject/changes, usage request | – | ✅ | ✅ | ✅ conflicts banner | ✅ | – | – | ✅ | ✅ | – | ✅ | ✅ | ⚠ | ✅ | – | – | Functional Review | |
+| D-3 | /rights/{id} | Licence detail | – | ✅ | n/a | ✅ | – | – | tabs | renew/restrict/suspend, agreements | ✅ | – | – | ✅ | – | – | – | ✅ | ✅ | – | ✅ | ✅ | ⚠ | ✅ | – | – | Functional Review | |
+| D-4 | /products/{id} | Product detail | – | ✅ | n/a | ✅ | – | – | tabs | status, link/unlink | – | – | ✅ | ✅ | ✅ | – | – | ✅ | ✅ | – | ✅ | ✅ | ⚠ | ✅ | – | – | Functional Review | |
+| W-1..3 | /kits/new, /rights/new, /products/new | Create forms | – | ✅ | n/a | ✅ | – | – | – | ✅ kit verified E2E | – | – | submit/draft | validation | SKU dupes | – | – | capability-gated | ✅ | – | – | field errors | ⚠ | ✅ kit | – | – | Functional Review | Kit form verified; licence/product forms not yet clicked through |
+| J-1 | pg_cron | Rights sweep | – | – | – | ✅ | – | – | – | – | – | – | – | ✅ ran, idempotent | – | – | – | revoked from app roles | ✅ | – | – | – | – | – | – | – | Passed | 2 licences expired correctly; 2nd run no-op |
+| J-2 | pg_cron | Readiness sweep | – | – | – | ✅ | – | – | – | – | – | – | – | – | ✅ | – | – | member check in fn | – | – | – | – | – | – | – | – | Passed | Scores now computed, not typed |
+
+## Open items (blocking Production Ready)
+
+1. ~~R2 access key~~ — fixed locally 2026-09-15; real media served from R2. **Vercel env still needs the corrected `CLOUDFLARE_*` values.**
+2. Pixel pass 3 (2026-09-15, native-resolution stacks via `scripts/ui-stack.py`): content-aligned diffs now Rights **13.3**, Product Library **22.7**, Brand Kits **23.6**, Assets **24.5**, Overview **25.3** (were 15.4 / 28.8 / 26.1 / 37.5 / 37.1). Measured design scale: 11px tabs, 19px H1, 10px subtitle, 77px KPI cards (9/17/8.5px), 28px search, 24px selects, 7–9px card/table text — applied at `lg:` only so tablet/phone keep legible type and touch targets. Default page sizes now follow the references (Rights 6, Products 6). Residual: the design-locked shell makes content ~4% narrower than the images; remaining hot rows are photographic content (different demo photos), and the Assets lower row sits ~40px low because pagination is kept (30 assets) and the reference overlaps its Insights/Flagged panels (image artefact).
+3. Responsive/PWA verification (tablet, phone) — phone 390 re-checked after pass 3.
+3a. Pass 4 (content parity, seeders only): six demo photos re-picked to the references' subjects/palette (no third-party brands, no Unsplash+ premium images), product recency staggered in `seed_brand_assets_media.sql` §5 so Product Library and the Overview preview open on the reference's products and badges; Overview preview now uses the same recency order; Overview Rights preview no longer scrolls; Overview kit chevrons page 5 at a time (`?kp=`). Product Library diff 20.0.
+4. Not yet built: Import Kit, Share Kit, asset/product CSV export, collections CRUD, asset metadata edit/replace UI, notifications on approval decisions, E2E test suite (Playwright not installed in this repo).
+5. Loading skeleton files (`loading.tsx`) for the brand routes.
+
+
+---
+
+## Baseline tracker (2026-08-29, restored from git HEAD)
+
+Kept verbatim for history. Superseded where it conflicts with the 2026-09-15 matrix above — notably the module no longer renders its own `BrandAssetsShell` sidebar (CLAUDE.md rule 2); it now lives inside the canonical workspace shell.
+
+
 Canonical shared module across eligible workspace types. One implementation, entitlement-driven.
 
 ## Audit summary (baseline)

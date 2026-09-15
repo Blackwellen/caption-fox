@@ -10,7 +10,7 @@ import {
   fetchQueueItems, fetchQueueKpis, fetchQueueLaneCounts, fetchThroughput,
   fetchScheduleEntries, CHANNEL_LABELS, MAX_PAGE_SIZE, type CalendarSession,
 } from '@/lib/calendar/queries'
-import { formatDateTime, formatDuration, formatRelativeShort, timezoneAbbrev, zonedDateKey } from '@/lib/calendar/dates'
+import { formatDateTime, formatDuration, formatRelativeShort, timezoneLabel, zonedDateKey } from '@/lib/calendar/dates'
 import { parsePage, pickView, readParams, resolveRange, type SearchParamsInput } from '@/lib/calendar/range'
 import { QUEUE_LANES } from '@/lib/calendar/types'
 import { CalendarPageChrome, HeaderButton } from './chrome'
@@ -105,7 +105,7 @@ export default async function QueuePage({
   }
 
   return (
-    <div className={cn(T.page, 'py-6')}>
+    <div className={cn(T.page, 'pb-8')}>
       <CalendarPageChrome
         ctx={ctx}
         active="publishing-queue"
@@ -115,26 +115,26 @@ export default async function QueuePage({
           <SecondaryHeaderActions
             ctx={ctx}
             surface="queue"
-            primary={<QueuePrimaryActions ctx={ctx} publishableIds={publishableIds} />}
+            primary={<QueuePrimaryActions key="queue-primary" ctx={ctx} publishableIds={publishableIds} />}
           />
         }
       />
 
       {kpis.error ? (
-        <div className={cn(T.card, 'mb-5')}><ErrorState message={kpis.error} /></div>
+        <div className={cn(T.card, 'mb-[13px]')}><ErrorState message={kpis.error} /></div>
       ) : (
-        <div className="mb-5"><KpiStrip items={kpiItems} /></div>
+        <div className="mb-[13px]"><KpiStrip items={kpiItems} /></div>
       )}
 
       <FilterBar
         left={
           <>
-            <FilterSearch placeholder="Search queue items…" className="w-56" />
+            <FilterSearch placeholder="Search queue items…" className="w-[150px]" />
             <DateRangeControl label={range.label} />
-            <FilterSelect name="channel" label="Channel" options={lookups.data.channels} />
-            <FilterSelect name="owner" label="Owner" options={lookups.data.owners} />
-            <FilterSelect name="approval" label="Approval" options={QUEUE_APPROVAL_OPTIONS} />
-            <FilterSelect name="priority" label="Priority" options={PRIORITY_OPTIONS} />
+            <FilterSelect name="channel" label="Channel" options={lookups.data.channels} hideAllValue />
+            <FilterSelect name="owner" label="Owner" options={lookups.data.owners} hideAllValue />
+            <FilterSelect name="approval" label="Approval state" options={QUEUE_APPROVAL_OPTIONS} hideAllValue />
+            <FilterSelect name="priority" label="Priority" options={PRIORITY_OPTIONS} hideAllValue />
             <AdvancedFilters
               extra={[
                 { name: 'delivery', label: 'Delivery status', options: DELIVERY_OPTIONS },
@@ -156,7 +156,8 @@ export default async function QueuePage({
         }
       />
 
-      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_312px]">
+      {/* Reference: 24px between the queue and its 290px rail. */}
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_290px]">
         <div className="min-w-0">
           {items.error ? (
             <div className={T.card}><ErrorState message={items.error} /></div>
@@ -184,20 +185,20 @@ export default async function QueuePage({
           )}
         </div>
 
-        <div className="min-w-0 space-y-5">
-          <Panel title="Queue alerts" count={alerts.data.length} bodyClassName="divide-y divide-slate-100">
+        <div className="min-w-0 space-y-[18px]">
+          <Panel title="Queue alerts" count={alerts.data.length} bodyClassName="pb-2">
             {alerts.error ? <ErrorState message={alerts.error} /> : alerts.data.length === 0 ? (
               <EmptyState icon={<CheckCircle2 size={18} />} title="No alerts" body="Nothing in the queue needs attention right now." />
             ) : alerts.data.map(alert => (
               <Link key={alert.kind} href={`${ctx.basePath}/calendar/publishing-queue?${alert.filterQuery}`}
-                className={cn('flex items-center gap-2.5 px-5 py-3 first:pt-4 last:pb-4 hover:bg-slate-50', T.focus)}>
+                className={cn('flex items-center gap-2.5 px-3.5 py-1 hover:bg-slate-50', T.focus)}>
                 <span className={cn('flex h-7 w-7 shrink-0 items-center justify-center rounded-full',
                   alert.severity === 'high' ? 'bg-red-50 text-red-600' : alert.severity === 'medium' ? 'bg-amber-50 text-amber-600' : 'bg-sky-50 text-sky-600')} aria-hidden>
                   <AlertTriangle size={14} />
                 </span>
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate text-[13px] font-medium text-slate-900">{alert.title}</span>
-                  <span className="block truncate text-[11.5px] text-slate-500">{alert.detail}</span>
+                  <span className="block truncate text-[11px] lg:text-[9.5px] font-semibold leading-[14px] text-slate-900">{alert.title}</span>
+                  <span className="block truncate text-[10px] lg:text-[9px] leading-[13px] text-slate-500">{alert.detail}</span>
                 </span>
                 <ChevronRight size={15} className="shrink-0 text-slate-300" aria-hidden />
               </Link>
@@ -206,7 +207,8 @@ export default async function QueuePage({
 
           <Panel title="Upcoming schedule" action={{ label: 'View calendar', href: `${ctx.basePath}/calendar` }}>
             <MiniCalendar
-              anchorIso={range.anchorIso}
+              // Follows the selected day, not the week start (which can fall in the previous month).
+              anchorIso={range.selectedDate ? `${range.selectedDate}T12:00:00.000Z` : range.anchorIso}
               timezone={ctx.timezone}
               locale={ctx.locale}
               weekStartsOn={ctx.weekStartsOn}
@@ -222,24 +224,25 @@ export default async function QueuePage({
         </div>
       </div>
 
-      <div className="mt-5 grid gap-5 xl:grid-cols-3">
+      {/* Reference bottom row: 364 / 391 / 423 with 15px gutters. */}
+      <div className="mt-[13px] grid gap-[15px] xl:grid-cols-[364fr_391fr_423fr]">
         <Panel title="Publishing throughput" hint="Items published, still scheduled, and failed per day over the last 7 days.">
           {throughput.error ? <ErrorState message={throughput.error} /> : (
             <ThroughputChart data={throughput.data} locale={ctx.locale} timezone={ctx.timezone} />
           )}
         </Panel>
 
-        <Panel title="Delayed items" action={{ label: 'View all', href: `${ctx.basePath}/calendar/publishing-queue?delivery=failed` }} bodyClassName="divide-y divide-slate-100">
+        <Panel title="Delayed items" action={{ label: 'View all', href: `${ctx.basePath}/calendar/publishing-queue?delivery=failed` }} bodyClassName="pb-2">
           {delayed.error ? <ErrorState message={delayed.error} /> : delayed.data.length === 0 ? (
             <EmptyState icon={<CheckCircle2 size={18} />} title="Nothing is late" body="Every queued item is still within its scheduled window." />
           ) : delayed.data.map(item => (
-            <div key={item.id} className="flex items-center gap-3 px-5 py-3 first:pt-4 last:pb-4">
+            <div key={item.id} className="flex items-center gap-3 px-3.5 py-1">
               <ChannelIcon channel={item.channel} size={14} />
               <div className="min-w-0 flex-1">
-                <p className="truncate text-[13px] font-medium text-slate-900">{item.title}</p>
-                <p className="truncate text-[11.5px] text-slate-500">{CHANNEL_LABELS[item.channel ?? ''] ?? 'Unassigned channel'}</p>
+                <p className="truncate text-[11px] lg:text-[9.5px] font-semibold leading-[14px] text-slate-900">{item.title}</p>
+                <p className="truncate text-[10px] lg:text-[9px] leading-[13px] text-slate-500">{CHANNEL_LABELS[item.channel ?? ''] ?? 'Unassigned channel'}</p>
               </div>
-              <span className="shrink-0 rounded-md bg-red-50 px-2 py-0.5 text-[11px] font-medium text-red-700">
+              <span className="shrink-0 rounded-md bg-red-50 px-2 py-0.5 text-[11px] lg:text-[9.5px] font-medium text-red-700">
                 {item.scheduledAt ? `${formatDuration(nowMs - new Date(item.scheduledAt).getTime())} overdue` : 'Overdue'}
               </span>
               <Avatar name={item.ownerName} />
@@ -248,27 +251,26 @@ export default async function QueuePage({
           ))}
         </Panel>
 
-        <Panel title="Recent publishing activity" bodyClassName="divide-y divide-slate-100">
+        <Panel title="Recent publishing activity" bodyClassName="pb-2">
           {activity.error ? <ErrorState message={activity.error} /> : activity.data.length === 0 ? (
             <EmptyState icon={<Clock size={18} />} title="No activity yet" body="Approvals, publishes and retries will be logged here." />
           ) : activity.data.map(item => (
-            <div key={item.id} className="flex items-start gap-2.5 px-5 py-2.5 first:pt-4 last:pb-4">
-              <span className="w-12 shrink-0 text-[11px] font-medium text-slate-400">
+            // Reference row: time · status dot · summary · "by Name", all on one ~27px line.
+            <div key={item.id} className="flex h-[27px] items-center gap-2.5 px-3.5">
+              <span className="w-[52px] shrink-0 whitespace-nowrap text-[10.5px] lg:text-[9px] font-medium text-slate-500">
                 {formatDateTime(item.createdAt, ctx.timezone, ctx.locale).split(', ')[1] ?? formatRelativeShort(item.createdAt)}
               </span>
-              <span className={cn('mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full',
+              <span className={cn('h-2 w-2 shrink-0 rounded-full',
                 item.tone === 'success' ? 'bg-emerald-500' : item.tone === 'danger' ? 'bg-red-500' : item.tone === 'warning' ? 'bg-amber-500' : 'bg-blue-500')} aria-hidden />
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-[12.5px] font-medium text-slate-800">{item.summary}</p>
-                <p className="truncate text-[11px] text-slate-400">by {item.actorName ?? 'System'}</p>
-              </div>
+              <p className="min-w-0 flex-1 truncate text-[11.5px] lg:text-[10px] font-medium text-slate-800">{item.summary}</p>
+              <p className="shrink-0 truncate text-[10.5px] lg:text-[9px] text-slate-400">by {item.actorName ?? 'System'}</p>
             </div>
           ))}
         </Panel>
       </div>
 
-      <p className="mt-5 text-[11.5px] text-slate-400">
-        All times shown in {ctx.timezone} ({timezoneAbbrev(ctx.timezone)}). Publishing runs through the delivery worker — items are never sent from your browser.
+      <p className="mt-5 text-[11.5px] lg:text-[10px] text-slate-400">
+        All times shown in {timezoneLabel(ctx.timezone)}. Publishing runs through the delivery worker — items are never sent from your browser.
       </p>
     </div>
   )

@@ -84,7 +84,7 @@ export function CapabilityGate({
  */
 export function CalendarPageSkeleton({ variant }: { variant: 'calendar' | 'queue' | 'agenda' | 'conflicts' }) {
   return (
-    <div className={cn(T.page, 'py-6')} aria-busy="true">
+    <div className={cn(T.page, 'pb-8')} aria-busy="true">
       <div className="mb-3"><Shimmer className="h-3 w-56" /></div>
       <div className="mb-5 flex items-start justify-between gap-4">
         <div className="space-y-2">

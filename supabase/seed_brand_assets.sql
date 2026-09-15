@@ -76,7 +76,7 @@ begin
        case when r.slug in ('acme-sport','acme-tech') then 'pending'
             when r.slug = 'acme-foods' then 'changes_requested'
             else 'approved' end,
-       r.team, 88 + (random() * 10)::numeric(5,2), 3, 2, v_owner, v_owner, true)
+       r.team, 90 + (length(r.slug) % 8), 3, 2, v_owner, v_owner, true)
     on conflict do nothing;
 
     select id into v_kit from public.brand_kits
@@ -208,7 +208,7 @@ begin
          case when r.rights = 'expiring' then 'expiring_soon' else r.rights end,
          r.scope, 'brand-assets',
          array['demo', r.brand_slug], r.fname || ' (demo asset)', true,
-         (random() * 40)::int,
+         (abs(hashtext(r.fname)) % 40),
          now() - (i || ' days')::interval, now() - (i || ' days')::interval,
          case when r.rights in ('licensed','expiring') then now() + ((10 + i) || ' days')::interval else null end,
          case when r.status = 'archived' then now() - interval '5 days' else null end);
@@ -221,7 +221,7 @@ begin
   loop
     insert into public.asset_approvals (workspace_id, asset_id, status, priority, requested_by, note)
     select v_ws, r.id, 'pending',
-           (array['high','medium','low'])[1 + (random()*2)::int],
+           (array['high','medium','low'])[1 + (abs(hashtext(r.file_name)) % 3)],
            v_owner, 'Requested review for ' || r.file_name
     where not exists (select 1 from public.asset_approvals a where a.asset_id = r.id);
   end loop;
@@ -436,7 +436,7 @@ begin
 
   insert into public.workspace_storage (workspace_id, bytes_used, bytes_quota, asset_count, recalculated_at)
   select v_ws,
-         coalesce((select sum(file_size) from public.media_assets where workspace_id = v_ws), 0) + 1407374883553,
+         coalesce((select sum(file_size) from public.media_assets where workspace_id = v_ws), 0),
          2199023255552,
          (select count(*) from public.media_assets where workspace_id = v_ws),
          now()

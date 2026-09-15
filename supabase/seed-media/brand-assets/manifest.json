@@ -1,0 +1,184 @@
+{
+  "assets": {
+    "Acme Hydrate Serum.jpg": {
+      "thumb": "thumbs/acme-hydrate-serum.jpg",
+      "original": "originals/acme-hydrate-serum.jpg",
+      "mime": "image/jpeg"
+    },
+    "Product Launch.mp4": {
+      "thumb": "thumbs/product-launch.jpg",
+      "original": null,
+      "mime": null
+    },
+    "Acme_Brand_Guide.pdf": {
+      "thumb": "thumbs/acme-brand-guide.jpg",
+      "original": "originals/acme-brand-guide.pdf",
+      "mime": "application/pdf"
+    },
+    "Pitch_Deck_Template.pptx": {
+      "thumb": "thumbs/pitch-deck-template.jpg",
+      "original": null,
+      "mime": null
+    },
+    "Acme Package Box.psd": {
+      "thumb": "thumbs/acme-package-box.jpg",
+      "original": null,
+      "mime": null
+    },
+    "Acme_new_post.png": {
+      "thumb": "thumbs/acme-new-post.jpg",
+      "original": "originals/acme-new-post.png",
+      "mime": "image/png"
+    },
+    "Acme Runner Pro.jpg": {
+      "thumb": "thumbs/acme-runner-pro.jpg",
+      "original": "originals/acme-runner-pro.jpg",
+      "mime": "image/jpeg"
+    },
+    "Cleanser Ad_30sec.mp4": {
+      "thumb": "thumbs/cleanser-ad-30sec.jpg",
+      "original": null,
+      "mime": null
+    },
+    "Acme Campaign Brief.pdf": {
+      "thumb": "thumbs/acme-campaign-brief.jpg",
+      "original": "originals/acme-campaign-brief.pdf",
+      "mime": "application/pdf"
+    },
+    "Protein Bars_Group.jpg": {
+      "thumb": "thumbs/protein-bars-group.jpg",
+      "original": "originals/protein-bars-group.jpg",
+      "mime": "image/jpeg"
+    },
+    "Acme Summer Campaign.jpg": {
+      "thumb": "thumbs/acme-summer-campaign.jpg",
+      "original": "originals/acme-summer-campaign.jpg",
+      "mime": "image/jpeg"
+    },
+    "Behind the Scenes.mp4": {
+      "thumb": "thumbs/behind-the-scenes.jpg",
+      "original": null,
+      "mime": null
+    },
+    "Product Spec Sheet.pdf": {
+      "thumb": "thumbs/product-spec-sheet.jpg",
+      "original": "originals/product-spec-sheet.pdf",
+      "mime": "application/pdf"
+    },
+    "Event Banner Template.pptx": {
+      "thumb": "thumbs/event-banner-template.jpg",
+      "original": null,
+      "mime": null
+    },
+    "Acme Packaging Mockup.psd": {
+      "thumb": "thumbs/acme-packaging-mockup.jpg",
+      "original": null,
+      "mime": null
+    },
+    "Old Logo (Black).png": {
+      "thumb": "thumbs/old-logo-black.jpg",
+      "original": "originals/old-logo-black.png",
+      "mime": "image/png"
+    },
+    "Expired License.mp4": {
+      "thumb": "thumbs/expired-license.jpg",
+      "original": null,
+      "mime": null
+    },
+    "Spring Campaign_v1.jpg": {
+      "thumb": "thumbs/spring-campaign-v1.jpg",
+      "original": "originals/spring-campaign-v1.jpg",
+      "mime": "image/jpeg"
+    },
+    "Draft_Layout.psd": {
+      "thumb": "thumbs/draft-layout.jpg",
+      "original": null,
+      "mime": null
+    },
+    "Event Post_old.png": {
+      "thumb": "thumbs/event-post-old.jpg",
+      "original": "originals/event-post-old.png",
+      "mime": "image/png"
+    }
+  },
+  "products": {
+    "ACM-1001": {
+      "thumb": "thumbs/product-acm-1001.jpg",
+      "original": "originals/product-acm-1001.jpg",
+      "mime": "image/jpeg"
+    },
+    "ACM-1001-EU": {
+      "thumb": "thumbs/product-acm-1001-eu.jpg",
+      "original": "originals/product-acm-1001-eu.jpg",
+      "mime": "image/jpeg"
+    },
+    "ACM-1003": {
+      "thumb": "thumbs/product-acm-1003.jpg",
+      "original": "originals/product-acm-1003.jpg",
+      "mime": "image/jpeg"
+    },
+    "ACM-2005": {
+      "thumb": "thumbs/product-acm-2005.jpg",
+      "original": "originals/product-acm-2005.jpg",
+      "mime": "image/jpeg"
+    },
+    "ACM-2011": {
+      "thumb": "thumbs/product-acm-2011.jpg",
+      "original": "originals/product-acm-2011.jpg",
+      "mime": "image/jpeg"
+    },
+    "ACM-3002": {
+      "thumb": "thumbs/product-acm-3002.jpg",
+      "original": "originals/product-acm-3002.jpg",
+      "mime": "image/jpeg"
+    },
+    "ACM-4007": {
+      "thumb": "thumbs/product-acm-4007.jpg",
+      "original": "originals/product-acm-4007.jpg",
+      "mime": "image/jpeg"
+    },
+    "ACM-5003": {
+      "thumb": "thumbs/product-acm-5003.jpg",
+      "original": "originals/product-acm-5003.jpg",
+      "mime": "image/jpeg"
+    },
+    "ACM-6001": {
+      "thumb": "thumbs/product-acm-6001.jpg",
+      "original": "originals/product-acm-6001.jpg",
+      "mime": "image/jpeg"
+    },
+    "ACM-6004": {
+      "thumb": "thumbs/product-acm-6004.jpg",
+      "original": "originals/product-acm-6004.jpg",
+      "mime": "image/jpeg"
+    },
+    "ACM-9002": {
+      "thumb": "thumbs/product-acm-9002.jpg",
+      "original": "originals/product-acm-9002.jpg",
+      "mime": "image/jpeg"
+    },
+    "ACM-4009": {
+      "thumb": "thumbs/product-acm-4009.jpg",
+      "original": "originals/product-acm-4009.jpg",
+      "mime": "image/jpeg"
+    }
+  },
+  "avatars": {
+    "emily-johnson": "avatars/emily-johnson.jpg",
+    "michael-chen": "avatars/michael-chen.jpg",
+    "sarah-williams": "avatars/sarah-williams.jpg",
+    "david-martinez": "avatars/david-martinez.jpg",
+    "jason-ranti": "avatars/jason-ranti.jpg",
+    "priya-shah": "avatars/priya-shah.jpg",
+    "grace-kim": "avatars/grace-kim.jpg"
+  },
+  "logos": {
+    "acme": "logos/acme.png",
+    "acme-sport": "logos/acme-sport.png",
+    "acme-care": "logos/acme-care.png",
+    "acme-foods": "logos/acme-foods.png",
+    "acme-tech": "logos/acme-tech.png",
+    "acme-finance": "logos/acme-finance.png",
+    "acme-education": "logos/acme-education.png"
+  }
+}

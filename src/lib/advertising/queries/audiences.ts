@@ -96,6 +96,87 @@ async function hydrate(
   })
 }
 
+/** Size buckets used by the Size filter. */
+export const SIZE_BUCKETS = [
+  { value: 'small', label: 'Under 1M', min: 0, max: 1_000_000 },
+  { value: 'medium', label: '1M – 5M', min: 1_000_000, max: 5_000_000 },
+  { value: 'large', label: 'Over 5M', min: 5_000_000, max: Number.MAX_SAFE_INTEGER },
+] as const
+
+export type AudienceDetailRow = AudienceRow & {
+  maxOverlapPct: number | null
+  excludeFromName: string | null
+  linkedCampaigns: { id: string; name: string }[]
+  /** ROAS change vs the comparison period, in percent. */
+  spendImpactPct: number | null
+}
+
+/**
+ * Every audience with overlap, exclusion and linked campaigns attached, for the
+ * cards and the Audience Performance & Overlap table. Filtered in memory after
+ * hydration because Size and Campaign Usage are derived values.
+ */
+export async function getAudienceDetails(
+  supabase: SupabaseClient, workspaceId: string, range: DateRange, compare: DateRange,
+  filters: { q?: string | null; platform?: string | null; audienceType?: string | null; refreshStatus?: string | null; size?: string | null; usage?: string | null },
+): Promise<AudienceDetailRow[]> {
+  let query = supabase
+    .from('ad_audiences')
+    .select('id, name, provider, audience_type, size_estimate, matched_users, match_rate, recency_days, refresh_schedule, refresh_status, status, last_refreshed_at, excluded_audience_id, description')
+    .eq('workspace_id', workspaceId).neq('status', 'archived').order('size_estimate', { ascending: false, nullsFirst: false }).limit(500)
+  if (filters.q) {
+    const q = filters.q.replace(/[%*,()]/g, '')
+    query = query.or(`name.ilike.%${q}%,description.ilike.%${q}%,audience_type.ilike.%${q}%`)
+  }
+  if (filters.platform) query = query.eq('provider', filters.platform)
+  if (filters.audienceType) query = query.eq('audience_type', filters.audienceType)
+  if (filters.refreshStatus) query = query.eq('refresh_status', filters.refreshStatus)
+  const { data } = await query
+  const audiences = data ?? []
+  if (audiences.length === 0) return []
+  const ids = audiences.map(row => row.id as string)
+
+  const [base, previousMetrics, overlaps, links] = await Promise.all([
+    hydrate(supabase, workspaceId, range, audiences),
+    loadMetrics(supabase, { workspaceId, entityType: 'audience', range: compare, entityIds: ids }),
+    supabase.from('ad_audience_overlaps').select('audience_a_id, audience_b_id, overlap_pct').eq('workspace_id', workspaceId),
+    supabase.from('ad_audience_campaigns').select('audience_id, ad_campaigns(id, name)').eq('workspace_id', workspaceId).in('audience_id', ids),
+  ])
+  const previousByEntity = totalsByEntity(previousMetrics)
+  const names = new Map(audiences.map(row => [row.id as string, row.name as string]))
+  const maxOverlap = new Map<string, number>()
+  for (const row of overlaps.data ?? []) {
+    const pct = Number(row.overlap_pct)
+    for (const id of [row.audience_a_id as string, row.audience_b_id as string]) maxOverlap.set(id, Math.max(maxOverlap.get(id) ?? 0, pct))
+  }
+  const campaignsByAudience = new Map<string, { id: string; name: string }[]>()
+  for (const link of links.data ?? []) {
+    const campaign = link.ad_campaigns as unknown as { id: string; name: string } | null
+    if (!campaign) continue
+    campaignsByAudience.set(link.audience_id as string, [...(campaignsByAudience.get(link.audience_id as string) ?? []), campaign])
+  }
+
+  const rows = base.map((row, index) => {
+    const previousRoas = previousByEntity.get(row.id)?.roas ?? null
+    const excluded = audiences[index].excluded_audience_id as string | null
+    return {
+      ...row,
+      maxOverlapPct: maxOverlap.has(row.id) ? maxOverlap.get(row.id)! : null,
+      excludeFromName: excluded ? names.get(excluded) ?? null : null,
+      linkedCampaigns: campaignsByAudience.get(row.id) ?? [],
+      spendImpactPct: row.roas !== null && previousRoas ? ((row.roas - previousRoas) / previousRoas) * 100 : null,
+    }
+  })
+
+  const bucket = SIZE_BUCKETS.find(entry => entry.value === filters.size)
+  return rows.filter(row => {
+    if (bucket && !(row.sizeEstimate !== null && Number(row.sizeEstimate) >= bucket.min && Number(row.sizeEstimate) < bucket.max)) return false
+    if (filters.usage === 'used' && row.linkedCampaigns.length === 0) return false
+    if (filters.usage === 'unused' && row.linkedCampaigns.length > 0) return false
+    return true
+  })
+}
+
 export type OverlapPair = { audienceAId: string; audienceAName: string; audienceBId: string; audienceBName: string; overlapPct: number | null; overlapUsers: number }
 
 export async function getOverlapPairs(supabase: SupabaseClient, workspaceId: string, limit = 20): Promise<OverlapPair[]> {

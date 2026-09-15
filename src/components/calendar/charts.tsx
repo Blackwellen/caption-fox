@@ -25,20 +25,21 @@ export function ThroughputChart({ data, locale, timezone }: { data: ThroughputPo
 
   return (
     <>
-      <div className="mb-3 flex flex-wrap items-center gap-4">
+      <div className="mb-2 flex flex-wrap items-center gap-4">
         {[
           { key: 'published', label: 'Published', color: '#2563eb' },
           { key: 'scheduled', label: 'Scheduled', color: '#94a3b8' },
           { key: 'failed', label: 'Failed', color: '#ef4444' },
         ].map(series => (
-          <span key={series.key} className="flex items-center gap-1.5 text-[11.5px] text-slate-600">
-            <span className="h-1.5 w-4 rounded-full" style={{ background: series.color }} aria-hidden />
+          <span key={series.key} className="flex items-center gap-1.5 text-[11px] lg:text-[9.5px] text-slate-600">
+            <span className="h-1.5 w-3.5 rounded-full" style={{ background: series.color }} aria-hidden />
             {series.label}
           </span>
         ))}
       </div>
-      <div className="h-[188px] w-full" role="img" aria-label={`Publishing throughput across ${data.length} days`}>
-        <ResponsiveContainer width="100%" height="100%">
+      {/* Reference plot is ~150px tall; initialDimension avoids a -1 measurement before layout. */}
+      <div className="h-[124px] w-full min-w-0" role="img" aria-label={`Publishing throughput across ${data.length} days`}>
+        <ResponsiveContainer width="100%" height="100%" initialDimension={{ width: 320, height: 124 }}>
           <LineChart data={formatted} margin={{ top: 4, right: 8, left: -18, bottom: 0 }}>
             <CartesianGrid stroke="#f1f5f9" vertical={false} />
             <XAxis dataKey="label" tick={AXIS} tickLine={false} axisLine={{ stroke: '#e2e8f0' }} />
@@ -76,7 +77,7 @@ export function ConflictDonut({ data }: { data: ConflictTypeBreakdown[] }) {
   return (
     <div className="flex flex-col items-center gap-5 sm:flex-row">
       <div className="relative h-[168px] w-[168px] shrink-0" role="img" aria-label={`${total} open conflicts by type`}>
-        <ResponsiveContainer width="100%" height="100%">
+        <ResponsiveContainer width="100%" height="100%" initialDimension={{ width: 168, height: 168 }}>
           <PieChart>
             <Pie data={data} dataKey="count" nameKey="label" innerRadius={52} outerRadius={78} paddingAngle={2} stroke="none">
               {data.map((entry, index) => <Cell key={entry.type} fill={DONUT_COLORS[index % DONUT_COLORS.length]} />)}
@@ -85,13 +86,13 @@ export function ConflictDonut({ data }: { data: ConflictTypeBreakdown[] }) {
           </PieChart>
         </ResponsiveContainer>
         <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
-          <span className="text-[22px] font-bold leading-6 text-slate-900">{total}</span>
-          <span className="text-[11px] text-slate-500">Total</span>
+          <span className="text-[22px] lg:text-[20px] font-bold leading-6 text-slate-900">{total}</span>
+          <span className="text-[11px] lg:text-[9.5px] text-slate-500">Total</span>
         </div>
       </div>
       <ul className="min-w-0 flex-1 space-y-1.5">
         {data.map((item, index) => (
-          <li key={item.type} className="flex items-center gap-2 text-[12.5px]">
+          <li key={item.type} className="flex items-center gap-2 text-[12.5px] lg:text-[11px]">
             <span className="h-2 w-2 shrink-0 rounded-sm" style={{ background: DONUT_COLORS[index % DONUT_COLORS.length] }} aria-hidden />
             <span className="min-w-0 flex-1 truncate text-slate-700">{item.label}</span>
             <span className="shrink-0 font-semibold text-slate-900">{item.count}</span>

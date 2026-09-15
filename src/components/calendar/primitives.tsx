@@ -12,14 +12,18 @@ import type { Priority, ScheduleKind, ScheduleStatus } from '@/lib/calendar/type
 // scattered per-page overrides.
 
 export const T = {
-  page: 'mx-auto w-full max-w-[1280px] px-6 xl:px-8',
-  card: 'rounded-xl border border-slate-200 bg-white',
-  cardPad: 'p-5',
-  control: 'h-9 rounded-lg border border-slate-200 bg-white px-3 text-[13px] text-slate-700',
+  // The shell's <main> already provides the gutter; the page only caps width on very wide screens.
+  // -5px: reference breadcrumb sits 23px under the top bar; the locked shell pads 28px.
+  page: 'mx-auto -mt-[5px] w-full max-w-[1440px]',
+  // Reference: 1px hairline (#e8ebf0), 12px radius, barely-there lift.
+  card: 'rounded-xl border border-[#e8ebf0] bg-white shadow-[0_1px_2px_rgba(16,24,40,0.04)]',
+  cardPad: 'p-4',
+  // Reference controls are 32px tall with an 8px radius.
+  control: 'h-8 rounded-lg border border-[#e3e7ed] bg-white px-2.5 text-[11.5px] lg:text-[10px] text-slate-700 shadow-[0_1px_1px_rgba(16,24,40,0.03)]',
   controlHover: 'hover:border-slate-300 hover:bg-slate-50',
-  label: 'text-[11px] font-medium uppercase tracking-wide text-slate-500',
+  label: 'text-[11px] lg:text-[9.5px] font-medium uppercase tracking-wide text-slate-500',
   sectionTitle: 'text-[15px] font-semibold text-slate-900',
-  muted: 'text-[12px] text-slate-500',
+  muted: 'text-[12px] lg:text-[10.5px] text-slate-500',
   focus: 'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600',
 } as const
 
@@ -77,10 +81,91 @@ const KIND_ICONS: Record<ScheduleKind, typeof Globe> = {
   approval: ShieldAlert, meeting: Users, reminder: Clock, milestone: Rocket, event: CalendarDays,
 }
 
+/**
+ * Brand marks as used in the reference designs (real platform glyphs in brand
+ * colours, no tinted tile). Inline SVG so no external assets are needed.
+ */
+function BrandMark({ channel, size }: { channel: string; size: number }) {
+  const s = size + 4
+  switch (channel) {
+    case 'instagram':
+      return (
+        <svg width={s} height={s} viewBox="0 0 24 24" aria-hidden>
+          <defs>
+            <linearGradient id="cf-ig" x1="0" y1="1" x2="1" y2="0">
+              <stop offset="0" stopColor="#F58529" /><stop offset=".5" stopColor="#DD2A7B" /><stop offset="1" stopColor="#8134AF" />
+            </linearGradient>
+          </defs>
+          <rect x="2.5" y="2.5" width="19" height="19" rx="5.5" fill="none" stroke="url(#cf-ig)" strokeWidth="2.2" />
+          <circle cx="12" cy="12" r="4.3" fill="none" stroke="url(#cf-ig)" strokeWidth="2.2" />
+          <circle cx="17.4" cy="6.6" r="1.3" fill="#DD2A7B" />
+        </svg>
+      )
+    case 'facebook':
+      return (
+        <svg width={s} height={s} viewBox="0 0 24 24" aria-hidden>
+          <circle cx="12" cy="12" r="11" fill="#1877F2" />
+          <path d="M13.4 19.5v-6h2l.3-2.4h-2.3V9.6c0-.7.2-1.1 1.2-1.1h1.2V6.4c-.2 0-.9-.1-1.8-.1-1.8 0-3 1.1-3 3.1v1.7H9v2.4h2v6h2.4z" fill="#fff" />
+        </svg>
+      )
+    case 'linkedin':
+      return (
+        <svg width={s} height={s} viewBox="0 0 24 24" aria-hidden>
+          <rect x="2" y="2" width="20" height="20" rx="3.5" fill="#0A66C2" />
+          <path d="M7.2 10h2.3v7.3H7.2zM8.35 6.4a1.33 1.33 0 1 1 0 2.66 1.33 1.33 0 0 1 0-2.66zM11 10h2.2v1c.3-.6 1.1-1.2 2.3-1.2 2.4 0 2.8 1.6 2.8 3.6v3.9H16v-3.5c0-.8 0-1.9-1.2-1.9s-1.4.9-1.4 1.8v3.6H11z" fill="#fff" />
+        </svg>
+      )
+    case 'x':
+      return (
+        <svg width={s} height={s} viewBox="0 0 24 24" aria-hidden>
+          <path d="M17.8 3h3.1l-6.8 7.8L22 21h-6.2l-4.9-6.4L5.3 21H2.2l7.3-8.3L2 3h6.4l4.4 5.8zm-1.1 16.2h1.7L7.4 4.7H5.6z" fill="#0F172A" />
+        </svg>
+      )
+    case 'youtube':
+      return (
+        <svg width={s} height={s} viewBox="0 0 24 24" aria-hidden>
+          <rect x="1.5" y="5" width="21" height="14" rx="4" fill="#FF0000" />
+          <path d="M10 9.2v5.6l4.9-2.8z" fill="#fff" />
+        </svg>
+      )
+    case 'tiktok':
+      return (
+        <svg width={s} height={s} viewBox="0 0 24 24" aria-hidden>
+          <path d="M16.6 5.8A4.3 4.3 0 0 1 15.5 3h-3.2v12.4a2.6 2.6 0 1 1-1.9-2.5V9.6a5.8 5.8 0 1 0 5.1 5.8V9.1a7.4 7.4 0 0 0 4.3 1.4V7.3a4.3 4.3 0 0 1-3.2-1.5z" fill="#0F172A" />
+        </svg>
+      )
+    case 'pinterest':
+      return (
+        <svg width={s} height={s} viewBox="0 0 24 24" aria-hidden>
+          <circle cx="12" cy="12" r="11" fill="#E60023" />
+          <path d="M12.3 5.5c-3.6 0-5.4 2.6-5.4 4.7 0 1.3.5 2.4 1.5 2.8.2.1.3 0 .4-.2l.2-.6c0-.2 0-.3-.1-.5-.3-.4-.5-.9-.5-1.6 0-2.1 1.5-3.9 4-3.9 2.2 0 3.4 1.3 3.4 3.1 0 2.4-1 4.4-2.6 4.4-.9 0-1.5-.7-1.3-1.6.2-1.1.7-2.2.7-2.9 0-.7-.4-1.2-1.1-1.2-.9 0-1.6.9-1.6 2.2 0 .8.3 1.3.3 1.3l-1.1 4.6c-.3 1.4 0 3.1 0 3.2h.2c.1-.1 1-1.3 1.4-2.6l.5-2.1c.3.5 1.1 1 1.9 1 2.5 0 4.2-2.3 4.2-5.3 0-2.3-1.9-4.4-4.9-4.4z" fill="#fff" />
+        </svg>
+      )
+    case 'email':
+      return (
+        <svg width={s} height={s} viewBox="0 0 24 24" aria-hidden>
+          <rect x="2.5" y="5" width="19" height="14" rx="2" fill="#2563EB" />
+          <path d="M3.5 6.5l8.5 6.2 8.5-6.2" fill="none" stroke="#fff" strokeWidth="1.6" strokeLinejoin="round" />
+        </svg>
+      )
+    default:
+      return null
+  }
+}
+
 export function ChannelIcon({ channel, size = 16, className }: { channel: string | null | undefined; size?: number; className?: string }) {
   const config = channel ? CHANNEL_ICONS[channel] : undefined
   const Icon = config?.icon ?? Globe
   const label = config?.label ?? (channel ? channel : 'No channel')
+  const brand = channel ? BrandMark({ channel, size }) : null
+  if (brand) {
+    return (
+      <span className={cn('inline-flex shrink-0 items-center justify-center', className)} style={{ width: size + 8, height: size + 8 }} title={label}>
+        {brand}
+        <span className="sr-only">{label}</span>
+      </span>
+    )
+  }
   return (
     <span
       className={cn('inline-flex shrink-0 items-center justify-center rounded-md', config?.className ?? 'bg-slate-100 text-slate-500', className)}
@@ -98,12 +183,61 @@ export function KindIcon({ kind, size = 15 }: { kind: ScheduleKind; size?: numbe
   return <Icon size={size} aria-hidden className="shrink-0" />
 }
 
-export function StatusBadge({ status, className }: { status: ScheduleStatus; className?: string }) {
+/**
+ * Reference uses two status treatments: a soft rounded-rectangle pill (tables,
+ * agenda rows) and a coloured "• Label" text form (agenda preview).
+ */
+export function StatusBadge({ status, className, variant = 'pill' }: { status: ScheduleStatus; className?: string; variant?: 'pill' | 'dot' }) {
   const token = STATUS_TOKENS[status] ?? STATUS_TOKENS.scheduled
+  if (variant === 'dot') {
+    const text = token.chip.split(' ').find(c => c.startsWith('text-')) ?? 'text-slate-600'
+    return (
+      <span className={cn('inline-flex items-center gap-1 whitespace-nowrap text-[10.5px] lg:text-[9px] font-medium', text, className)}>
+        <span className={cn('h-[5px] w-[5px] rounded-full', token.dot)} aria-hidden />
+        {token.label}
+      </span>
+    )
+  }
   return (
-    <span className={cn('inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-medium ring-1 ring-inset', token.chip, className)}>
-      <span className={cn('h-1.5 w-1.5 rounded-full', token.dot)} aria-hidden />
+    <span className={cn('inline-flex items-center whitespace-nowrap rounded-md px-2 py-[3px] text-[10.5px] lg:text-[9px] font-medium leading-[14px]', token.chip.replace(/ring-\S+/g, ''), className)}>
       {token.label}
+    </span>
+  )
+}
+
+const KIND_TILE: Record<ScheduleKind, string> = {
+  content: 'bg-blue-50 text-blue-600', publishing: 'bg-blue-50 text-blue-600',
+  // Reference: tasks and approvals are solid green check tiles; meetings a grey calendar tile.
+  campaign: 'bg-violet-50 text-violet-600', task: 'bg-emerald-500 text-white',
+  approval: 'bg-emerald-500 text-white', meeting: 'bg-slate-100 text-slate-600',
+  reminder: 'bg-amber-50 text-amber-600', milestone: 'bg-violet-50 text-violet-600',
+  event: 'bg-slate-100 text-slate-600',
+}
+
+/** 26px tinted icon tile used in the reference's Next Actions list. */
+export function KindTile({ kind, soft = false }: { kind: ScheduleKind; soft?: boolean }) {
+  return (
+    <span className={cn('flex h-[26px] w-[26px] shrink-0 items-center justify-center rounded-md', soft && (kind === 'task' || kind === 'approval') ? 'bg-emerald-50 text-emerald-600' : KIND_TILE[kind] ?? KIND_TILE.event)} aria-hidden>
+      <KindIcon kind={kind} size={13} />
+    </span>
+  )
+}
+
+const ACTIVITY_TILE = {
+  success: { className: 'bg-emerald-500', icon: CheckCircle2 },
+  danger: { className: 'bg-red-500', icon: XCircle },
+  warning: { className: 'bg-orange-500', icon: AlertTriangle },
+  info: { className: 'bg-blue-600', icon: CalendarDays },
+  neutral: { className: 'bg-violet-500', icon: Clock },
+} as const
+
+/** Solid 26px icon tile used in the reference's Recent Activity list. */
+export function ActivityTile({ tone }: { tone: keyof typeof ACTIVITY_TILE | string }) {
+  const token = ACTIVITY_TILE[tone as keyof typeof ACTIVITY_TILE] ?? ACTIVITY_TILE.neutral
+  const Icon = token.icon
+  return (
+    <span className={cn('flex h-[26px] w-[26px] shrink-0 items-center justify-center rounded-lg text-white', token.className)} aria-hidden>
+      <Icon size={14} />
     </span>
   )
 }
@@ -112,8 +246,8 @@ export function PriorityTag({ priority }: { priority: Priority }) {
   const token = PRIORITY_TOKENS[priority]
   const Arrow = token.arrow === 'up' ? ArrowUpRight : token.arrow === 'down' ? ArrowDownRight : TrendingUp
   return (
-    <span className={cn('inline-flex items-center gap-1 text-[12px] font-medium', token.className)}>
-      <Arrow size={13} aria-hidden />
+    <span className={cn('inline-flex items-center gap-0.5 whitespace-nowrap text-[10.5px] lg:text-[9px] font-medium', token.className)}>
+      <Arrow size={11} aria-hidden />
       {token.label}
       <span className="sr-only">priority</span>
     </span>
@@ -123,8 +257,7 @@ export function PriorityTag({ priority }: { priority: Priority }) {
 export function SeverityBadge({ severity }: { severity: keyof typeof SEVERITY_TOKENS }) {
   const token = SEVERITY_TOKENS[severity]
   return (
-    <span className={cn('inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-semibold ring-1 ring-inset', token.chip)}>
-      <AlertTriangle size={11} aria-hidden />
+    <span className={cn('inline-flex items-center whitespace-nowrap rounded-md px-2 py-[3px] text-[10.5px] lg:text-[9px] font-semibold leading-[14px]', token.chip.replace(/ring-\S+/g, ''))}>
       {token.label}
     </span>
   )
@@ -139,7 +272,7 @@ export function Avatar({ name, size = 22 }: { name: string | null | undefined; s
   for (const ch of label) hash = (hash * 31 + ch.charCodeAt(0)) % 997
   return (
     <span
-      className={cn('inline-flex shrink-0 items-center justify-center rounded-full text-[10px] font-semibold', palette[hash % palette.length])}
+      className={cn('inline-flex shrink-0 items-center justify-center rounded-full text-[10px] lg:text-[9px] font-semibold', palette[hash % palette.length])}
       style={{ width: size, height: size }}
       title={label}
     >
@@ -152,11 +285,13 @@ export function Avatar({ name, size = 22 }: { name: string | null | undefined; s
 // ── Layout primitives ───────────────────────────────────────────────────────
 
 export function Panel({
-  title, count, action, children, className, bodyClassName, hint,
+  title, count, action, footer, children, className, bodyClassName, hint,
 }: {
   title: string
   count?: number | null
   action?: { label: string; href: string } | null
+  /** Centred footer link above a hairline, as on the reference Agenda panels. */
+  footer?: { label: string; href: string } | null
   hint?: string | null
   children: React.ReactNode
   className?: string
@@ -164,21 +299,29 @@ export function Panel({
 }) {
   return (
     <section className={cn(T.card, 'flex min-w-0 flex-col', className)}>
-      <header className="flex items-center justify-between gap-3 border-b border-slate-100 px-5 py-3.5">
-        <h2 className="flex items-center gap-2 text-[14px] font-semibold text-slate-900">
+      {/* Reference panel headers: 40px, no divider — the list starts directly under the title. */}
+      <header className="flex h-9 shrink-0 items-center justify-between gap-3 px-3.5 pt-0.5">
+        <h2 className="flex items-center gap-2 text-[13px] lg:text-[11.5px] font-semibold text-slate-900">
           {title}
           {typeof count === 'number' && (
-            <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-[11px] font-medium text-slate-600">{count}</span>
+            <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-[11px] lg:text-[9.5px] font-medium text-slate-600">{count}</span>
           )}
           {hint && <span title={hint} className="text-slate-300"><Info size={13} aria-hidden /><span className="sr-only">{hint}</span></span>}
         </h2>
         {action && (
-          <Link href={action.href} className={cn('shrink-0 text-[12px] font-medium text-blue-600 hover:text-blue-700', T.focus)}>
+          <Link href={action.href} className={cn('shrink-0 text-[11.5px] lg:text-[10px] font-medium text-blue-600 hover:text-blue-700', T.focus)}>
             {action.label}
           </Link>
         )}
       </header>
-      <div className={cn('min-w-0 flex-1', bodyClassName ?? 'p-5')}>{children}</div>
+      <div className={cn('min-w-0 flex-1', bodyClassName ?? 'px-3.5 pb-3.5')}>{children}</div>
+      {footer && (
+        <div className="border-t border-[#eef0f4] py-2.5 text-center">
+          <Link href={footer.href} className={cn('text-[11.5px] lg:text-[10px] font-medium text-blue-600 hover:text-blue-700', T.focus)}>
+            {footer.label}
+          </Link>
+        </div>
+      )}
     </section>
   )
 }
@@ -209,27 +352,30 @@ const TONE_TILE: Record<KpiDefinition['tone'], string> = {
  */
 export function KpiStrip({ items }: { items: KpiDefinition[] }) {
   return (
-    <div className={cn(T.card, 'grid grid-cols-1 overflow-hidden sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6')}>
+    // Reference strip: one 80px card; cells separated by short dividers inset ~15px top and bottom.
+    <div className={cn(T.card, 'grid grid-cols-1 overflow-hidden sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6')}>
       {items.map((item, index) => (
         <div
           key={item.id}
           className={cn(
-            'flex min-w-0 items-start gap-3 px-5 py-4',
-            'border-slate-100',
-            index !== 0 && 'border-t sm:border-t-0',
-            index % 2 !== 0 && 'sm:border-l',
-            'lg:border-l lg:first:border-l-0 lg:[&:nth-child(3n+1)]:border-l-0 2xl:[&:nth-child(3n+1)]:border-l 2xl:first:border-l-0',
-            index > 2 && 'lg:border-t 2xl:border-t-0',
+            'relative flex min-w-0 items-center gap-2.5 px-3.5 py-3',
+            index !== 0 && 'border-t border-slate-100 sm:border-t-0',
+            // Short vertical divider on the left edge of every cell but the first in a row.
+            'before:absolute before:left-0 before:top-[15px] before:bottom-[15px] before:w-px before:bg-[#e8ebf0]',
+            index % 2 === 0 && 'before:hidden sm:before:hidden',
+            index % 2 !== 0 && 'sm:before:block',
+            'lg:before:block lg:[&:nth-child(3n+1)]:before:hidden xl:[&:nth-child(3n+1)]:before:block xl:first:before:hidden',
+            index > 2 && 'lg:border-t xl:border-t-0',
           )}
         >
-          <span className={cn('mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg', TONE_TILE[item.tone])} aria-hidden>
+          <span className={cn('flex h-10 w-10 shrink-0 items-center justify-center rounded-full', TONE_TILE[item.tone])} aria-hidden>
             {item.icon}
           </span>
           <div className="min-w-0">
-            <p className="truncate text-[12px] font-medium text-slate-500">{item.label}</p>
-            <p className="mt-0.5 text-[26px] font-bold leading-8 tracking-tight text-slate-900">{item.value}</p>
+            <p className="truncate text-[11.5px] lg:text-[10px] leading-[14px] text-slate-700">{item.label}</p>
+            <p className="mt-[3px] text-[20px] lg:text-[19px] font-bold leading-6 tracking-tight text-slate-900">{item.value}</p>
             {item.delta ? <DeltaLabel {...item.delta} /> : item.footnote ? (
-              <p className="mt-0.5 truncate text-[11px] text-slate-400">{item.footnote}</p>
+              <p className="truncate text-[10.5px] lg:text-[9px] leading-[13px] text-slate-500">{item.footnote}</p>
             ) : null}
           </div>
         </div>
@@ -244,10 +390,10 @@ function DeltaLabel({ value, suffix = 'vs last week', goodWhenUp = true }: { val
   const good = flat ? true : up === goodWhenUp
   const Arrow = up ? ArrowUpRight : ArrowDownRight
   return (
-    <p className={cn('mt-0.5 flex items-center gap-1 text-[11px] font-medium', flat ? 'text-slate-400' : good ? 'text-emerald-600' : 'text-red-600')}>
-      {!flat && <Arrow size={11} aria-hidden />}
-      {flat ? 'No change' : `${Math.abs(value)}%`}
-      <span className="font-normal text-slate-400">{suffix}</span>
+    <p className={cn('flex items-center gap-1 whitespace-nowrap text-[10.5px] lg:text-[9px] font-medium leading-[13px]', flat ? 'text-slate-400' : good ? 'text-emerald-600' : 'text-red-600')}>
+      {!flat && <Arrow size={11} aria-hidden className="shrink-0" />}
+      <span className="shrink-0">{flat ? 'No change' : `${Math.abs(value)}%`}</span>
+      <span className="truncate font-normal text-slate-400">{suffix}</span>
     </p>
   )
 }
@@ -268,7 +414,7 @@ export function EmptyState({
         {icon ?? <CalendarDays size={18} />}
       </span>
       <p className="text-[14px] font-semibold text-slate-800">{title}</p>
-      <p className="mt-1 max-w-sm text-[12.5px] leading-5 text-slate-500">{body}</p>
+      <p className="mt-1 max-w-sm text-[12.5px] lg:text-[11px] leading-5 text-slate-500">{body}</p>
       {action && <div className="mt-4">{action}</div>}
     </div>
   )
@@ -281,9 +427,9 @@ export function ErrorState({ message, retryHref }: { message: string; retryHref?
         <AlertCircle size={18} />
       </span>
       <p className="text-[14px] font-semibold text-slate-800">We could not load this</p>
-      <p className="mt-1 max-w-md text-[12.5px] leading-5 text-slate-500">{message}</p>
+      <p className="mt-1 max-w-md text-[12.5px] lg:text-[11px] leading-5 text-slate-500">{message}</p>
       {retryHref && (
-        <Link href={retryHref} className={cn('mt-4 rounded-lg bg-blue-600 px-3 py-2 text-[13px] font-medium text-white hover:bg-blue-700', T.focus)}>
+        <Link href={retryHref} className={cn('mt-4 rounded-lg bg-blue-600 px-3 py-2 text-[13px] lg:text-[11.5px] font-medium text-white hover:bg-blue-700', T.focus)}>
           Try again
         </Link>
       )}
@@ -300,7 +446,7 @@ export function BlockedState({
         <ShieldAlert size={20} />
       </span>
       <h2 className="text-[16px] font-semibold text-slate-900">{title}</h2>
-      <p className="mx-auto mt-1.5 max-w-md text-[13px] leading-5 text-slate-500">{body}</p>
+      <p className="mx-auto mt-1.5 max-w-md text-[13px] lg:text-[11.5px] leading-5 text-slate-500">{body}</p>
       {action && <div className="mt-5">{action}</div>}
     </div>
   )
@@ -315,9 +461,9 @@ export function Shimmer({ className }: { className?: string }) {
 
 export function KpiStripSkeleton() {
   return (
-    <div className={cn(T.card, 'grid grid-cols-1 overflow-hidden sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6')}>
+    <div className={cn(T.card, 'grid grid-cols-1 overflow-hidden sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6')}>
       {Array.from({ length: 6 }).map((_, i) => (
-        <div key={i} className="flex items-start gap-3 border-slate-100 px-5 py-4 lg:border-l lg:first:border-l-0">
+        <div key={i} className="flex items-start gap-3 border-slate-100 px-4 py-4 lg:border-l lg:first:border-l-0">
           <Shimmer className="h-9 w-9 rounded-lg" />
           <div className="flex-1 space-y-2">
             <Shimmer className="h-3 w-24" />

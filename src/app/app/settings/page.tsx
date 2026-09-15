@@ -175,7 +175,7 @@ const WORKSPACE_TYPES = [
 const ROLE_OPTIONS = [
   { value: 'owner', label: 'Owner' },
   { value: 'admin', label: 'Admin' },
-  { value: 'editor', label: 'Editor' },
+  { value: 'member', label: 'Member' },
   { value: 'viewer', label: 'Viewer' },
 ]
 
@@ -728,7 +728,7 @@ export default function SettingsPage() {
     const [inviteModal, setInviteModal] = useState(false)
     const [removeMemberTarget, setRemoveMemberTarget] = useState<Member | null>(null)
     const [cancelInviteTarget, setCancelInviteTarget] = useState<Invitation | null>(null)
-    const [inviteForm, setInviteForm] = useState({ email: '', role: 'editor' })
+    const [inviteForm, setInviteForm] = useState({ email: '', role: 'member' })
     const [inviting, setInviting] = useState(false)
     const [resending, setResending] = useState<string | null>(null)
 
@@ -765,12 +765,11 @@ export default function SettingsPage() {
         role: inviteForm.role,
         token,
         expires_at,
-        status: 'pending',
       }).select().single()
       if (!error && data) {
         setInvitations(prev => [data, ...prev])
         setInviteModal(false)
-        setInviteForm({ email: '', role: 'editor' })
+        setInviteForm({ email: '', role: 'member' })
         showToast('Invitation sent')
       } else {
         showToast(error?.message ?? 'Failed to send invitation', 'error')

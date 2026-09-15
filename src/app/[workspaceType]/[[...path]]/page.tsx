@@ -1,68 +1,33 @@
 import { notFound, redirect } from 'next/navigation'
-import BrandAssetsRoute from '@/components/brand-assets/BrandAssetsRoute'
-import CaptionFoxShell from '@/components/shell/CaptionFoxShell'
-import type { ShellSurface } from '@/lib/shell/caption-fox-shell'
-import { createClient } from '@/lib/supabase/server'
-import { getActiveWorkspace } from '@/lib/workspace'
-import { ensureDemoWorkspaces } from '@/lib/demo-workspaces'
+import { loadWorkspaceShell } from '@/lib/navigation/session'
+import { flatNavItems, isWorkspaceKind } from '@/lib/navigation/resolver'
 
-const surfaceByRoute: Record<string, ShellSurface> = {
-  creator: 'creator',
-  business: 'business',
-  brand: 'brand',
-  agency: 'agency',
-  'affiliate-portal': 'affiliate',
-  'publisher-portal': 'publisher',
-  'client-portal': 'portal-client',
-  'creator-portal': 'portal-creator',
-  'buyer-portal': 'portal-buyer',
-  'link-page': 'public-link',
-}
-
-/** Canonical type-first routes for Jamahl's seeded workspace and portal demos. */
-export default async function WorkspaceTypeShellPage({ params, searchParams }: {
+/**
+ * Canonical /{type}/{module}/… URLs for modules whose real implementation is
+ * still served by the /app compatibility surface. Deep paths and query strings
+ * are carried across; modules the workspace does not include 404.
+ */
+export default async function CanonicalWorkspaceRoute({ params, searchParams }: {
   params: Promise<{ workspaceType: string; path?: string[] }>
   searchParams: Promise<Record<string, string | string[] | undefined>>
 }) {
   const { workspaceType, path = [] } = await params
-  const surface = surfaceByRoute[workspaceType]
-  if (!surface) notFound()
+  if (!isWorkspaceKind(workspaceType)) notFound()
 
-  // Brand & Assets is a fully implemented module with its own shell and live
-  // data — it takes over from the structural fixture shell for this subtree.
-  if (path[0] === 'brand' && ['creator', 'business', 'brand', 'agency'].includes(workspaceType)) {
-    return (
-      <BrandAssetsRoute
-        workspaceType={workspaceType}
-        segments={path}
-        searchParams={await searchParams}
-      />
-    )
+  const session = await loadWorkspaceShell()
+  if (!session?.nav) notFound()
+
+  const [moduleSegment, ...rest] = path
+  if (!moduleSegment) redirect(session.nav.homeHref)
+
+  const item = flatNavItems(session.nav).find(entry => entry.route === `/${workspaceType}/${moduleSegment}`)
+  if (!item || item.href === item.route) notFound()
+
+  const query = new URLSearchParams()
+  for (const [key, value] of Object.entries(await searchParams)) {
+    for (const entry of Array.isArray(value) ? value : value === undefined ? [] : [value]) query.append(key, entry)
   }
-
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect(`/login?next=/${workspaceType}`)
-  if (user.email?.toLowerCase() !== 'jamahlthomas1996@gmail.com') notFound()
-  await ensureDemoWorkspaces(user.id, user.email)
-
-  // Real workspaces so the shell header shows a working switcher rather than a
-  // static label — provisioning runs first so newly seeded workspaces appear.
-  const { active, workspaces } = await getActiveWorkspace(supabase, user.id)
-  const { data: supplier } = await supabase
-    .from('marketplace_suppliers')
-    .select('display_name, verified')
-    .eq('user_id', user.id)
-    .maybeSingle()
-
-  return (
-    <CaptionFoxShell
-      surface={surface}
-      path={path}
-      basePath={`/${workspaceType}`}
-      workspaces={workspaces}
-      activeWorkspaceId={active?.id ?? null}
-      supplier={supplier}
-    />
-  )
+  const suffix = rest.length ? `/${rest.map(encodeURIComponent).join('/')}` : ''
+  const search = query.toString()
+  redirect(`${item.href}${suffix}${search ? `?${search}` : ''}`)
 }

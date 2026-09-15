@@ -31,7 +31,7 @@ export function formatPrice(cents: number, currency = 'GBP'): string {
 }
 
 export function typeLabel(t: SupplierType): string {
-  return SUPPLIER_TYPES.find(s => s.id === t)?.label.replace(/s$/, '') ?? t
+  return SUPPLIER_TYPES.find(s => s.id === t)?.label.replace(/ies$/, 'y').replace(/s$/, '') ?? t
 }
 
 // Deterministic cover gradient for live listings (DB has no cover image yet).

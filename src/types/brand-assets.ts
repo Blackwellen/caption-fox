@@ -161,11 +161,19 @@ export interface BrandKit {
 }
 
 /** A kit joined with the pieces the Brand Kits card needs in one round trip. */
+export interface BrandKitIconStyle {
+  style_name: string
+  stroke_width: number | null
+  corner_style: 'rounded' | 'square' | 'mixed' | null
+  fill_style: 'outline' | 'filled' | 'duotone' | null
+}
+
 export interface BrandKitCard extends BrandKit {
   brand: BrandLite | null
   owner: PersonLite | null
   colours: BrandKitColour[]
   typography: BrandKitTypographyStyle[]
+  icons?: BrandKitIconStyle[]
   asset_count: number
   template_count: number
 }
@@ -341,6 +349,7 @@ export interface BrandActivityItem {
   action: string
   summary: string
   href: string | null
+  metadata?: { detail?: string } & Record<string, unknown>
   created_at: string
 }
 

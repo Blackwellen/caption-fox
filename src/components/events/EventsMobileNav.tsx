@@ -27,7 +27,7 @@ export default function EventsMobileNav({
 
   return (
     <div
-      className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200 bg-white px-4 py-2.5 lg:hidden"
+      className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200 bg-white px-4 py-2.5 md:hidden"
       style={{ paddingBottom: 'max(0.625rem, env(safe-area-inset-bottom))' }}
     >
       <label htmlFor="events-tab-select" className="sr-only">Events section</label>

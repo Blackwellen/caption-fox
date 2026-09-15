@@ -117,7 +117,7 @@ export async function fetchLookups(session: CalendarSession): Promise<Loaded<Cal
   return safe<CalendarLookups>({ owners: [], teams: [], channels: [], campaigns: [] }, async () => {
     const [members, channels, campaigns] = await Promise.all([
       supabase.from('workspace_members')
-        .select('user_id, role, profiles(id, full_name, email)')
+        .select('user_id, role, profiles!workspace_members_user_id_fkey(id, full_name, email)')
         .eq('workspace_id', ctx.workspaceId),
       supabase.from('social_channels')
         .select('id, platform, account_name, is_active')
@@ -236,7 +236,7 @@ export async function fetchScheduleEntries(
         .eq('workspace_id', ctx.workspaceId)
         .limit(2000),
       supabase.from('workspace_members')
-        .select('user_id, role, profiles(id, full_name, email)')
+        .select('user_id, role, profiles!workspace_members_user_id_fkey(id, full_name, email)')
         .eq('workspace_id', ctx.workspaceId),
     ])
 
@@ -545,10 +545,11 @@ export interface QueueFilterInput extends ScheduleFilterInput {
   pageSize?: number
 }
 
-function laneFor(approval: ApprovalState, delivery: DeliveryState): QueueLaneId {
+export function laneFor(approval: ApprovalState, delivery: DeliveryState): QueueLaneId {
   if (delivery === 'failed') return 'failed'
-  if (delivery === 'draft') return 'draft'
+  // Items waiting on a reviewer are stored as drafts, so approval must win over draft.
   if (approval === 'awaiting_approval' || approval === 'changes_requested') return 'awaiting_approval'
+  if (delivery === 'draft') return 'draft'
   if (delivery === 'scheduled' || delivery === 'processing') return 'scheduled'
   if (delivery === 'ready' || delivery === 'queued') return 'ready'
   if (approval === 'approved') return 'approved'
@@ -577,7 +578,7 @@ export async function fetchQueueItems(
         .order('scheduled_at')
         .limit(2000),
       supabase.from('workspace_members')
-        .select('user_id, profiles(id, full_name, email)')
+        .select('user_id, profiles!workspace_members_user_id_fkey(id, full_name, email)')
         .eq('workspace_id', ctx.workspaceId),
       supabase.from('social_channels')
         .select('id, platform, account_name, is_active, token_expires_at')
@@ -988,7 +989,7 @@ export async function fetchConflicts(
         .select('conflict_id, record_kind, record_id, label')
         .eq('workspace_id', ctx.workspaceId).limit(4000),
       supabase.from('workspace_members')
-        .select('user_id, profiles(id, full_name, email)')
+        .select('user_id, profiles!workspace_members_user_id_fkey(id, full_name, email)')
         .eq('workspace_id', ctx.workspaceId),
       supabase.from('campaigns').select('id, name').eq('workspace_id', ctx.workspaceId),
     ])
@@ -1190,7 +1191,7 @@ export async function fetchConflictActivity(session: CalendarSession, limit = 5)
         .eq('workspace_id', ctx.workspaceId)
         .order('created_at', { ascending: false }).limit(limit),
       supabase.from('workspace_members')
-        .select('user_id, profiles(id, full_name, email)')
+        .select('user_id, profiles!workspace_members_user_id_fkey(id, full_name, email)')
         .eq('workspace_id', ctx.workspaceId),
     ])
     if (activity.error) throw activity.error
@@ -1217,8 +1218,15 @@ export async function fetchConflictActivity(session: CalendarSession, limit = 5)
 // ── Activity feed ───────────────────────────────────────────────────────────
 
 const ACTIVITY_TONE: Record<string, CalendarActivity['tone']> = {
-  approved: 'success', published: 'success', resolved: 'success',
-  failed: 'danger', conflict_detected: 'warning', cancelled: 'warning',
+  approved: 'success', published: 'success', resolved: 'success', completed: 'success',
+  failed: 'danger', detected: 'warning', cancelled: 'warning',
+  created: 'info', queued: 'info', updated: 'info', moved: 'info', rescheduled: 'info', scheduled: 'info',
+}
+
+/** Audit verbs are namespaced (`queue_approved`, `conflict_detected`), so match on the outcome word. */
+function activityTone(verb: string): CalendarActivity['tone'] {
+  const outcome = verb.split('_').pop() ?? verb
+  return ACTIVITY_TONE[outcome] ?? 'neutral'
 }
 
 export async function fetchCalendarActivity(session: CalendarSession, limit = 5): Promise<Loaded<CalendarActivity[]>> {
@@ -1232,7 +1240,7 @@ export async function fetchCalendarActivity(session: CalendarSession, limit = 5)
         .order('created_at', { ascending: false })
         .limit(limit),
       supabase.from('workspace_members')
-        .select('user_id, profiles(id, full_name, email)')
+        .select('user_id, profiles!workspace_members_user_id_fkey(id, full_name, email)')
         .eq('workspace_id', ctx.workspaceId),
     ])
     if (logs.error) throw logs.error
@@ -1254,7 +1262,7 @@ export async function fetchCalendarActivity(session: CalendarSession, limit = 5)
         actorName: row.actor_id ? nameById.get(row.actor_id as string) ?? null : 'System',
         createdAt: row.created_at as string,
         href: hrefForRecord(ctx.basePath, String(row.resource_type ?? ''), String(row.resource_id ?? '')),
-        tone: ACTIVITY_TONE[verb] ?? 'neutral',
+        tone: activityTone(verb),
       }
     })
   })

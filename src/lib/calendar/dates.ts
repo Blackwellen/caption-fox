@@ -225,6 +225,22 @@ export function overlaps(aStart: string, aEnd: string | null | undefined, bStart
   return as < be && bs < ae
 }
 
+/** "Today, 11:30 AM" / "Tomorrow, 09:00 AM" / "21 Sept, 10:00 AM" — for narrow preview tables. */
+export function formatCompactWhen(iso: string, timeZone = DEFAULT_TZ, locale = DEFAULT_LOCALE, now = new Date()) {
+  const key = zonedDateKey(iso, timeZone)
+  const today = zonedDateKey(now, timeZone)
+  const tomorrow = zonedDateKey(addDays(now, 1), timeZone)
+  const day = key === today ? 'Today' : key === tomorrow ? 'Tomorrow'
+    : fmt(locale, timeZone, { day: 'numeric', month: 'short' }).format(new Date(iso))
+  return `${day}, ${formatTime(iso, timeZone, locale)}`
+}
+
+/** "Europe/London (BST)", or just "UTC" when the abbreviation adds nothing. */
+export function timezoneLabel(timeZone = DEFAULT_TZ, at = new Date()) {
+  const abbrev = timezoneAbbrev(timeZone, at)
+  return abbrev === timeZone ? timeZone : `${timeZone} (${abbrev})`
+}
+
 /** Short timezone name, shown wherever an instant could be ambiguous. */
 export function timezoneAbbrev(timeZone = DEFAULT_TZ, at = new Date()) {
   const parts = new Intl.DateTimeFormat('en-GB', { timeZone, timeZoneName: 'short' }).formatToParts(at)

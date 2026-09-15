@@ -24,8 +24,8 @@ export function CalendarPageChrome({
 
   return (
     <>
-      <nav aria-label="Breadcrumb" className="mb-3">
-        <ol className="flex items-center gap-1.5 text-[12.5px] text-slate-500">
+      <nav aria-label="Breadcrumb" className="mb-[7px]">
+        <ol className="flex items-center gap-2 text-[11.5px] lg:text-[10px] leading-4 text-slate-500">
           <li><Link href={`${ctx.basePath}/home`} className={cn('hover:text-slate-800', T.focus)}>Campaign Manager</Link></li>
           <li aria-hidden><ChevronRight size={13} className="text-slate-300" /></li>
           <li><Link href={`${ctx.basePath}/calendar`} className={cn('hover:text-slate-800', T.focus)}>Calendar</Link></li>
@@ -44,24 +44,24 @@ export function CalendarPageChrome({
         </ol>
       </nav>
 
-      <div className="mb-5 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+      <div className="mb-[14px] flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div className="min-w-0">
-          <h1 className="text-[30px] font-bold leading-9 tracking-tight text-slate-900">{title}</h1>
-          <p className="mt-1.5 max-w-3xl text-[13.5px] leading-5 text-slate-500">{subtitle}</p>
+          <h1 className="text-[22px] lg:text-[20px] font-bold leading-7 tracking-[-0.015em] text-slate-900">{title}</h1>
+          <p className="mt-[3px] max-w-3xl text-[12px] lg:text-[10.5px] leading-4 text-slate-600">{subtitle}</p>
         </div>
         {actions && <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div>}
       </div>
 
       {tabs.length > 1 && (
-        <nav aria-label="Calendar sections" className="mb-5 -mx-1 overflow-x-auto pb-0.5">
-          <ul className="flex min-w-max items-center gap-1 px-1">
+        <nav aria-label="Calendar sections" className="mb-[15px] -mx-1 overflow-x-auto">
+          <ul className="flex min-w-max items-center gap-2.5 px-1">
             {tabs.map(tab => (
               <li key={tab.id}>
                 <Link
                   href={tab.href}
                   aria-current={tab.id === active ? 'page' : undefined}
                   className={cn(
-                    'inline-flex h-8 items-center rounded-lg px-3 text-[13px] font-medium transition-colors',
+                    'inline-flex h-[26px] items-center rounded-md px-2.5 text-[12.5px] lg:text-[11px] font-medium transition-colors',
                     tab.id === active
                       ? 'bg-blue-50 text-blue-700'
                       : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900',
@@ -91,10 +91,10 @@ export function HeaderButton({
   title?: string
 }) {
   const className = cn(
-    'inline-flex h-9 items-center gap-1.5 rounded-lg px-3 text-[13px] font-medium transition-colors',
+    'inline-flex h-8 items-center gap-1.5 rounded-lg px-3 text-[11.5px] lg:text-[10px] font-semibold transition-colors',
     variant === 'primary'
-      ? 'bg-blue-600 text-white hover:bg-blue-700'
-      : 'border border-slate-200 bg-white text-slate-700 hover:bg-slate-50',
+      ? 'bg-blue-600 text-white shadow-sm hover:bg-blue-700'
+      : 'border border-[#e3e7ed] bg-white text-slate-800 shadow-[0_1px_1px_rgba(16,24,40,0.03)] hover:bg-slate-50',
     disabled && 'cursor-not-allowed opacity-50',
     T.focus,
   )

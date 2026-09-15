@@ -75,7 +75,7 @@ function FeatureSection({ item }: { item: FeatureItem }) {
   )
 
   return (
-    <section className="py-16 lg:py-20">
+    <section id={item.id} className="py-16 lg:py-20 scroll-mt-20">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
           {item.flip ? (

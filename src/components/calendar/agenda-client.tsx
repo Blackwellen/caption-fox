@@ -56,22 +56,22 @@ function CreateTaskDialog({
       onClose={onClose}
       footer={
         <>
-          <button type="button" onClick={onClose} className={cn('h-9 rounded-lg border border-slate-200 px-3 text-[13px] font-medium text-slate-700 hover:bg-slate-50', T.focus)}>Cancel</button>
+          <button type="button" onClick={onClose} className={cn('h-9 rounded-lg border border-slate-200 px-3 text-[13px] lg:text-[11.5px] font-medium text-slate-700 hover:bg-slate-50', T.focus)}>Cancel</button>
           <button type="submit" form="create-task" disabled={pending || noCampaigns}
-            className={cn('inline-flex h-9 items-center gap-1.5 rounded-lg bg-blue-600 px-3.5 text-[13px] font-medium text-white hover:bg-blue-700 disabled:opacity-60', T.focus)}>
+            className={cn('inline-flex h-8 items-center gap-1.5 rounded-lg bg-blue-600 px-3.5 text-[12.5px] lg:text-[11px] font-semibold text-white shadow-sm hover:bg-blue-700 disabled:opacity-60', T.focus)}>
             {pending && <Loader2 size={14} className="animate-spin" />}{pending ? 'Creating…' : 'Create task'}
           </button>
         </>
       }
     >
       {noCampaigns ? (
-        <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-[12.5px] text-amber-800">
+        <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-[12.5px] lg:text-[11px] text-amber-800">
           Tasks belong to a campaign. Create a campaign first, then come back to add tasks to it.
         </p>
       ) : (
         <form id="create-task" onSubmit={submit} className="space-y-4">
           {formError && (
-            <p role="alert" className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[12.5px] text-red-700">
+            <p role="alert" className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[12.5px] lg:text-[11px] text-red-700">
               <AlertCircle size={14} className="mt-0.5 shrink-0" />{formError}
             </p>
           )}
@@ -122,13 +122,13 @@ export function AgendaPrimaryActions({ ctx, lookups }: { ctx: CalendarContext; l
     <>
       {canCreateItem && (
         <button type="button" onClick={() => setDialog('item')}
-          className={cn('inline-flex h-9 items-center gap-1.5 rounded-lg bg-blue-600 px-3.5 text-[13px] font-medium text-white hover:bg-blue-700', T.focus)}>
+          className={cn('inline-flex h-8 items-center gap-1.5 rounded-lg bg-blue-600 px-3.5 text-[12.5px] lg:text-[11px] font-semibold text-white shadow-sm hover:bg-blue-700', T.focus)}>
           <Plus size={15} />Add agenda item
         </button>
       )}
       {canCreateTask && (
         <button type="button" onClick={() => setDialog('task')}
-          className={cn('inline-flex h-9 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 text-[13px] font-medium text-slate-700 hover:bg-slate-50', T.focus)}>
+          className={cn('inline-flex h-8 items-center gap-1.5 rounded-lg border border-[#e3e7ed] bg-white px-3 text-[12.5px] lg:text-[11px] font-semibold text-slate-800 shadow-[0_1px_1px_rgba(16,24,40,0.03)] hover:bg-slate-50', T.focus)}>
           <ListChecks size={14} />Create task
         </button>
       )}

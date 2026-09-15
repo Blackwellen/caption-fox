@@ -7,6 +7,7 @@ import {
   Search, SlidersHorizontal, Table2, X,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { RANGE_PRESETS } from '@/lib/advertising/range-presets'
 
 // Every filter, search box, sort and view switcher in the Advertising module
 // writes to the URL. That makes the state shareable, restorable on refresh and
@@ -56,13 +57,18 @@ export function SearchInput({
   paramKey = 'q', placeholder, className, ariaLabel,
 }: { paramKey?: string; placeholder: string; className?: string; ariaLabel?: string }) {
   const { params, set, pending } = useUrlState()
-  const initial = params.get(paramKey) ?? ''
-  const [value, setValue] = useState(initial)
+  const urlValue = params.get(paramKey) ?? ''
+  const [value, setValue] = useState(urlValue)
+  const [syncedValue, setSyncedValue] = useState(urlValue)
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const id = useId()
 
   // Keeps the box in step when the URL changes elsewhere (Clear all, back).
-  useEffect(() => { setValue(params.get(paramKey) ?? '') }, [params, paramKey])
+  // Adjusted during render rather than in an effect, so there is no extra pass.
+  if (syncedValue !== urlValue) {
+    setSyncedValue(urlValue)
+    setValue(urlValue)
+  }
 
   const commit = useCallback((next: string) => {
     if (timer.current) clearTimeout(timer.current)
@@ -91,7 +97,7 @@ export function SearchInput({
           if (event.key === 'Escape') { setValue(''); set({ [paramKey]: null }) }
         }}
         className={cn(
-          'h-9 w-full rounded-lg border border-slate-200 bg-white pl-8.5 pr-8 text-[13px] text-slate-800',
+          'h-[30px] w-full rounded-lg border border-slate-200 bg-white pl-8.5 pr-8 text-[12.5px] text-slate-800 lg:text-[11px]',
           'placeholder:text-slate-400 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500/15',
         )}
         style={{ paddingLeft: 32 }}
@@ -177,7 +183,7 @@ export function LabelledSelect({
           id={id}
           value={value}
           onChange={event => set({ [paramKey]: event.target.value || null })}
-          className="h-9 w-full appearance-none rounded-lg border border-slate-200 bg-white pl-3 pr-8 text-[13px] text-slate-700 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500/15"
+          className="h-[30px] w-full appearance-none rounded-lg border border-slate-200 bg-white pl-3 pr-8 text-[12.5px] text-slate-700 lg:text-[11px] focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500/15"
         >
           <option value="">{allLabel}</option>
           {options.map(option => (
@@ -192,15 +198,7 @@ export function LabelledSelect({
 
 // ---------------------------------------------------------- date controls
 
-export const RANGE_PRESETS: SelectOption[] = [
-  { value: 'last_7', label: 'Last 7 days' },
-  { value: 'last_14', label: 'Last 14 days' },
-  { value: 'last_28', label: 'Last 28 days' },
-  { value: 'last_30', label: 'Last 30 days' },
-  { value: 'last_90', label: 'Last 90 days' },
-  { value: 'this_month', label: 'This month' },
-  { value: 'last_month', label: 'Last month' },
-]
+export { RANGE_PRESETS }
 
 export function DateRangeSelect({ currentLabel, className }: { currentLabel: string; className?: string }) {
   const { params, set } = useUrlState()
@@ -251,14 +249,19 @@ const VIEW_ICONS = {
 } as const
 
 export function ViewSwitcher({
-  views, paramKey = 'view', defaultView, className,
-}: { views: ViewOption[]; paramKey?: string; defaultView: string; className?: string }) {
+  views, paramKey = 'view', defaultView, className, solid = false, icons = true,
+}: {
+  views: ViewOption[]; paramKey?: string; defaultView: string; className?: string
+  /** Solid blue active segment (Reports design) instead of the tinted one. */
+  solid?: boolean
+  icons?: boolean
+}) {
   const { params, set } = useUrlState()
   const active = params.get(paramKey) ?? defaultView
 
   return (
     <div
-      className={cn('inline-flex items-center gap-0.5 rounded-lg border border-slate-200 bg-slate-50/80 p-0.5', className)}
+      className={cn('inline-flex items-center gap-0.5 rounded-lg border border-slate-200 bg-white p-0.5', className)}
       role="tablist"
       aria-label="View"
     >
@@ -273,11 +276,13 @@ export function ViewSwitcher({
             aria-selected={selected}
             onClick={() => set({ [paramKey]: view.value === defaultView ? null : view.value }, { keepPage: false })}
             className={cn(
-              'inline-flex items-center gap-1.5 whitespace-nowrap rounded-md px-2.5 py-1.5 text-[12.5px] font-medium transition-colors',
-              selected ? 'bg-white text-blue-700 shadow-sm ring-1 ring-slate-200' : 'text-slate-500 hover:text-slate-700',
+              'inline-flex h-[26px] items-center gap-1.5 whitespace-nowrap rounded-md px-3 text-[12.5px] font-medium transition-colors lg:text-[11px]',
+              selected
+                ? solid ? 'bg-blue-600 text-white shadow-sm' : 'bg-blue-50 text-blue-700'
+                : 'text-slate-600 hover:bg-slate-50 hover:text-slate-800',
             )}
           >
-            <Icon size={14} aria-hidden />
+            {icons && <Icon size={14} aria-hidden />}
             {view.label}
           </button>
         )
@@ -302,7 +307,7 @@ export function SortSelect({
         id={id}
         value={value}
         onChange={event => set({ sort: event.target.value === defaultValue ? null : event.target.value })}
-        className="h-9 w-full appearance-none rounded-lg border border-slate-200 bg-white pl-3 pr-8 text-[13px] text-slate-600 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500/15"
+        className="h-[30px] w-full appearance-none rounded-lg border border-slate-200 bg-white pl-3 pr-8 text-[12.5px] text-slate-600 lg:text-[11px] focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500/15"
       >
         {options.map(option => (
           <option key={option.value} value={option.value}>Sort: {option.label}</option>

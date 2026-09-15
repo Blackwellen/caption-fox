@@ -2,15 +2,29 @@ import 'server-only'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import {
   loadMetrics, previousRange, series, sourceIntegrity, totals, totalsByProvider,
-  type DateRange,
+  type DateRange, type MetricRow, type SeriesPoint,
 } from './shared'
-import { budgetUtilisation, pacing } from '../metrics'
+import { EMPTY_RAW, addRaw, budgetUtilisation, normalise, type RawMetrics } from '../metrics'
 import { AD_PROVIDERS, type AdProvider } from '../providers'
+import { signThumbnails } from './creatives'
 
 // Data for /{type}/advertising — the paid-media landing page: spend KPIs,
-// connected-account health, top campaigns, alerts, creative performance,
-// spend trend and budget pacing. Every number here traces back to
-// ad_metrics_daily, ad_accounts, ad_campaigns or ad_issues; nothing is invented.
+// connected-account health, top campaigns / ad sets, alerts, creative
+// performance, spend trend and budget pacing. Every number traces back to
+// ad_metrics_daily, ad_accounts, ad_campaigns, ad_sets or ad_issues.
+
+export type OverviewOptions = {
+  /** Page-wide platform filter (Filters popover). */
+  providers?: string[]
+  /** Comparison window; defaults to the immediately preceding period. */
+  compare?: DateRange
+  /** Campaign Performance panel filters. */
+  campaign?: { platform?: string | null; objective?: string | null; status?: string | null; accountId?: string | null }
+  /** Campaign Performance panel level. */
+  level?: 'campaigns' | 'ad_sets'
+  trendMetric?: 'spend' | 'conversions' | 'roas' | 'clicks'
+  trendGrain?: 'daily' | 'weekly'
+}
 
 export type ConnectedAccountSummary = {
   provider: AdProvider
@@ -22,12 +36,14 @@ export type ConnectedAccountSummary = {
 }
 
 export async function getConnectedAccountSummaries(
-  supabase: SupabaseClient, workspaceId: string, range: DateRange,
+  supabase: SupabaseClient, workspaceId: string, range: DateRange, compare: DateRange = previousRange(range), providers: string[] = [],
 ): Promise<ConnectedAccountSummary[]> {
-  const { data: accounts } = await supabase
+  let accountQuery = supabase
     .from('ad_accounts')
     .select('id, provider, sync_status, last_synced_at')
     .eq('workspace_id', workspaceId)
+  if (providers.length) accountQuery = accountQuery.in('provider', providers)
+  const { data: accounts } = await accountQuery
 
   if (!accounts?.length) return []
 
@@ -43,15 +59,17 @@ export async function getConnectedAccountSummaries(
     byProvider.set(provider, entry)
   }
 
-  const current = await loadMetrics(supabase, { workspaceId, entityType: 'account', range })
-  const previous = await loadMetrics(supabase, { workspaceId, entityType: 'account', range: previousRange(range) })
+  const [current, previous] = await Promise.all([
+    loadMetrics(supabase, { workspaceId, entityType: 'account', range, providers }),
+    loadMetrics(supabase, { workspaceId, entityType: 'account', range: compare, providers }),
+  ])
   const currentByProvider = totalsByProvider(current)
   const previousByProvider = totalsByProvider(previous)
 
   return [...byProvider.entries()].map(([provider, entry]) => {
     const spend = currentByProvider.get(provider)?.spend ?? 0
     const prevSpend = previousByProvider.get(provider)?.spend ?? 0
-    const health = entry.statuses.includes('failed') || entry.statuses.includes('expired') ? 'attention'
+    const health = entry.statuses.includes('failed') || entry.statuses.includes('expired') ? 'error'
       : entry.statuses.includes('warning') || entry.statuses.includes('partial') ? 'attention'
         : entry.statuses.every(status => status === 'synced') ? 'connected' : 'syncing'
     return {
@@ -72,32 +90,44 @@ export type CampaignRow = {
   ctr: number | null
   conversions: number
   cpa: number | null
+  /** Parent campaign, set when this row is an ad set. */
+  parentId?: string | null
+}
+
+function groupTotals(rows: MetricRow[]) {
+  const grouped = new Map<string, MetricRow[]>()
+  for (const row of rows) {
+    const list = grouped.get(row.entity_id) ?? []
+    list.push(row)
+    grouped.set(row.entity_id, list)
+  }
+  return new Map([...grouped].map(([id, list]) => [id, totals(list)]))
 }
 
 export async function getTopCampaigns(
   supabase: SupabaseClient, workspaceId: string, range: DateRange, limit = 5,
+  filters: OverviewOptions['campaign'] = {}, providers: string[] = [],
 ): Promise<CampaignRow[]> {
-  const { data: campaigns } = await supabase
+  let query = supabase
     .from('ad_campaigns')
     .select('id, name, provider, status')
     .eq('workspace_id', workspaceId)
-    .in('status', ['active', 'learning', 'paused'])
     .limit(500)
+  if (filters?.status) query = query.eq('status', filters.status)
+  else query = query.in('status', ['active', 'learning', 'paused'])
+  if (filters?.platform) query = query.eq('provider', filters.platform)
+  else if (providers.length) query = query.in('provider', providers)
+  if (filters?.objective) query = query.eq('objective', filters.objective)
+  if (filters?.accountId) query = query.eq('account_id', filters.accountId)
+
+  const { data: campaigns } = await query
   if (!campaigns?.length) return []
 
   const metrics = await loadMetrics(supabase, {
     workspaceId, entityType: 'campaign', range,
     entityIds: campaigns.map(campaign => campaign.id as string),
   })
-
-  const byEntity = new Map<string, ReturnType<typeof totals>>()
-  const grouped = new Map<string, typeof metrics>()
-  for (const row of metrics) {
-    const list = grouped.get(row.entity_id) ?? []
-    list.push(row)
-    grouped.set(row.entity_id, list)
-  }
-  for (const [id, rows] of grouped) byEntity.set(id, totals(rows))
+  const byEntity = groupTotals(metrics)
 
   return campaigns
     .map(campaign => {
@@ -114,6 +144,44 @@ export async function getTopCampaigns(
     .slice(0, limit)
 }
 
+export async function getTopAdSets(
+  supabase: SupabaseClient, workspaceId: string, range: DateRange, limit = 5,
+  filters: OverviewOptions['campaign'] = {}, providers: string[] = [],
+): Promise<CampaignRow[]> {
+  let query = supabase
+    .from('ad_sets')
+    .select('id, name, provider, status, campaign_id')
+    .eq('workspace_id', workspaceId)
+    .limit(500)
+  if (filters?.status) query = query.eq('status', filters.status)
+  if (filters?.platform) query = query.eq('provider', filters.platform)
+  else if (providers.length) query = query.in('provider', providers)
+  if (filters?.accountId) query = query.eq('account_id', filters.accountId)
+
+  const { data: adSets } = await query
+  if (!adSets?.length) return []
+
+  const metrics = await loadMetrics(supabase, {
+    workspaceId, entityType: 'ad_set', range,
+    entityIds: adSets.map(adSet => adSet.id as string),
+  })
+  const byEntity = groupTotals(metrics)
+
+  return adSets
+    .map(adSet => {
+      const metric = byEntity.get(adSet.id as string)
+      return {
+        id: adSet.id as string, name: adSet.name as string,
+        provider: adSet.provider as string, status: adSet.status as string,
+        spend: metric?.spend ?? 0, roas: metric?.roas ?? null,
+        ctr: metric?.ctr ?? null, conversions: metric?.conversions ?? 0,
+        cpa: metric?.cpa ?? null, parentId: adSet.campaign_id as string,
+      }
+    })
+    .sort((a, b) => b.spend - a.spend)
+    .slice(0, limit)
+}
+
 export type CreativeSummary = {
   id: string
   name: string
@@ -124,42 +192,44 @@ export type CreativeSummary = {
   ctr: number | null
   clicks: number
   hookRate: number | null
+  thumbnailPath: string | null
+  /** Short-lived signed URL for the private thumbnail, when one exists. */
+  thumbnailUrl: string | null
 }
 
 export async function getTopCreatives(
-  supabase: SupabaseClient, workspaceId: string, range: DateRange, limit = 4,
+  supabase: SupabaseClient, workspaceId: string, range: DateRange, limit = 4, providers: string[] = [],
 ): Promise<CreativeSummary[]> {
-  const { data: creatives } = await supabase
+  let query = supabase
     .from('ad_creatives')
-    .select('id, name, format, provider, status')
+    .select('id, name, format, provider, status, thumbnail_path')
     .eq('workspace_id', workspaceId)
     .order('updated_at', { ascending: false })
     .limit(500)
+  if (providers.length) query = query.in('provider', providers)
+  const { data: creatives } = await query
   if (!creatives?.length) return []
 
   const metrics = await loadMetrics(supabase, {
     workspaceId, entityType: 'creative', range,
     entityIds: creatives.map(creative => creative.id as string),
   })
-  const grouped = new Map<string, typeof metrics>()
-  for (const row of metrics) {
-    const list = grouped.get(row.entity_id) ?? []
-    list.push(row)
-    grouped.set(row.entity_id, list)
-  }
+  const byEntity = groupTotals(metrics)
 
-  return creatives
+  const top = creatives
     .map(creative => {
-      const metric = totals(grouped.get(creative.id as string) ?? [])
+      const metric = byEntity.get(creative.id as string)
       return {
         id: creative.id as string, name: creative.name as string,
         format: creative.format as string, provider: creative.provider as string,
-        status: creative.status as string, spend: metric.spend,
-        ctr: metric.ctr, clicks: metric.clicks, hookRate: metric.hookRate,
+        status: creative.status as string, spend: metric?.spend ?? 0,
+        ctr: metric?.ctr ?? null, clicks: metric?.clicks ?? 0, hookRate: metric?.hookRate ?? null,
+        thumbnailPath: creative.thumbnail_path as string | null, thumbnailUrl: null as string | null,
       }
     })
     .sort((a, b) => b.spend - a.spend)
     .slice(0, limit)
+  return signThumbnails(supabase, top)
 }
 
 export type BudgetPacingRow = {
@@ -167,20 +237,22 @@ export type BudgetPacingRow = {
   name: string
   spend: number
   budget: number
+  /** Budget utilisation, 0–100+. */
   pct: number
-  band: 'under' | 'on_track' | 'over'
 }
 
 export async function getBudgetPacing(
-  supabase: SupabaseClient, workspaceId: string, range: DateRange, limit = 5,
+  supabase: SupabaseClient, workspaceId: string, range: DateRange, limit = 5, providers: string[] = [],
 ): Promise<BudgetPacingRow[]> {
-  const { data: campaigns } = await supabase
+  let query = supabase
     .from('ad_campaigns')
-    .select('id, name, budget_amount, starts_at, ends_at')
+    .select('id, name, budget_amount')
     .eq('workspace_id', workspaceId)
     .eq('status', 'active')
     .not('budget_amount', 'is', null)
     .limit(200)
+  if (providers.length) query = query.in('provider', providers)
+  const { data: campaigns } = await query
   if (!campaigns?.length) return []
 
   const metrics = await loadMetrics(supabase, {
@@ -194,20 +266,16 @@ export async function getBudgetPacing(
     .map(campaign => {
       const spend = spendByEntity.get(campaign.id as string) ?? 0
       const budget = Number(campaign.budget_amount)
-      const util = budgetUtilisation(spend, budget)
-      const pace = pacing({ spend, budget, startsAt: campaign.starts_at as string | null, endsAt: campaign.ends_at as string | null })
-      return {
-        id: campaign.id as string, name: campaign.name as string,
-        spend, budget, pct: util ?? 0, band: pace?.band ?? 'on_track',
-      }
+      return { id: campaign.id as string, name: campaign.name as string, spend, budget, pct: budgetUtilisation(spend, budget) ?? 0 }
     })
-    .sort((a, b) => b.pct - a.pct)
+    .sort((a, b) => b.spend - a.spend)
     .slice(0, limit)
 }
 
 export type AlertRow = {
   id: string
   severity: string
+  issueType: string
   title: string
   detail: string | null
   createdAt: string
@@ -218,15 +286,15 @@ export type AlertRow = {
 export async function getRecentAlerts(supabase: SupabaseClient, workspaceId: string, limit = 6): Promise<AlertRow[]> {
   const { data } = await supabase
     .from('ad_issues')
-    .select('id, severity, title, detail, created_at, campaign_id, creative_id, account_id')
+    .select('id, severity, issue_type, title, detail, created_at, campaign_id, creative_id, account_id')
     .eq('workspace_id', workspaceId)
     .is('resolved_at', null)
     .order('created_at', { ascending: false })
     .limit(limit)
 
   return (data ?? []).map(row => ({
-    id: row.id as string, severity: row.severity as string, title: row.title as string,
-    detail: row.detail as string | null, createdAt: row.created_at as string,
+    id: row.id as string, severity: row.severity as string, issueType: row.issue_type as string,
+    title: row.title as string, detail: row.detail as string | null, createdAt: row.created_at as string,
     entityType: row.campaign_id ? 'campaign' : row.creative_id ? 'creative' : row.account_id ? 'account' : null,
     entityId: (row.campaign_id ?? row.creative_id ?? row.account_id) as string | null,
   }))
@@ -238,12 +306,14 @@ export type ActivityRow = {
   createdAt: string
   eventType: string
   actorLabel: string | null
+  entityType: string | null
+  entityId: string | null
 }
 
 export async function getRecentActivity(supabase: SupabaseClient, workspaceId: string, limit = 6): Promise<ActivityRow[]> {
   const { data } = await supabase
     .from('ad_activity')
-    .select('id, summary, created_at, event_type, actor_label')
+    .select('id, summary, created_at, event_type, actor_label, entity_type, entity_id')
     .eq('workspace_id', workspaceId)
     .order('created_at', { ascending: false })
     .limit(limit)
@@ -251,7 +321,45 @@ export async function getRecentActivity(supabase: SupabaseClient, workspaceId: s
   return (data ?? []).map(row => ({
     id: row.id as string, summary: row.summary as string, createdAt: row.created_at as string,
     eventType: row.event_type as string, actorLabel: row.actor_label as string | null,
+    entityType: row.entity_type as string | null, entityId: row.entity_id as string | null,
   }))
+}
+
+function toRaw(row: MetricRow): RawMetrics {
+  return {
+    spend: Number(row.spend) || 0, impressions: Number(row.impressions) || 0, reach: Number(row.reach) || 0,
+    clicks: Number(row.clicks) || 0, conversions: Number(row.conversions) || 0, revenue: Number(row.revenue) || 0,
+    videoViews: Number(row.video_views) || 0, video3sViews: Number(row.video_3s_views) || 0, engagements: Number(row.engagements) || 0,
+  }
+}
+
+/**
+ * Daily or weekly buckets for one metric. Weekly buckets are consecutive
+ * 7-day windows from the range start; ratio metrics (ROAS) are recomputed from
+ * the bucket's summed raw values, never averaged from daily ratios.
+ */
+export function bucketSeries(
+  rows: MetricRow[], range: DateRange, metric: NonNullable<OverviewOptions['trendMetric']>, grain: NonNullable<OverviewOptions['trendGrain']>,
+): SeriesPoint[] {
+  const byDay = new Map<string, RawMetrics>()
+  for (const row of rows) byDay.set(row.metric_date, addRaw(byDay.get(row.metric_date) ?? { ...EMPTY_RAW }, toRaw(row)))
+
+  const days: string[] = []
+  const cursor = new Date(`${range.since}T00:00:00Z`)
+  const end = new Date(`${range.until}T00:00:00Z`)
+  while (cursor.getTime() <= end.getTime()) {
+    days.push(cursor.toISOString().slice(0, 10))
+    cursor.setUTCDate(cursor.getUTCDate() + 1)
+  }
+
+  const size = grain === 'weekly' ? 7 : 1
+  const points: SeriesPoint[] = []
+  for (let index = 0; index < days.length; index += size) {
+    const bucket = days.slice(index, index + size).reduce<RawMetrics>((acc, day) => addRaw(acc, byDay.get(day) ?? { ...EMPTY_RAW }), { ...EMPTY_RAW })
+    const value = metric === 'roas' ? normalise(bucket).roas ?? 0 : bucket[metric]
+    points.push({ date: days[index], value })
+  }
+  return points
 }
 
 export type OverviewData = {
@@ -259,9 +367,17 @@ export type OverviewData = {
   previousTotals: ReturnType<typeof totals>
   activeCampaignCount: number
   previousActiveCampaignCount: number
-  spendSeries: ReturnType<typeof series>
+  spendSeries: SeriesPoint[]
+  roasSeries: SeriesPoint[]
+  ctrSeries: SeriesPoint[]
+  conversionsSeries: SeriesPoint[]
+  cpaSeries: SeriesPoint[]
+  activeSeries: SeriesPoint[]
+  trend: SeriesPoint[]
+  trendComparison: SeriesPoint[]
   accounts: ConnectedAccountSummary[]
-  topCampaigns: CampaignRow[]
+  accountOptions: { id: string; name: string }[]
+  performanceRows: CampaignRow[]
   topCreatives: CreativeSummary[]
   budgetPacing: BudgetPacingRow[]
   alerts: AlertRow[]
@@ -271,26 +387,44 @@ export type OverviewData = {
 }
 
 export async function getOverviewData(
-  supabase: SupabaseClient, workspaceId: string, range: DateRange,
+  supabase: SupabaseClient, workspaceId: string, range: DateRange, options: OverviewOptions = {},
 ): Promise<OverviewData> {
-  const previous = previousRange(range)
+  const compare = options.compare ?? previousRange(range)
+  const providers = options.providers ?? []
+  const level = options.level ?? 'campaigns'
 
-  const [currentRows, previousRows, accounts, topCampaigns, topCreatives, budgetPacing, alerts, activity, accountCountResult] = await Promise.all([
-    loadMetrics(supabase, { workspaceId, entityType: 'account', range }),
-    loadMetrics(supabase, { workspaceId, entityType: 'account', range: previous }),
-    getConnectedAccountSummaries(supabase, workspaceId, range),
-    getTopCampaigns(supabase, workspaceId, range),
-    getTopCreatives(supabase, workspaceId, range),
-    getBudgetPacing(supabase, workspaceId, range),
-    getRecentAlerts(supabase, workspaceId),
-    getRecentActivity(supabase, workspaceId),
-    supabase.from('ad_accounts').select('id', { count: 'exact', head: true }).eq('workspace_id', workspaceId),
+  const [currentRows, previousRows, accounts, performanceRows, topCreatives, budgetPacing, alerts, activity, accountList, campaignMetricRows] = await Promise.all([
+    loadMetrics(supabase, { workspaceId, entityType: 'account', range, providers }),
+    loadMetrics(supabase, { workspaceId, entityType: 'account', range: compare, providers }),
+    getConnectedAccountSummaries(supabase, workspaceId, range, compare, providers),
+    level === 'ad_sets'
+      ? getTopAdSets(supabase, workspaceId, range, 5, options.campaign, providers)
+      : getTopCampaigns(supabase, workspaceId, range, 5, options.campaign, providers),
+    getTopCreatives(supabase, workspaceId, range, 6, providers),
+    getBudgetPacing(supabase, workspaceId, range, 5, providers),
+    getRecentAlerts(supabase, workspaceId, 5),
+    getRecentActivity(supabase, workspaceId, 5),
+    supabase.from('ad_accounts').select('id, name').eq('workspace_id', workspaceId).order('name'),
+    loadMetrics(supabase, { workspaceId, entityType: 'campaign', range, providers }),
   ])
 
   const [activeCount, previousActiveCount] = await Promise.all([
-    countActiveCampaigns(supabase, workspaceId, range),
-    countActiveCampaigns(supabase, workspaceId, previous),
+    countActiveCampaigns(supabase, workspaceId, range, providers),
+    countActiveCampaigns(supabase, workspaceId, compare, providers),
   ])
+
+  const metric = options.trendMetric ?? 'spend'
+  const grain = options.trendGrain ?? 'daily'
+
+  // Campaigns with spend on each day — the Active Campaigns sparkline.
+  const activeByDay = new Map<string, Set<string>>()
+  for (const row of campaignMetricRows) {
+    if (Number(row.spend) <= 0) continue
+    const set = activeByDay.get(row.metric_date) ?? new Set<string>()
+    set.add(row.entity_id)
+    activeByDay.set(row.metric_date, set)
+  }
+  const activeSeries = series(currentRows, range, 'spend').map(point => ({ date: point.date, value: activeByDay.get(point.date)?.size ?? 0 }))
 
   return {
     currentTotals: totals(currentRows),
@@ -298,19 +432,34 @@ export async function getOverviewData(
     activeCampaignCount: activeCount,
     previousActiveCampaignCount: previousActiveCount,
     spendSeries: series(currentRows, range, 'spend'),
-    accounts, topCampaigns, topCreatives, budgetPacing, alerts, activity,
+    roasSeries: series(currentRows, range, 'roas'),
+    ctrSeries: series(currentRows, range, 'ctr'),
+    conversionsSeries: series(currentRows, range, 'conversions'),
+    cpaSeries: series(currentRows, range, 'cpa'),
+    activeSeries,
+    trend: bucketSeries(currentRows, range, metric, grain),
+    trendComparison: bucketSeries(previousRows, compare, metric, grain),
+    accounts,
+    accountOptions: (accountList.data ?? []).map(row => ({ id: row.id as string, name: row.name as string })),
+    performanceRows, topCreatives, budgetPacing, alerts, activity,
     integrity: sourceIntegrity(currentRows),
-    hasAnyAccount: (accountCountResult.count ?? 0) > 0,
+    hasAnyAccount: (accountList.data?.length ?? 0) > 0,
   }
 }
 
-async function countActiveCampaigns(supabase: SupabaseClient, workspaceId: string, range: DateRange): Promise<number> {
-  const { count } = await supabase
+/**
+ * Campaigns in an active state whose run overlaps the window. Uses the
+ * campaign's live status today; historical status is not stored.
+ */
+async function countActiveCampaigns(supabase: SupabaseClient, workspaceId: string, range: DateRange, providers: string[]): Promise<number> {
+  let query = supabase
     .from('ad_campaigns')
     .select('id', { count: 'exact', head: true })
     .eq('workspace_id', workspaceId)
-    .eq('status', 'active')
+    .in('status', ['active', 'learning'])
     .lte('starts_at', `${range.until}T23:59:59Z`)
+  if (providers.length) query = query.in('provider', providers)
+  const { count } = await query
   return count ?? 0
 }
 
