@@ -5,6 +5,8 @@ import {
   Rocket, Send, ShieldAlert, Sparkles, TrendingUp, Users, Video, XCircle, Zap,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { BrandLogo } from '@/components/brand/BrandLogo'
+import { hasBrand } from '@/lib/brand/brands'
 import type { Priority, ScheduleKind, ScheduleStatus } from '@/lib/calendar/types'
 
 // ── Design tokens ───────────────────────────────────────────────────────────
@@ -14,7 +16,7 @@ import type { Priority, ScheduleKind, ScheduleStatus } from '@/lib/calendar/type
 export const T = {
   // The shell's <main> already provides the gutter; the page only caps width on very wide screens.
   // -5px: reference breadcrumb sits 23px under the top bar; the locked shell pads 28px.
-  page: 'mx-auto -mt-[5px] w-full max-w-[1440px]',
+  page: 'mx-auto -mt-[5px] lg:-mt-[11px] w-full max-w-[1440px]',
   // Reference: 1px hairline (#e8ebf0), 12px radius, barely-there lift.
   card: 'rounded-xl border border-[#e8ebf0] bg-white shadow-[0_1px_2px_rgba(16,24,40,0.04)]',
   cardPad: 'p-4',
@@ -81,87 +83,16 @@ const KIND_ICONS: Record<ScheduleKind, typeof Globe> = {
   approval: ShieldAlert, meeting: Users, reminder: Clock, milestone: Rocket, event: CalendarDays,
 }
 
-/**
- * Brand marks as used in the reference designs (real platform glyphs in brand
- * colours, no tinted tile). Inline SVG so no external assets are needed.
- */
-function BrandMark({ channel, size }: { channel: string; size: number }) {
-  const s = size + 4
-  switch (channel) {
-    case 'instagram':
-      return (
-        <svg width={s} height={s} viewBox="0 0 24 24" aria-hidden>
-          <defs>
-            <linearGradient id="cf-ig" x1="0" y1="1" x2="1" y2="0">
-              <stop offset="0" stopColor="#F58529" /><stop offset=".5" stopColor="#DD2A7B" /><stop offset="1" stopColor="#8134AF" />
-            </linearGradient>
-          </defs>
-          <rect x="2.5" y="2.5" width="19" height="19" rx="5.5" fill="none" stroke="url(#cf-ig)" strokeWidth="2.2" />
-          <circle cx="12" cy="12" r="4.3" fill="none" stroke="url(#cf-ig)" strokeWidth="2.2" />
-          <circle cx="17.4" cy="6.6" r="1.3" fill="#DD2A7B" />
-        </svg>
-      )
-    case 'facebook':
-      return (
-        <svg width={s} height={s} viewBox="0 0 24 24" aria-hidden>
-          <circle cx="12" cy="12" r="11" fill="#1877F2" />
-          <path d="M13.4 19.5v-6h2l.3-2.4h-2.3V9.6c0-.7.2-1.1 1.2-1.1h1.2V6.4c-.2 0-.9-.1-1.8-.1-1.8 0-3 1.1-3 3.1v1.7H9v2.4h2v6h2.4z" fill="#fff" />
-        </svg>
-      )
-    case 'linkedin':
-      return (
-        <svg width={s} height={s} viewBox="0 0 24 24" aria-hidden>
-          <rect x="2" y="2" width="20" height="20" rx="3.5" fill="#0A66C2" />
-          <path d="M7.2 10h2.3v7.3H7.2zM8.35 6.4a1.33 1.33 0 1 1 0 2.66 1.33 1.33 0 0 1 0-2.66zM11 10h2.2v1c.3-.6 1.1-1.2 2.3-1.2 2.4 0 2.8 1.6 2.8 3.6v3.9H16v-3.5c0-.8 0-1.9-1.2-1.9s-1.4.9-1.4 1.8v3.6H11z" fill="#fff" />
-        </svg>
-      )
-    case 'x':
-      return (
-        <svg width={s} height={s} viewBox="0 0 24 24" aria-hidden>
-          <path d="M17.8 3h3.1l-6.8 7.8L22 21h-6.2l-4.9-6.4L5.3 21H2.2l7.3-8.3L2 3h6.4l4.4 5.8zm-1.1 16.2h1.7L7.4 4.7H5.6z" fill="#0F172A" />
-        </svg>
-      )
-    case 'youtube':
-      return (
-        <svg width={s} height={s} viewBox="0 0 24 24" aria-hidden>
-          <rect x="1.5" y="5" width="21" height="14" rx="4" fill="#FF0000" />
-          <path d="M10 9.2v5.6l4.9-2.8z" fill="#fff" />
-        </svg>
-      )
-    case 'tiktok':
-      return (
-        <svg width={s} height={s} viewBox="0 0 24 24" aria-hidden>
-          <path d="M16.6 5.8A4.3 4.3 0 0 1 15.5 3h-3.2v12.4a2.6 2.6 0 1 1-1.9-2.5V9.6a5.8 5.8 0 1 0 5.1 5.8V9.1a7.4 7.4 0 0 0 4.3 1.4V7.3a4.3 4.3 0 0 1-3.2-1.5z" fill="#0F172A" />
-        </svg>
-      )
-    case 'pinterest':
-      return (
-        <svg width={s} height={s} viewBox="0 0 24 24" aria-hidden>
-          <circle cx="12" cy="12" r="11" fill="#E60023" />
-          <path d="M12.3 5.5c-3.6 0-5.4 2.6-5.4 4.7 0 1.3.5 2.4 1.5 2.8.2.1.3 0 .4-.2l.2-.6c0-.2 0-.3-.1-.5-.3-.4-.5-.9-.5-1.6 0-2.1 1.5-3.9 4-3.9 2.2 0 3.4 1.3 3.4 3.1 0 2.4-1 4.4-2.6 4.4-.9 0-1.5-.7-1.3-1.6.2-1.1.7-2.2.7-2.9 0-.7-.4-1.2-1.1-1.2-.9 0-1.6.9-1.6 2.2 0 .8.3 1.3.3 1.3l-1.1 4.6c-.3 1.4 0 3.1 0 3.2h.2c.1-.1 1-1.3 1.4-2.6l.5-2.1c.3.5 1.1 1 1.9 1 2.5 0 4.2-2.3 4.2-5.3 0-2.3-1.9-4.4-4.9-4.4z" fill="#fff" />
-        </svg>
-      )
-    case 'email':
-      return (
-        <svg width={s} height={s} viewBox="0 0 24 24" aria-hidden>
-          <rect x="2.5" y="5" width="19" height="14" rx="2" fill="#2563EB" />
-          <path d="M3.5 6.5l8.5 6.2 8.5-6.2" fill="none" stroke="#fff" strokeWidth="1.6" strokeLinejoin="round" />
-        </svg>
-      )
-    default:
-      return null
-  }
-}
 
 export function ChannelIcon({ channel, size = 16, className }: { channel: string | null | undefined; size?: number; className?: string }) {
   const config = channel ? CHANNEL_ICONS[channel] : undefined
   const Icon = config?.icon ?? Globe
   const label = config?.label ?? (channel ? channel : 'No channel')
-  const brand = channel ? BrandMark({ channel, size }) : null
-  if (brand) {
+  // Platforms render their real logo from the shared brand registry.
+  if (channel && hasBrand(channel)) {
     return (
-      <span className={cn('inline-flex shrink-0 items-center justify-center', className)} style={{ width: size + 8, height: size + 8 }} title={label}>
-        {brand}
+      <span className={cn('relative inline-flex shrink-0 items-center justify-center', className)} style={{ width: size + 8, height: size + 8 }} title={label}>
+        <BrandLogo brand={channel} size={size + 4} decorative />
         <span className="sr-only">{label}</span>
       </span>
     )
@@ -257,7 +188,7 @@ export function PriorityTag({ priority }: { priority: Priority }) {
 export function SeverityBadge({ severity }: { severity: keyof typeof SEVERITY_TOKENS }) {
   const token = SEVERITY_TOKENS[severity]
   return (
-    <span className={cn('inline-flex items-center whitespace-nowrap rounded-md px-2 py-[3px] text-[10.5px] lg:text-[9px] font-semibold leading-[14px]', token.chip.replace(/ring-\S+/g, ''))}>
+    <span className={cn('inline-flex items-center whitespace-nowrap rounded-md px-2 py-[3px] lg:py-[2px] text-[10.5px] lg:text-[9px] font-semibold leading-[14px] lg:leading-[12px]', token.chip.replace(/ring-\S+/g, ''))}>
       {token.label}
     </span>
   )
@@ -300,7 +231,7 @@ export function Panel({
   return (
     <section className={cn(T.card, 'flex min-w-0 flex-col', className)}>
       {/* Reference panel headers: 40px, no divider — the list starts directly under the title. */}
-      <header className="flex h-9 shrink-0 items-center justify-between gap-3 px-3.5 pt-0.5">
+      <header className="flex h-9 lg:h-8 shrink-0 items-center justify-between gap-3 px-3.5 pt-0.5">
         <h2 className="flex items-center gap-2 text-[13px] lg:text-[11.5px] font-semibold text-slate-900">
           {title}
           {typeof count === 'number' && (
@@ -314,7 +245,7 @@ export function Panel({
           </Link>
         )}
       </header>
-      <div className={cn('min-w-0 flex-1', bodyClassName ?? 'px-3.5 pb-3.5')}>{children}</div>
+      <div className={cn('min-w-0 flex-1', bodyClassName ?? 'px-3.5 pb-3.5 lg:pb-3')}>{children}</div>
       {footer && (
         <div className="border-t border-[#eef0f4] py-2.5 text-center">
           <Link href={footer.href} className={cn('text-[11.5px] lg:text-[10px] font-medium text-blue-600 hover:text-blue-700', T.focus)}>

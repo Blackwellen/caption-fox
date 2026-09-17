@@ -2,11 +2,11 @@
 
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { HeaderActionButton } from '../HeaderActionButton'
+import { HeaderActionButton, type HeaderActionMenuItem } from '../HeaderActionButton'
 import { WizardModal, FIELD, LABEL, TEXTAREA } from '../WizardModal'
 import { createOutreachList } from '@/lib/seo/actions'
 
-export function AddOutreachListWizard() {
+export function AddOutreachListWizard({ menu }: { menu?: HeaderActionMenuItem[] } = {}) {
   const router = useRouter()
   const [open, setOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -35,7 +35,7 @@ export function AddOutreachListWizard() {
 
   return (
     <>
-      <HeaderActionButton label="Add Outreach List" onClick={() => setOpen(true)} />
+      <HeaderActionButton label="Add Outreach List" onClick={() => setOpen(true)} menu={menu} />
       <WizardModal
         titleId="add-outreach-list-title"
         title="Create outreach list"

@@ -6,9 +6,9 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, ReferenceLine,
 } from 'recharts'
 import {
-  TrendingUp, TrendingDown, Minus, Users, Eye, BarChart2,
-  Target, RefreshCw, Plus, ExternalLink, Briefcase,
-  Camera, Hash, Globe, Settings, Trash2, ArrowUp, ArrowDown,
+  TrendingUp, TrendingDown, Minus, Users, BarChart2,
+  Target, RefreshCw, Plus, ExternalLink,
+  Globe, Settings, Trash2, ArrowUp, ArrowDown,
   Zap, CheckCircle, X, Info, Download,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
@@ -21,6 +21,8 @@ import { Input, Select, Textarea } from '@/components/ui/Input'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { cn, formatDate } from '@/lib/utils'
+import { BrandLogo } from '@/components/brand/BrandLogo'
+import { hasBrand } from '@/lib/brand/brands'
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -78,12 +80,8 @@ const CHART_COLORS = ['#2563eb', '#7c3aed', '#059669', '#d97706', '#dc2626', '#0
 const CONTENT_TYPES = ['video', 'image', 'carousel', 'reel', 'story', 'text']
 
 function PlatformIcon({ name, size = 14 }: { name: string; size?: number }) {
-  const cls = `w-[${size}px] h-[${size}px]`
-  if (name === 'Instagram') return <Camera size={size} className="text-pink-500" />
-  if (name === 'TikTok') return <Hash size={size} className="text-slate-900" />
-  if (name === 'LinkedIn') return <Briefcase size={size} className="text-blue-700" />
-  if (name === 'X') return <X size={size} className="text-slate-700" />
-  if (name === 'YouTube') return <Eye size={size} className="text-red-500" />
+  const key = name.toLowerCase()
+  if (hasBrand(key)) return <BrandLogo brand={key} size={size} decorative />
   return <Globe size={size} className="text-slate-400" />
 }
 

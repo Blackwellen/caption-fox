@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import type { ReactNode } from 'react'
-import { AlertTriangle, ArrowRight, Lock, TrendingDown, TrendingUp } from 'lucide-react'
+import { AlertTriangle, ArrowRight, Lock } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { formatChange } from '@/lib/events/format'
 import type { KpiValue } from '@/lib/events/types'
@@ -11,12 +11,12 @@ export function EventsPageHeader({
   title, subtitle, actions,
 }: { title: string; subtitle: string; actions?: ReactNode }) {
   return (
-    <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-      <div>
-        <h1 className="text-[30px] font-bold leading-tight tracking-tight text-slate-900">{title}</h1>
-        <p className="mt-1 text-[13.5px] text-slate-500">{subtitle}</p>
+    <div className="mb-[22px] flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+      <div className="min-w-0 pt-1">
+        <h1 className="text-[23px] font-bold leading-[1.2] tracking-tight text-slate-900">{title}</h1>
+        <p className="mt-1.5 text-[12.5px] text-slate-500">{subtitle}</p>
       </div>
-      {actions && <div className="flex flex-wrap items-center gap-2.5">{actions}</div>}
+      {actions && <div className="flex shrink-0 flex-wrap items-center gap-2.5">{actions}</div>}
     </div>
   )
 }
@@ -40,7 +40,7 @@ export function KpiStrip({ children }: { children: ReactNode }) {
   return (
     <section
       aria-label="Key metrics"
-      className="mb-5 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6"
+      className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6"
     >
       {children}
     </section>
@@ -66,37 +66,77 @@ export function KpiCard({
   const hasDelta = change !== null || abs !== null
 
   const body = (
-    <div className="flex h-full flex-col rounded-xl border border-slate-200 bg-white p-4 transition-colors hover:border-slate-300">
-      <div className="flex items-start gap-3">
-        <span className={cn('flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px]', TONES[tone])} aria-hidden>
-          {icon}
-        </span>
-        <div className="min-w-0">
-          <p className="truncate text-[12.5px] font-medium text-slate-500" title={tooltip ?? label}>{label}</p>
-          <p className="mt-0.5 text-[23px] font-bold leading-tight tracking-tight text-slate-900">{value}</p>
-        </div>
+    <div className="flex h-full min-h-[104px] gap-2.5 rounded-xl border border-slate-200/90 bg-white py-4 pl-3.5 pr-2 transition-colors hover:border-slate-300">
+      <span className={cn('flex h-[35px] w-[35px] shrink-0 items-center justify-center rounded-[10px]', TONES[tone])} aria-hidden>
+        {icon}
+      </span>
+      <div className="flex min-w-0 flex-1 flex-col">
+        <p className="truncate text-[11px] font-medium leading-tight text-slate-600" title={tooltip ?? label}>{label}</p>
+        <p className="mt-1.5 truncate text-[21px] font-bold leading-none tracking-tight text-slate-900">{value}</p>
+        {hasDelta ? (
+          <p className="mt-auto flex items-center gap-1 whitespace-nowrap pt-2 text-[10.5px] tracking-[-0.01em]">
+            <DeltaTriangle positive={positive} />
+            <span className={cn('font-medium', positive ? 'text-emerald-600' : 'text-rose-500')}>
+              {change !== null ? formatChange(change).replace(/^[+-]/, '') : `${Math.abs(abs ?? 0)}`}
+            </span>
+            <span className="text-slate-500">{comparison}</span>
+          </p>
+        ) : (
+          <p className="mt-auto truncate pt-2 text-[11px] text-slate-500">{comparison}</p>
+        )}
       </div>
-      {hasDelta ? (
-        <p className={cn('mt-2.5 flex items-center gap-1 text-[11.5px] font-medium', positive ? 'text-emerald-600' : 'text-rose-500')}>
-          {positive ? <TrendingUp size={12} aria-hidden /> : <TrendingDown size={12} aria-hidden />}
-          {change !== null ? formatChange(change) : `${Math.abs(abs ?? 0)}`}
-          <span className="font-normal text-slate-400">{comparison}</span>
-        </p>
-      ) : (
-        <p className="mt-2.5 text-[11.5px] text-slate-400">{comparison}</p>
-      )}
     </div>
   )
 
   return href ? <Link href={href} className="block h-full focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 rounded-xl">{body}</Link> : body
 }
 
+/** Small filled triangle the designs use for period-on-period deltas. */
+export function DeltaTriangle({ positive }: { positive: boolean }) {
+  return (
+    <svg width="7" height="6" viewBox="0 0 7 6" className={cn('shrink-0', positive ? 'text-emerald-600' : 'rotate-180 text-rose-500')} aria-hidden>
+      <path d="M3.5 0 7 6H0z" fill="currentColor" />
+    </svg>
+  )
+}
+
+/** Label-over-value stat with an optional period delta (registration strips). */
+export function SummaryStat({
+  label, value, change, points = false, below = false,
+}: {
+  label: string
+  value: string
+  change: number | null | undefined
+  points?: boolean
+  /** Label under the value (chart headers) instead of above it (stat strips). */
+  below?: boolean
+}) {
+  const hasChange = change !== null && change !== undefined
+  const positive = (change ?? 0) >= 0
+  return (
+    <div className={cn('flex flex-col', below ? 'pr-4' : 'px-4 first:pl-1')}>
+      <dt className={cn('text-[10.5px] text-slate-500', below && 'order-last mt-1')}>{label}</dt>
+      <dd className={cn('flex items-baseline gap-2 whitespace-nowrap', !below && 'mt-1')}>
+        <span className="text-[16px] font-semibold leading-tight text-slate-900">{value}</span>
+        {hasChange && (
+          <span className={cn('inline-flex items-center gap-1 text-[10px] font-medium', positive ? 'text-emerald-600' : 'text-rose-500')}>
+            <DeltaTriangle positive={positive} />
+            {/* Rates move in percentage points; counts move in percent. */}
+            {points ? `${Math.abs((change ?? 0) * 100).toFixed(1)}%` : formatChange(change).replace(/^[+-]/, '')}
+          </span>
+        )}
+      </dd>
+    </div>
+  )
+}
+
 /* ------------------------------------------------------------------ panels */
 
 export function Panel({
-  title, action, children, className, contentClassName, description,
+  title, titleSuffix, action, children, className, contentClassName, description,
 }: {
   title?: string
+  titleSuffix?: string
   description?: string
   action?: ReactNode
   children: ReactNode
@@ -104,24 +144,31 @@ export function Panel({
   contentClassName?: string
 }) {
   return (
-    <section className={cn('flex flex-col rounded-xl border border-slate-200 bg-white', className)}>
+    <section className={cn('flex min-w-0 flex-col rounded-xl border border-slate-200 bg-white', className)}>
       {(title || action) && (
-        <div className="flex items-center justify-between gap-3 border-b border-slate-100 px-4 py-3.5">
+        <div className="flex min-h-[48px] items-center justify-between gap-3 border-b border-slate-100 px-4 py-2.5">
           <div className="min-w-0">
-            {title && <h2 className="truncate text-[14.5px] font-semibold text-slate-900">{title}</h2>}
-            {description && <p className="mt-0.5 truncate text-[11.5px] text-slate-500">{description}</p>}
+            {title && (
+              <h2 className="truncate text-[13px] font-semibold text-slate-900">
+                {title}
+                {titleSuffix && <span className="font-normal text-slate-700"> {titleSuffix}</span>}
+              </h2>
+            )}
+            {description && <p className="mt-0.5 truncate text-[10.5px] text-slate-500">{description}</p>}
           </div>
           {action}
         </div>
       )}
-      <div className={cn('flex-1 p-4', contentClassName)}>{children}</div>
+      {/* `cn` is plain clsx (no tailwind-merge), so a default padding plus a
+          caller's padding would both apply — use one or the other. */}
+      <div className={cn('flex-1', contentClassName ?? 'p-4')}>{children}</div>
     </section>
   )
 }
 
 export function PanelLink({ href, children }: { href: string; children: ReactNode }) {
   return (
-    <Link href={href} className="shrink-0 text-[12.5px] font-semibold text-blue-600 hover:text-blue-700">
+    <Link href={href} className="shrink-0 text-[11px] font-medium text-blue-600 hover:text-blue-700">
       {children}
     </Link>
   )
@@ -130,11 +177,11 @@ export function PanelLink({ href, children }: { href: string; children: ReactNod
 /* ------------------------------------------------------------------ badges */
 
 const BADGE_TONES: Record<string, string> = {
-  live: 'bg-violet-100 text-violet-700',
-  upcoming: 'bg-blue-100 text-blue-700',
-  scheduled: 'bg-blue-100 text-blue-700',
-  completed: 'bg-emerald-100 text-emerald-700',
-  published: 'bg-emerald-100 text-emerald-700',
+  live: 'bg-blue-50 text-blue-600',
+  upcoming: 'bg-indigo-50 text-indigo-600',
+  scheduled: 'bg-indigo-50 text-indigo-600',
+  completed: 'bg-emerald-50 text-emerald-600',
+  published: 'bg-emerald-50 text-emerald-600',
   draft: 'bg-slate-100 text-slate-600',
   planned: 'bg-slate-100 text-slate-600',
   cancelled: 'bg-rose-100 text-rose-600',
@@ -152,13 +199,23 @@ const BADGE_TONES: Record<string, string> = {
   bronze: 'bg-orange-100 text-orange-700',
 }
 
+const SOLID_TONES: Record<string, string> = {
+  live: 'bg-violet-600 text-white',
+  upcoming: 'bg-blue-600 text-white',
+  scheduled: 'bg-blue-600 text-white',
+  completed: 'bg-emerald-600 text-white',
+  cancelled: 'bg-rose-600 text-white',
+  draft: 'bg-slate-600/85 text-white',
+}
+
 export function StatusBadge({
-  status, label, dot = false, className,
-}: { status: string; label?: string; dot?: boolean; className?: string }) {
-  const tone = BADGE_TONES[status] ?? 'bg-slate-100 text-slate-600'
+  status, label, dot = false, solid = false, className,
+}: { status: string; label?: string; dot?: boolean; solid?: boolean; className?: string }) {
+  const tone = (solid ? SOLID_TONES[status] : BADGE_TONES[status])
+    ?? (solid ? 'bg-slate-600/85 text-white' : 'bg-slate-100 text-slate-600')
   const text = label ?? status.replaceAll('_', ' ').replace(/\b\w/g, c => c.toUpperCase())
   return (
-    <span className={cn('inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-[11px] font-semibold', tone, className)}>
+    <span className={cn('inline-flex items-center gap-1 rounded-md px-1.5 py-[2px] text-[10px] font-medium leading-4', tone, className)}>
       {dot && <span className="h-1.5 w-1.5 rounded-full bg-current" aria-hidden />}
       {text}
     </span>
@@ -283,7 +340,7 @@ export function ProgressRing({
 export function TimelineDot({ state }: { state: 'completed' | 'live' | 'upcoming' }) {
   const tone =
     state === 'completed' ? 'bg-emerald-500'
-      : state === 'live' ? 'bg-blue-600 ring-4 ring-blue-100'
+      : state === 'live' ? 'bg-blue-600'
         : 'bg-slate-300'
-  return <span className={cn('mt-1.5 h-2 w-2 shrink-0 rounded-full', tone)} aria-hidden />
+  return <span className={cn('relative mt-[7px] h-2 w-2 shrink-0 rounded-full', tone)} aria-hidden />
 }

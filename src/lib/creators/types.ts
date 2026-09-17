@@ -109,6 +109,8 @@ export interface BriefRow {
   completed_at: string | null
   archived_at: string | null
   board_position: number
+  /** Private storage path; `cover_url` holds the signed URL at read time. */
+  cover_path?: string | null
   created_at: string
   updated_at: string
   owner?: PersonLite | null
@@ -153,6 +155,8 @@ export interface SubmissionRow {
   rights_status: string
   reviewer_id: string | null
   thumbnail_url: string | null
+  /** Private storage path; `thumbnail_url` holds the signed URL at read time. */
+  thumbnail_path?: string | null
   submission_url: string | null
   media_urls: string[] | null
   duration_seconds: number | null
@@ -249,7 +253,7 @@ export interface RightsRow {
   updated_at: string
   creator?: CreatorRow | null
   owner?: PersonLite | null
-  submission?: { id: string; title: string | null; status: string; thumbnail_url: string | null } | null
+  submission?: { id: string; title: string | null; status: string; thumbnail_url: string | null; thumbnail_path?: string | null } | null
   campaign?: { id: string; name: string; end_date: string | null } | null
 }
 

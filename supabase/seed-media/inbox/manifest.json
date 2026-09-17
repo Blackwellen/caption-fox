@@ -1,0 +1,44 @@
+{
+  "avatars": {
+    "jane-cooper": "avatars/jane-cooper.jpg",
+    "robert-fox": "avatars/robert-fox.jpg",
+    "marvin-mckinney": "avatars/marvin-mckinney.jpg",
+    "cody-fisher": "avatars/cody-fisher.jpg",
+    "darrell-steward": "avatars/darrell-steward.jpg",
+    "dianne-russell": "avatars/dianne-russell.jpg",
+    "theresa-webb": "avatars/theresa-webb.jpg",
+    "alex-morgan": "avatars/alex-morgan.jpg",
+    "james-wilson": "avatars/james-wilson.jpg",
+    "olivia-brown": "avatars/olivia-brown.jpg",
+    "benjamin-lee": "avatars/benjamin-lee.jpg",
+    "isabella-garcia": "avatars/isabella-garcia.jpg",
+    "ethan-johnson": "avatars/ethan-johnson.jpg",
+    "olivia-kim": "avatars/olivia-kim.jpg",
+    "michael-brown": "avatars/michael-brown.jpg",
+    "james-thompson": "avatars/james-thompson.jpg",
+    "matthew-taylor": "avatars/matthew-taylor.jpg",
+    "ethan-brown": "avatars/ethan-brown.jpg",
+    "emma-davis": "avatars/emma-davis.jpg",
+    "liam-chen": "avatars/liam-chen.jpg",
+    "sophia-patel": "avatars/sophia-patel.jpg",
+    "noah-williams": "avatars/noah-williams.jpg",
+    "ava-martinez": "avatars/ava-martinez.jpg"
+  },
+  "outputs": {
+    "next-drop": "outputs/next-drop.jpg",
+    "built-to-move": "outputs/built-to-move.jpg",
+    "lighter-faster-louder": "outputs/lighter-faster-louder.jpg",
+    "launch-mode": "outputs/launch-mode.jpg"
+  },
+  "jobs": {
+    "sneaker-launch-visual": "jobs/sneaker-launch-visual.jpg",
+    "minimal-product-banner": "jobs/minimal-product-banner.jpg",
+    "reel-cover-options": "jobs/reel-cover-options.jpg",
+    "brand-moodboard": "jobs/brand-moodboard.jpg",
+    "ad-creative-set": "jobs/ad-creative-set.jpg"
+  },
+  "files": {
+    "timeline": "files/Welcome_Series_Timeline.xlsx",
+    "email": "files/Welcome_Email_V3.html"
+  }
+}

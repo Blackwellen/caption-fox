@@ -6,11 +6,11 @@ import {
 import { cn } from '@/lib/utils'
 import type { BrandContext } from '@/lib/brand-assets/context'
 import type { ProductsPage as ProductsPageData } from '@/lib/brand-assets/queries'
-import { buildHref, chipsFor, type ProductFilters, type RawParams } from '@/lib/brand-assets/filters'
+import { buildHref, chipsFor, exportHref, type ProductFilters, type RawParams } from '@/lib/brand-assets/filters'
 import { can } from '@/lib/brand-assets/entitlements'
 import type { ProductCard } from '@/types/brand-assets'
 import {
-  ActionLink, EmptyPanel, KpiStrip, PageHeading, Pagination, Panel, StatusBadge, type KpiSpec,
+  ActionLink, EmptyPanel, ExportCsvLink, KpiStrip, PageHeading, Pagination, Panel, StatusBadge, type KpiSpec,
 } from '../ui/primitives'
 import { FilterBar, FilterChips, FilterSelect, MoreFiltersButton, SearchField, SortSelect, ViewSwitcher } from '../ui/controls'
 import { Avatar } from '../shell/BrandAssetsShell'
@@ -127,6 +127,8 @@ export default function ProductsPage({
             { value: 'recently_updated', label: 'Recently Updated' }, { value: 'name_asc', label: 'Name A–Z' }, { value: 'sku_asc', label: 'SKU' },
             { value: 'readiness_desc', label: 'Most ready' }, { value: 'readiness_asc', label: 'Least ready' }, { value: 'created_desc', label: 'Newest' },
           ]} />
+          <ExportCsvLink href={exportHref(pathname, params)} allowed={can(e, 'brand.products.export')}
+            blockedReason="Your role or plan does not permit exporting the product catalogue." />
         </div>
       </div>
 

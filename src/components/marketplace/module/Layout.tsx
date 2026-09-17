@@ -23,9 +23,9 @@ export function MarketplacePage({
   children: React.ReactNode
 }) {
   return (
-    <div className="mx-auto max-w-[1600px] px-4 py-6 sm:px-6 lg:px-8">
+    <div className="mx-auto max-w-[1600px] px-4 py-6 sm:px-6 lg:px-6 lg:pb-8 lg:pt-0.5">
       {breadcrumb && breadcrumb.length > 0 && (
-        <nav aria-label="Breadcrumb" className="mb-2 flex items-center gap-1.5 text-xs text-slate-400">
+        <nav aria-label="Breadcrumb" className="mb-2 flex items-center gap-1.5 text-xs text-slate-400 lg:text-[10.5px]">
           {breadcrumb.map((crumb, index) => (
             <span key={crumb.label} className="flex items-center gap-1.5">
               {index > 0 && <span aria-hidden="true">/</span>}
@@ -37,26 +37,29 @@ export function MarketplacePage({
         </nav>
       )}
 
-      <header className="mb-4 flex flex-wrap items-start justify-between gap-3">
+      <header className="mb-3 flex flex-wrap items-start justify-between gap-3 lg:mb-1.5">
         <div className="min-w-0">
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900">{title}</h1>
-          <p className="mt-1 text-sm text-slate-500">{subtitle}</p>
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900 lg:text-[19px] lg:leading-7">{title}</h1>
+          <p className="mt-0.5 text-sm text-slate-500 lg:text-[10.5px] lg:leading-4">{subtitle}</p>
         </div>
         <div className="flex shrink-0 items-center gap-2">
           {actions}
           <Link
             href="/help/marketplace"
-            className="inline-flex items-center gap-1.5 text-sm font-medium text-blue-600 hover:text-blue-700"
+            className="inline-flex items-center gap-1.5 text-sm font-medium text-blue-600 hover:text-blue-700 lg:text-[11px]"
           >
-            <PlayCircle size={15} />How it works
+            <PlayCircle size={14} />How it works
           </Link>
         </div>
       </header>
 
-      <MarketplaceTabs active={module} modules={modules} />
+      <MarketplaceTabs
+        active={module} modules={modules}
+        trailing={showDiscoverNav ? <DiscoverModeNav active={module} modules={modules} inline /> : undefined}
+      />
       {showDiscoverNav && <DiscoverModeNav active={module} modules={modules} />}
 
-      <div className="mt-5 space-y-5">{children}</div>
+      <div className="mt-4 space-y-4 lg:mt-3">{children}</div>
     </div>
   )
 }

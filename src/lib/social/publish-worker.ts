@@ -1,6 +1,7 @@
 import 'server-only'
 import { socialServiceClient } from './service-client'
 import { publishToProvider } from './publish-adapters'
+import { workspaceKindFromType } from '@/lib/navigation/resolver'
 import type { FailureType, SocialProvider } from '@/types/social'
 
 // Background publishing worker.
@@ -171,7 +172,11 @@ async function reconcilePostStatus(
     updated_at: new Date().toISOString(),
   }).eq('id', postId)
 
-  const { data: post } = await service.from('content_posts').select('title').eq('id', postId).maybeSingle()
+  const [{ data: post }, { data: workspace }] = await Promise.all([
+    service.from('content_posts').select('title').eq('id', postId).maybeSingle(),
+    service.from('workspaces').select('type').eq('id', workspaceId).maybeSingle(),
+  ])
+  const basePath = `/${workspaceKindFromType(workspace?.type as string | undefined)}/social`
   await service.from('social_activity').insert({
     workspace_id: workspaceId,
     actor_kind: 'system',
@@ -184,7 +189,7 @@ async function reconcilePostStatus(
         ? `“${post?.title ?? 'Untitled post'}” published to ${sent} of ${active.length} channels`
         : `“${post?.title ?? 'Untitled post'}” failed to publish`,
     detail: failures.length ? String(failures[0]).slice(0, 200) : `Last channel: ${channelName} ${lastOk ? 'succeeded' : 'failed'}`,
-    href: `/app/social/publishing?post=${postId}`,
+    href: `${basePath}/posts/${postId}`,
     severity: status === 'published' ? 'success' : status === 'failed' ? 'error' : 'warning',
   })
 }

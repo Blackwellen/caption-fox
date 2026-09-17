@@ -11,10 +11,12 @@ export const CREATOR_MODULES = [
 ] as const
 export type CreatorModule = typeof CREATOR_MODULES[number]
 
+/** Legacy prefix; canonical URLs come from `creatorsBase(kind)` in ./routes. */
 export const CREATOR_BASE = '/app/creators'
 
 export const CREATOR_MODULE_META: Record<CreatorModule, {
   label: string
+  /** Legacy path, kept for stored links; pages build URLs from their basePath. */
   href: string
   title: string
   description: string
@@ -351,6 +353,27 @@ export const RIGHTS_STATUS_COLOUR: Record<RightsStatus, string> = {
   renewal_pending: '#0ea5e9', rejected: '#dc2626',
 }
 
+/**
+ * Rights lifecycle enforced by the server. A licence only becomes active from
+ * an approval step, and a revoked or rejected record never silently reopens.
+ */
+export const RIGHTS_TRANSITIONS: Record<RightsStatus, RightsStatus[]> = {
+  draft: ['draft', 'requested', 'pending_approval'],
+  requested: ['requested', 'pending_approval', 'rejected'],
+  pending_approval: ['pending_approval', 'active', 'rejected', 'restricted'],
+  active: ['active', 'restricted', 'revoked', 'renewal_pending', 'expired'],
+  expired: ['expired', 'renewal_pending'],
+  restricted: ['restricted', 'active', 'revoked'],
+  revoked: ['revoked'],
+  renewal_pending: ['renewal_pending', 'active', 'expired', 'revoked'],
+  rejected: ['rejected', 'draft'],
+}
+
+export function canTransitionRights(from: string, to: string): boolean {
+  const allowed = RIGHTS_TRANSITIONS[from as RightsStatus]
+  return allowed ? allowed.includes(to as RightsStatus) : false
+}
+
 export const USAGE_SCOPES = [
   'organic_only', 'paid_social', 'full_digital', 'broadcast', 'print', 'retail',
   'internal', 'single_use', 'limited', 'exclusive', 'perpetual', 'custom',
@@ -393,7 +416,8 @@ export function daysUntil(date?: string | null): number | null {
   if (!date) return null
   const target = new Date(`${date}T23:59:59Z`).getTime()
   if (Number.isNaN(target)) return null
-  return Math.ceil((target - Date.now()) / 86_400_000)
+  const days = (target - Date.now()) / 86_400_000
+  return days < 0 ? Math.floor(days) : Math.ceil(days)
 }
 
 export const RIGHTS_CONFLICT_TYPES = [

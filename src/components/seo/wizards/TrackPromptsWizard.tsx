@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { HeaderActionButton } from '../HeaderActionButton'
+import { HeaderActionButton, type HeaderActionMenuItem } from '../HeaderActionButton'
 import { WizardModal, FIELD, LABEL, TEXTAREA } from '../WizardModal'
 import { trackPrompt } from '@/lib/seo/actions'
 
@@ -15,7 +15,7 @@ const ENGINES = [
   { value: 'bing_copilot', label: 'Bing Copilot' },
 ]
 
-export function TrackPromptsWizard() {
+export function TrackPromptsWizard({ menu }: { menu?: HeaderActionMenuItem[] } = {}) {
   const router = useRouter()
   const [open, setOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -47,7 +47,7 @@ export function TrackPromptsWizard() {
 
   return (
     <>
-      <HeaderActionButton label="Track Prompts" onClick={() => setOpen(true)} />
+      <HeaderActionButton label="Track Prompts" onClick={() => setOpen(true)} menu={menu} />
       <WizardModal
         titleId="track-prompts-title"
         title="Track an AI search prompt"

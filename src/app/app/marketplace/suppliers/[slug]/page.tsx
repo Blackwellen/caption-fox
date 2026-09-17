@@ -81,7 +81,7 @@ export default async function SupplierDetailPage({ params }: { params: Promise<{
       <ProfileCover profile={profile} className="h-40 rounded-xl sm:h-48" />
 
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_320px]">
-        <div className="min-w-0 space-y-5">
+        <div className="min-w-0 space-y-5 lg:space-y-4">
           <Panel padded>
             <div className="flex flex-wrap items-start gap-4">
               <ProfileAvatar profile={profile} size={64} />

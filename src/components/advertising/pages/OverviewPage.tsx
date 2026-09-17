@@ -51,7 +51,7 @@ function pacingColour(pct: number): string {
 function PanelTitle({ title, hint, count, children }: { title: string; hint?: string; count?: number; children?: ReactNode }) {
   return (
     <div className="flex items-center justify-between gap-3">
-      <h2 className="flex items-center gap-1.5 text-[14px] font-semibold text-slate-900">
+      <h2 className="flex items-center gap-1.5 text-[14px] font-semibold text-slate-900 lg:text-[13px]">
         {title}{count !== undefined && <span className="font-normal text-slate-400">({count})</span>}
         {hint && <InfoDot label={hint} />}
       </h2>
@@ -203,11 +203,11 @@ export default async function OverviewPage({ session, searchParams, nav }: { ses
         ) : (
           <ScrollRow label="connected ad accounts" className="mt-2">
             {data.accounts.map(account => (
-              <article key={account.provider} className="w-[282px] shrink-0 snap-start rounded-[10px] border border-slate-200/80 bg-white px-4 py-3">
+              <article key={account.provider} className="w-[282px] shrink-0 snap-start rounded-[10px] border border-slate-200/80 bg-white px-4 py-3 lg:py-2.5">
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex min-w-0 items-center gap-2.5">
                     <ProviderLogo provider={account.provider} size={22} decorative />
-                    <h3 className="truncate text-[14px] font-semibold text-slate-900">{providerLabel(account.provider)}</h3>
+                    <h3 className="truncate text-[14px] font-semibold text-slate-900 lg:text-[12.5px]">{providerLabel(account.provider)}</h3>
                   </div>
                   <div className="flex items-center gap-1">
                     <StatusPill status={account.health} map={HEALTH_STATUS} dot={false} className="rounded-md px-2 text-[11px]" />
@@ -220,9 +220,9 @@ export default async function OverviewPage({ session, searchParams, nav }: { ses
                 </div>
                 <div className="mt-1.5 flex items-start justify-between">
                   <div>
-                    <p className="text-[11.5px] leading-4 text-slate-500">Spend ({rangeDays}d)</p>
+                    <p className="text-[11.5px] leading-4 text-slate-500 lg:text-[10.5px]">Spend ({rangeDays}d)</p>
                     <p className="mt-0.5 flex items-baseline gap-2 leading-5">
-                      <span className="text-[14px] font-semibold tabular-nums text-slate-900">{formatCurrency(account.spend)}</span>
+                      <span className="text-[14px] font-semibold tabular-nums text-slate-900 lg:text-[13.5px]">{formatCurrency(account.spend)}</span>
                       {account.spendChangePct !== null && (
                         <span className={`text-[11.5px] font-semibold ${account.spendChangePct >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
                           <span aria-hidden>{account.spendChangePct >= 0 ? '↑' : '↓'}</span> {Math.abs(account.spendChangePct).toFixed(1)}%
@@ -232,16 +232,16 @@ export default async function OverviewPage({ session, searchParams, nav }: { ses
                     </p>
                   </div>
                   <div className="text-right">
-                    <p className="text-[11.5px] leading-4 text-slate-500">Accounts</p>
-                    <p className="mt-0.5 text-[14px] font-semibold leading-5 text-slate-900">{account.accountCount}</p>
+                    <p className="text-[11.5px] leading-4 text-slate-500 lg:text-[10.5px]">Accounts</p>
+                    <p className="mt-0.5 text-[14px] font-semibold leading-5 text-slate-900 lg:text-[13.5px]">{account.accountCount}</p>
                   </div>
                 </div>
-                <div className="mt-2 flex items-center justify-between border-t border-slate-100 pt-2">
-                  <span className="flex items-center gap-1.5 text-[11.5px] text-slate-500">
+                <div className="mt-2 flex items-center justify-between border-t border-slate-100 pt-2 lg:mt-1.5 lg:pt-1.5">
+                  <span className="flex items-center gap-1.5 text-[11.5px] text-slate-500 lg:text-[10.5px]">
                     <span className={`h-1.5 w-1.5 rounded-full ${account.health === 'connected' ? 'bg-emerald-500' : account.health === 'error' ? 'bg-red-500' : 'bg-amber-500'}`} aria-hidden />
                     {account.lastSyncedAt ? `Last synced ${formatRelativeTime(account.lastSyncedAt)}` : 'Not synced yet'}
                   </span>
-                  <Link href={`${base}/accounts?provider=${account.provider}`} className="rounded-md border border-slate-200 px-2.5 py-0.5 text-[11.5px] font-medium text-slate-700 hover:bg-slate-50">View</Link>
+                  <Link href={`${base}/accounts?provider=${account.provider}`} className="rounded-md border border-slate-200 px-2.5 py-0.5 text-[11.5px] font-medium text-slate-700 hover:bg-slate-50 lg:text-[10.5px]">View</Link>
                 </div>
               </article>
             ))}
@@ -252,7 +252,7 @@ export default async function OverviewPage({ session, searchParams, nav }: { ses
       <div className="mb-2 grid gap-2 xl:grid-cols-[1.57fr_1fr]">
         <Panel>
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <h2 className="text-[14px] font-semibold text-slate-900">Campaign Performance</h2>
+            <h2 className="text-[14px] font-semibold text-slate-900 lg:text-[13px]">Campaign Performance</h2>
             <SegmentedParam paramKey="level" defaultValue="campaigns" ariaLabel="Performance level" options={[{ value: 'campaigns', label: 'Campaigns' }, { value: 'ad_sets', label: 'Ad Sets' }]} />
             <TextLink href={`${base}/campaigns`}>View All</TextLink>
           </div>
@@ -275,10 +275,10 @@ export default async function OverviewPage({ session, searchParams, nav }: { ses
             <EmptyState compact className="mt-3" title={level === 'ad_sets' ? 'No ad sets synced yet' : 'No campaigns match these filters'} description={level === 'ad_sets' ? 'Ad sets appear once a connected platform reports them.' : 'Try clearing the filters above.'} />
           ) : (
             <div className="mt-2 overflow-x-auto">
-              <table className="w-full min-w-[640px] text-left text-[12px]">
+              <table className="w-full min-w-[640px] text-left text-[12px] lg:text-[10px]">
                 <caption className="sr-only">Top {level === 'ad_sets' ? 'ad sets' : 'campaigns'} by spend</caption>
                 <thead>
-                  <tr className="border-b border-slate-100 text-[11.5px] font-semibold text-slate-700">
+                  <tr className="border-b border-slate-100 text-[11.5px] font-semibold text-slate-700 lg:text-[10px] lg:font-medium">
                     <th className="py-1.5 pr-3 font-semibold">{level === 'ad_sets' ? 'Ad Set' : 'Campaign'}</th>
                     <th className="px-3 py-1 font-semibold">Spend</th>
                     <th className="px-3 py-1 font-semibold">ROAS</th>
@@ -293,7 +293,7 @@ export default async function OverviewPage({ session, searchParams, nav }: { ses
                   {data.performanceRows.map(row => {
                     const href = `${base}/campaigns/${row.parentId ?? row.id}`
                     return (
-                      <tr key={row.id} className="hover:bg-slate-50/70">
+                      <tr key={row.id} className="hover:bg-slate-50/70 lg:[&>td]:py-[3px]">
                         <td className="py-1 pr-3">
                           <Link href={href} className="flex items-center gap-2.5 text-slate-700 hover:text-blue-700">
                             <ProviderLogo provider={row.provider} size={16} decorative />

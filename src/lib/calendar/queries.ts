@@ -637,7 +637,7 @@ export async function fetchQueueItems(
     const filtered = applyQueueFilters(all, filters)
     const sorted = sortQueue(filtered, filters.sort ?? 'scheduled_at')
     const page = Math.max(1, filters.page ?? 1)
-    const pageSize = Math.min(MAX_PAGE_SIZE, Math.max(10, filters.pageSize ?? 10))
+    const pageSize = Math.min(MAX_PAGE_SIZE, Math.max(7, filters.pageSize ?? 7))
     return { items: sorted.slice((page - 1) * pageSize, page * pageSize), total: sorted.length }
   })
 }

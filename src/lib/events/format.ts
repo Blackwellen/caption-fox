@@ -24,6 +24,17 @@ export function formatEventTime(
   }).format(new Date(value))
 }
 
+/** 12-hour clock ("09:00 AM") — used where the approved designs show a running order. */
+export function formatClockTime(
+  value: string | null | undefined,
+  timeZone = 'Europe/London',
+): string {
+  if (!value) return '—'
+  return new Intl.DateTimeFormat('en-US', {
+    hour: '2-digit', minute: '2-digit', hour12: true, timeZone,
+  }).format(new Date(value))
+}
+
 export function formatEventDateTime(
   value: string | null | undefined,
   timeZone = 'Europe/London',
@@ -95,6 +106,8 @@ export function formatOffset(seconds: number | null | undefined): string {
 export function formatRelative(value: string | null | undefined): string {
   if (!value) return '—'
   const diff = Date.now() - new Date(value).getTime()
+  // A future timestamp is not "just now" — show the date rather than mislead.
+  if (diff < -60_000) return formatEventDate(value)
   const minutes = Math.round(diff / 60000)
   if (minutes < 1) return 'just now'
   if (minutes < 60) return `${minutes}m ago`
@@ -139,4 +152,41 @@ export function eventLocationLabel(event: {
     return city ? `${city} + ${event.online_platform ?? 'Online'}` : (event.online_platform ?? 'Hybrid')
   }
   return city || event.location_name || '—'
+}
+
+/**
+ * Human title for an activity row. The feed shows what happened in product
+ * language ("New registration"), not the raw verb stored on the row.
+ */
+const ACTIVITY_TITLES: Record<string, string> = {
+  'registration:created': 'New registration',
+  'registration:cancelled': 'Registration cancelled',
+  'registration:checked_in': 'Attendee checked in',
+  'sponsorship:received': 'Sponsorship received',
+  'sponsorship:created': 'Sponsorship agreement created',
+  'sponsorship:renewed': 'Sponsorship renewed',
+  'sponsor:created': 'Sponsor added',
+  'deliverable:completed': 'Deliverable completed',
+  'followup_task:completed': 'Follow-up task completed',
+  'followup_task:created': 'Task assigned',
+  'followup_task:replied': 'Reply received',
+  'followup_task:meeting_booked': 'Meeting booked',
+  'sequence:activated': 'Sequence activated',
+  'sequence:completed': 'Email sequence completed',
+  'session:updated': 'Session updated',
+  'session:created': 'Session created',
+  'event:created': 'Event created',
+  'event:published': 'Event published',
+  'webinar:created': 'Webinar created',
+  'webinar:started': 'Webinar started',
+  'question:created': 'Question submitted',
+  'podcast_episode:published': 'Episode published',
+  'podcast_episode:recorded': 'Recording completed',
+  'podcast_episode:created': 'Episode created',
+  'speaker:created': 'Guest confirmed',
+  'gala_dock:connected': 'Gala Dock connected',
+}
+
+export function activityTitle(entityType: string, action: string): string {
+  return ACTIVITY_TITLES[`${entityType}:${action}`] ?? titleCase(`${action} ${entityType}`)
 }

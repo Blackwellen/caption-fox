@@ -62,7 +62,7 @@ export function OrderActions({ order, caps }: { order: MarketplaceOrder; caps: C
         <a
           href={`/app/marketplace/orders?q=${encodeURIComponent(order.reference)}`}
           aria-label={`View order ${order.reference}`}
-          className="rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+          className="rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 lg:p-0.5 [&>svg]:lg:h-3.5 [&>svg]:lg:w-3.5"
         >
           <Eye size={15} />
         </a>
@@ -71,7 +71,7 @@ export function OrderActions({ order, caps }: { order: MarketplaceOrder; caps: C
             type="button" onClick={() => setOpen(value => !value)}
             aria-expanded={open} aria-haspopup="menu"
             aria-label={`Actions for order ${order.reference}`}
-            className="rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+            className="rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 lg:p-0.5 [&>svg]:lg:h-3.5 [&>svg]:lg:w-3.5"
           >
             {pending ? <Loader2 size={15} className="animate-spin" /> : <MoreHorizontal size={15} />}
           </button>

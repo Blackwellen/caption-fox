@@ -128,11 +128,11 @@ export default async function EventDetailPage({
       {tab === 'overview' && (
         <div className="space-y-4">
           <KpiStrip>
-            <KpiCard label="Registrations" tone="violet" icon={<UsersIcon size={17} />} value={formatNumber(event.registrations)} comparison="Total" />
-            <KpiCard label="Attended" tone="emerald" icon={<UsersIcon size={17} />} value={event.attended ? formatNumber(event.attended) : '—'} comparison="Checked in or attended" />
-            <KpiCard label="Attendance Rate" tone="blue" icon={<UsersIcon size={17} />} value={formatRate(event.attendanceRate)} comparison="Of eligible registrations" />
-            <KpiCard label="Sponsors" tone="amber" icon={<UsersIcon size={17} />} value={formatNumber(event.sponsorCount)} comparison="Contracted or active" />
-            <KpiCard label="Capacity" tone="sky" icon={<UsersIcon size={17} />} value={event.capacity ? formatNumber(event.capacity) : '—'} comparison="Maximum attendees" />
+            <KpiCard label="Registrations" tone="violet" icon={<UsersIcon size={15} />} value={formatNumber(event.registrations)} comparison="Total" />
+            <KpiCard label="Attended" tone="emerald" icon={<UsersIcon size={15} />} value={event.attended ? formatNumber(event.attended) : '—'} comparison="Checked in or attended" />
+            <KpiCard label="Attendance Rate" tone="blue" icon={<UsersIcon size={15} />} value={formatRate(event.attendanceRate)} comparison="Of eligible registrations" />
+            <KpiCard label="Sponsors" tone="amber" icon={<UsersIcon size={15} />} value={formatNumber(event.sponsorCount)} comparison="Contracted or active" />
+            <KpiCard label="Capacity" tone="sky" icon={<UsersIcon size={15} />} value={event.capacity ? formatNumber(event.capacity) : '—'} comparison="Maximum attendees" />
           </KpiStrip>
 
           <div className="grid gap-4 xl:grid-cols-[1.4fr_1fr]">

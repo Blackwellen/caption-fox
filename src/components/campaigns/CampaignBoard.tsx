@@ -12,12 +12,13 @@ import { useToast } from './Toast'
 import { Avatar, CARD, CARD_SHADOW, ChannelChips, formatMoney, formatShortDate } from './primitives'
 import { moveCampaignStage } from '@/app/app/campaigns/actions'
 import {
-  BOARD_STAGES, LIFECYCLE_LABELS, PRIORITY_BADGE, PRIORITY_LABELS,
+  BOARD_COLUMN_FOR, BOARD_STAGES, LIFECYCLE_LABELS, PRIORITY_BADGE, PRIORITY_LABELS,
   canTransitionStage, type CampaignPriority, type LifecycleStage,
 } from '@/lib/campaigns/constants'
 import { CAMPAIGN_TYPE_LABELS } from '@/lib/constants'
 import type { CampaignRow } from '@/lib/campaigns/types'
 import type { CampaignCapabilities } from '@/lib/campaigns/entitlements'
+import { useCampaignsBase } from './links'
 
 const COLUMN_ACCENT: Record<string, string> = {
   planning: 'text-blue-600', in_review: 'text-violet-600', scheduled: 'text-amber-600',
@@ -49,6 +50,7 @@ export default function CampaignBoard({
   newCampaignSlot?: React.ReactNode
 }) {
   const router = useRouter()
+  const campaignsBase = useCampaignsBase()
   const { notify } = useToast()
   const [pending, startTransition] = useTransition()
   const [drag, setDrag] = useState<DragState | null>(null)
@@ -66,10 +68,12 @@ export default function CampaignBoard({
   for (const stage of BOARD_STAGES) byStage.set(stage, [])
   for (const campaign of campaigns) {
     const stage = stageOf(campaign)
-    // Stages outside the board (blocked, archived) fall into At risk so no
-    // record silently disappears from the operational view.
-    const bucket = byStage.get(stage) ?? byStage.get('at_risk')!
-    bucket.push(campaign)
+    // The board shows the six delivery columns. Stages that are not columns map
+    // to the column that represents the same point in the workflow, so no record
+    // disappears and none is mislabelled: work in progress sits with Planning
+    // (pre-review delivery) and blocked work sits with At risk.
+    const column = byStage.has(stage) ? stage : BOARD_COLUMN_FOR[stage] ?? 'at_risk'
+    byStage.get(column)!.push(campaign)
   }
 
   const stopAutoScroll = useCallback(() => {
@@ -163,26 +167,26 @@ export default function CampaignBoard({
                 data-stage={stage}
                 aria-label={`${LIFECYCLE_LABELS[stage]} column, ${items.length} campaigns`}
                 className={cn(
-                  CARD, 'flex w-[248px] shrink-0 flex-col bg-slate-50/70 transition-colors',
+                  CARD, 'flex w-[248px] lg:w-[194px] shrink-0 flex-col bg-slate-50/70 transition-colors',
                   active && droppable && 'border-blue-400 bg-blue-50/60',
                   active && !droppable && 'border-red-300 bg-red-50/50',
                 )}
               >
                 <header className="flex items-center gap-2 px-3 pb-2 pt-2.5">
-                  <h3 className={cn('text-[13px] font-semibold', COLUMN_ACCENT[stage] ?? 'text-slate-700')}>
+                  <h3 className={cn('text-[13px] lg:text-[10px] font-semibold', COLUMN_ACCENT[stage] ?? 'text-slate-700')}>
                     {LIFECYCLE_LABELS[stage]}
                   </h3>
-                  <span className="rounded-full bg-white px-1.5 py-0.5 text-[11px] font-semibold text-slate-500 ring-1 ring-slate-200">
+                  <span className="rounded-full bg-white px-1.5 py-0.5 text-[11px] lg:text-[8.5px] font-semibold text-slate-500 ring-1 ring-slate-200">
                     {items.length}
                   </span>
                   {active && !droppable && (
-                    <span className="ml-auto text-[10px] font-medium text-red-600">Not allowed</span>
+                    <span className="ml-auto text-[10px] lg:text-[8px] font-medium text-red-600">Not allowed</span>
                   )}
                 </header>
 
                 <div className="flex-1 space-y-2 px-2 pb-2">
                   {items.length === 0 && (
-                    <p className="rounded-lg border border-dashed border-slate-200 px-2 py-6 text-center text-[11px] text-slate-400">
+                    <p className="rounded-lg border border-dashed border-slate-200 px-2 py-6 text-center text-[11px] lg:text-[8.5px] text-slate-400">
                       Nothing in {LIFECYCLE_LABELS[stage].toLowerCase()}
                     </p>
                   )}
@@ -201,12 +205,12 @@ export default function CampaignBoard({
                       )}
                     >
                       <div className="flex gap-2">
-                        <CampaignThumb campaign={campaign} className="h-[42px] w-[46px]" />
+                        <CampaignThumb campaign={campaign} className="h-[42px] w-[46px] lg:h-[36px] lg:w-[40px]" />
                         <div className="min-w-0 flex-1">
                           <div className="flex items-start gap-1">
                             <Link
-                              href={`/app/campaigns/${campaign.id}`}
-                              className="line-clamp-2 flex-1 text-[12px] font-semibold leading-snug text-slate-900 hover:text-blue-600"
+                              href={`${campaignsBase}/${campaign.id}`}
+                              className="line-clamp-2 flex-1 text-[12px] lg:text-[9.5px] font-semibold leading-snug text-slate-900 hover:text-blue-600"
                             >
                               {campaign.name}
                             </Link>
@@ -216,7 +220,7 @@ export default function CampaignBoard({
                               capabilities={capabilities}
                             />
                           </div>
-                          <p className="mt-0.5 truncate text-[10px] text-slate-400">
+                          <p className="mt-0.5 truncate text-[10px] lg:text-[8px] text-slate-400">
                             {CAMPAIGN_TYPE_LABELS[campaign.campaign_type] ?? campaign.campaign_type}
                           </p>
                         </div>
@@ -224,7 +228,7 @@ export default function CampaignBoard({
 
                       <div className="mt-2 flex items-center gap-1.5">
                         <Avatar person={campaign.owner} size={15} />
-                        <span className="truncate text-[10px] text-slate-500">
+                        <span className="truncate text-[10px] lg:text-[8px] text-slate-500">
                           {campaign.owner?.full_name ?? campaign.owner?.email ?? 'Unassigned'}
                         </span>
                         <Badge
@@ -235,12 +239,12 @@ export default function CampaignBoard({
                         </Badge>
                       </div>
 
-                      <p className="mt-1.5 flex items-center gap-1 text-[10px] text-slate-500">
+                      <p className="mt-1.5 flex items-center gap-1 text-[10px] lg:text-[8px] text-slate-500">
                         <CalendarDays size={10} className="shrink-0 text-slate-400" />
                         {formatShortDate(campaign.end_date)}
                       </p>
 
-                      <p className="mt-1 text-[10px] text-slate-500">
+                      <p className="mt-1 text-[10px] lg:text-[8px] text-slate-500">
                         <span className="font-semibold text-slate-800">
                           {formatMoney(campaign.budget, campaign.currency ?? 'GBP')}
                         </span>
@@ -270,7 +274,7 @@ export default function CampaignBoard({
       {drag && (
         <div
           aria-hidden
-          className="pointer-events-none fixed z-[60] rounded-xl border border-blue-300 bg-white px-3 py-2 text-[12px] font-semibold text-slate-900 shadow-xl"
+          className="pointer-events-none fixed z-[60] rounded-xl border border-blue-300 bg-white px-3 py-2 text-[12px] lg:text-[9.5px] font-semibold text-slate-900 shadow-xl"
           style={{ left: drag.x + 12, top: drag.y + 12, width: Math.min(drag.width, 240) }}
         >
           {drag.label}
@@ -278,13 +282,13 @@ export default function CampaignBoard({
       )}
 
       {pending && (
-        <p className="mt-2 flex items-center gap-1.5 text-[13px] text-slate-500" role="status">
+        <p className="mt-2 flex items-center gap-1.5 text-[13px] lg:text-[10px] text-slate-500" role="status">
           <Loader2 size={13} className="animate-spin" /> Saving board change…
         </p>
       )}
 
       {!capabilities.manageBoard && (
-        <p className="mt-2 text-[13px] text-slate-500">
+        <p className="mt-2 text-[13px] lg:text-[10px] text-slate-500">
           Your role can view the board but cannot move campaigns between stages.
         </p>
       )}

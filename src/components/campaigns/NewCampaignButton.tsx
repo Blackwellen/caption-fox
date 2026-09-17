@@ -12,6 +12,7 @@ import {
   PRIORITIES, PRIORITY_LABELS,
 } from '@/lib/campaigns/constants'
 import type { PersonLite, TemplateRow } from '@/lib/campaigns/types'
+import { useCampaignsBase } from './links'
 
 const FIELD = 'h-9 w-full rounded-lg border border-slate-200 bg-white px-2.5 text-[13px] text-slate-700 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100'
 const LABEL = 'mb-1 block text-[11px] font-medium text-slate-600'
@@ -26,6 +27,7 @@ export default function NewCampaignButton({
   className?: string
 }) {
   const router = useRouter()
+  const campaignsBase = useCampaignsBase()
   const params = useSearchParams()
   const { notify } = useToast()
   const [open, setOpen] = useState(false)
@@ -75,7 +77,7 @@ export default function NewCampaignButton({
       notify('success', result.message ?? 'Campaign created.')
       setOpen(false); setErrors(null); setChannels([]); setDirty(false)
       router.refresh()
-      if (result.id) router.push(`/app/campaigns/${result.id}`)
+      if (result.id) router.push(`${campaignsBase}/${result.id}`)
     })
   }
 

@@ -104,6 +104,58 @@ Each design was cut into six bands (header/KPI, main, bottom × left/right) and 
 | Conflict cards | Date wrapped as "…09:00 / AM" | Date and time on separate lines, as in the design |
 | Conflicts resolution panel | ~150px taller than the design, pushing the bottom row below the fold | First 3 linked records + "Show N more", note field labelled for screen readers only, tighter rows; bottom row now on screen |
 
+### Native-pixel type pass (2026-09-16)
+
+The browser profile no longer runs at 80% zoom, so the reference viewport is now emulated directly as `1491x1055x1` — screenshots come out at 1491 with no rescaling. Measured with `scripts/ui-stack.py` (native-pixel stacks, 50px rulers), stacked on the content-column edge.
+
+Reading text widths off the rulers, the design's type is ~0.87x ours at identical box sizes (breadcrumb 89 vs 104, subtitle 378 vs 417, tabs 90 vs 102, KPI labels 99 vs 110, filter date 111 vs 121). Applied as a scripted desktop-only scale: every `text-[Npx]` in the twelve Calendar component files gained an `lg:` override one step smaller (241 overrides; 22→20, 13→11.5, 12.5→11, 12→10.5, 11.5→10, 11→9.5, 10.5→9, 10→9, 9.5→8.5). Phone and tablet keep the previous sizes, per [[feedback_responsive_tabs]] touch-target rules and readability.
+
+Vertical alignment after the pass (design + 13px shell offset vs live):
+
+| Page | Element | Design | Live |
+|---|---|---|---|
+| Calendar | filter row / month header | 310 / 352 | 311 / 352 |
+| Agenda | filter row / day list | 315 / 345 | 314 / 359 |
+| Queue | lanes / table rows | 350 / 37 | 359 / 35 |
+| Conflicts | filter row / cards grid | 319 / 365 | 317 / 383 |
+
+Other fixes in this pass:
+
+- **Queue paged 10 rows, the reference pages 7** ("Showing 1 to 7 of 128 items"), which pushed the bottom row ~100px down. Default page size is now 7 (`parsePage`, the query clamp, the page-size select and its unit test).
+- **Calendar bottom row rhythm**: activity rows 37 → 42px, agenda-preview rows 56 → 52px (desktop only).
+- **Conflicts cards 178 → 155px** (reference 145) and the **resolution panel 543 → 469px** (reference 355): tighter padding, 28px controls, 22px kebab, 2px record rows — all `lg:`-scoped.
+- The "Conflicts by type" donut renders 7 sectors; an earlier blank ring was a mid-animation capture, not a bug.
+
+**Still taller than the reference:** the resolution panel, by ~110px. The difference is functional controls the reference image does not draw — the resolution-note field, per-recommendation "Apply" buttons and the "Show N more" records toggle. Removing them would cost working behaviour, so they stay.
+
+### Scored pass (2026-09-16, later)
+
+Switched from eyeballing crops to a repeatable score: `scripts/ui-diff-content.py <folder> <page> 205 60 264 73` crops the shell off both sides, scales the reference content to our content width and reports a mean difference plus the hottest 40px rows.
+
+| Page | Start | After header fix | After geometry fixes |
+|---|---|---|---|
+| Calendar | 13.4 | 12.9 | 12.9 |
+| Publishing Queue | 14.0 | 13.4 | 13.2 |
+| Agenda | 12.6 | 12.4 | 12.2 |
+| Conflicts | 16.7 | 16.2 | 15.8 |
+
+Header alignment was measured by scanning text rows in both images the same way (dark-pixel row bands over the content column), which showed the whole header block sitting ~6px low with a 6px-too-large H1→subtitle gap. Fixed with `lg:-mt-[11px]` on the page wrapper, `lg:leading-6` on the H1 and `lg:mt-0` + `lg:leading-[13px]` on the subtitle. Live element tops now land within a few px of the reference (breadcrumb −1, H1 +4, subtitle −3, tabs −7, KPI −2, filters −2).
+
+Geometry fixes found by native stacks of the lower regions:
+
+| Element | Reference | Was | Now |
+|---|---|---|---|
+| Conflicts resolution panel | ~290 | 469 | 385 |
+| Conflict card | 145 | 155 | 149 |
+| Conflicts bottom row top | ~713 | 828 | ~753 |
+| Heatmap cell row | ~12 | 24 | 12 |
+| Panel header (shared) | ~30 | 36 | 32 |
+| Donut | ~110–120 | 168 | 132 |
+
+Panel trims: linked records list moved its "Show N more" onto the label row, the resolution note now opens from an "Add resolution note" link (the field still works, it just no longer occupies space by default), plus tighter control, label and padding rhythm — all `lg:`-scoped.
+
+**Where the remaining score comes from:** the demo data is not the reference's data. Conflicts shows 8 conflicts over 4 channels where the image shows 42 over 6; names, counts, dates and the donut split all differ. Those pixels cannot be matched without faking content, so the per-page score floors out around 12–16 even where geometry matches. Page backgrounds were checked and are near-identical (reference ≈#fefefe, ours ≈#f8fafd).
+
 **Cannot be matched literally:** the locked app shell (see `project_app_shell_lock`) has a 264px sidebar versus 205px in the images and its own top bar, so the content column starts ~59px further right and is ~27px narrower. Everything inside the column is matched; the side menu was not altered (standing rule).
 
 ## Tests

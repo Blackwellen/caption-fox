@@ -13,6 +13,7 @@ export function AddToListButton({
   const [open, setOpen] = useState(false)
   const [pending, startTransition] = useTransition()
   const [done, setDone] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   if (lists.length === 0) {
     return <span className="text-[11px] text-slate-400">Create a list first</span>
@@ -21,21 +22,23 @@ export function AddToListButton({
   function add(listId: string) {
     startTransition(async () => {
       const result = await addOpportunityToList(listId, opportunityId)
-      if (result.ok) { setDone(true); router.refresh(); setTimeout(() => setDone(false), 1500) }
+      if (result.ok) { setError(null); setDone(true); router.refresh(); setTimeout(() => setDone(false), 1500) }
+      else setError(result.error ?? 'Could not add to the list.')
       setOpen(false)
     })
   }
 
   return (
-    <div className="relative inline-block">
+    <div className="relative inline-block" title={error ?? undefined}>
+      {error && <span role="alert" className="sr-only">{error}</span>}
       <button
         type="button"
         onClick={() => setOpen(v => !v)}
         disabled={pending}
-        className="inline-flex h-7 items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 text-[11px] font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-60"
+        className="inline-flex h-6 items-center gap-0.5 whitespace-nowrap rounded-md border border-blue-200 bg-blue-50/60 px-1.5 text-[10.5px] font-medium text-blue-700 hover:bg-blue-50 disabled:opacity-60"
       >
         {pending ? <Loader2 size={11} className="animate-spin" /> : done ? <Check size={11} className="text-emerald-600" /> : null}
-        {done ? 'Added' : 'Add to List'}
+        {done ? 'Added' : error ? 'Retry' : 'Add to List'}
         {!pending && !done && <ChevronDown size={11} />}
       </button>
       {open && (

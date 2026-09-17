@@ -232,3 +232,18 @@ export function chipsFor(filters: Record<string, unknown>, labels: Record<string
   }
   return out
 }
+
+/**
+ * Href for a module's CSV export: the current filters, search and sort, minus
+ * the view-only params. What is on screen is what is exported.
+ */
+export function exportHref(pathname: string, params: RawParams): string {
+  const sp = new URLSearchParams()
+  for (const [k, v] of Object.entries(params)) {
+    if (typeof v !== 'string' || v === '') continue
+    if (['view', 'page', 'anchor', 'filters', 'upload', 'newFolder', 'requestApproval', 'import', 'link'].includes(k)) continue
+    sp.set(k, v)
+  }
+  const qs = sp.toString()
+  return qs ? `${pathname}/export?${qs}` : `${pathname}/export`
+}

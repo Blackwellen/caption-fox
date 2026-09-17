@@ -7,7 +7,8 @@ import type { CreatorRow, PersonLite } from '@/lib/creators/types'
 // ── Shared layout tokens ─────────────────────────────────────────────────────
 // Every Creators & UGC surface aligns to these so the header, KPI strip,
 // filter bar and content grid share one width and one gutter.
-export const CREATORS_PAGE = 'px-6 py-5 lg:px-8'
+// The route layout owns the page gutter; this only caps the content width.
+export const CREATORS_PAGE = 'mx-auto w-full max-w-[1400px]'
 export const CARD = 'rounded-xl border border-slate-200 bg-white'
 export const CARD_SHADOW = 'shadow-[0_1px_2px_0_rgb(15_23_42/0.04)]'
 

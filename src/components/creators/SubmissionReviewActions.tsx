@@ -6,7 +6,7 @@ import { CheckCircle2, MessageSquareWarning, PlayCircle, XCircle } from 'lucide-
 import { Button } from '@/components/ui/Button'
 import { Textarea } from '@/components/ui/Input'
 import { useToast } from '@/components/campaigns/Toast'
-import { reviewSubmission } from '@/app/app/creators/actions'
+import { reviewSubmission } from '@/lib/creators/actions'
 import { canTransitionSubmission, type SubmissionStatus } from '@/lib/creators/constants'
 
 type Decision = 'started' | 'approved' | 'changes_requested' | 'rejected'

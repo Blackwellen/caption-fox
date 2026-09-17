@@ -161,7 +161,7 @@ export default function CampaignTable({
         <table className="w-full min-w-[980px] text-left text-[11.5px] lg:text-[10.5px]">
           <caption className="sr-only">Advertising campaigns</caption>
           <thead>
-            <tr className="border-y border-slate-100 text-[11.5px] text-slate-700 lg:text-[10.5px]">
+            <tr className="border-y border-slate-100 text-[11.5px] text-slate-700 lg:text-[10.5px] lg:[&>th]:font-medium">
               <th className="w-10 py-2 pl-4">
                 <input type="checkbox" aria-label="Select all campaigns on this page" checked={allSelected} disabled={!canBulkEdit && !rows.length}
                   onChange={() => setSelected(allSelected ? new Set() : new Set(rows.map(row => row.id)))} className="h-3.5 w-3.5 rounded border-slate-300 text-blue-600" />

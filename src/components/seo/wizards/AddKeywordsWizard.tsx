@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { HeaderActionButton } from '../HeaderActionButton'
+import { HeaderActionButton, type HeaderActionMenuItem } from '../HeaderActionButton'
 import { WizardModal, FIELD, LABEL, TEXTAREA } from '../WizardModal'
 import { addKeywords } from '@/lib/seo/actions'
 
@@ -14,8 +14,8 @@ const INTENTS = [
 ]
 
 export function AddKeywordsWizard({
-  clusters, label = 'Add Keywords',
-}: { clusters: { id: string; name: string }[]; label?: string }) {
+  clusters, label = 'Add Keywords', menu,
+}: { clusters: { id: string; name: string }[]; label?: string; menu?: HeaderActionMenuItem[] }) {
   const router = useRouter()
   const [open, setOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -50,7 +50,7 @@ export function AddKeywordsWizard({
 
   return (
     <>
-      <HeaderActionButton label={label} onClick={() => setOpen(true)} />
+      <HeaderActionButton label={label} onClick={() => setOpen(true)} menu={menu} />
       <WizardModal
         titleId="add-keywords-title"
         title="Add keywords"

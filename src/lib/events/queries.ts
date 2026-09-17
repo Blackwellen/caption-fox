@@ -264,6 +264,9 @@ export async function listEvents(
       `name.ilike.%${term}%,location_city.ilike.%${term}%,location_name.ilike.%${term}%,summary.ilike.%${term}%`,
     )
   }
+  // A caller-supplied selection narrows the workspace-scoped query; it can
+  // never widen it, so a crafted id list cannot reach another workspace.
+  if (filters.ids?.length) query = query.in('id', filters.ids)
   if (filters.type && filters.type !== 'all') query = query.eq('event_type', filters.type)
   if (filters.status && filters.status !== 'all') query = query.eq('status', filters.status)
   if (filters.owner && filters.owner !== 'all') query = query.eq('owner_id', filters.owner)
@@ -300,6 +303,8 @@ export async function listEventOwners(
 
 export interface OverviewKpis {
   totalEvents: KpiValue
+  /** Attended registrations in the window (the design's Registration Performance strip). */
+  attended: KpiValue
   registrations: KpiValue
   attendanceRate: KpiValue
   sponsorshipRevenue: KpiValue
@@ -342,12 +347,19 @@ export async function getOverviewKpis(
   return {
     totalEvents: { value: totalNow, changePct: changePct(totalNow, totalPrev) },
     registrations: { value: regsNow, changePct: changePct(regsNow, regsPrev) },
+    attended: { value: attendedNow, changePct: changePct(attendedNow, attendedPrev) },
     attendanceRate: {
       value: rateNow,
       changePct: rateNow !== null && ratePrev !== null ? rateNow - ratePrev : null,
     },
     sponsorshipRevenue: { value: revenueNow, changePct: changePct(revenueNow, revenuePrev) },
-    followUpTasks: { value: tasksNow, changePct: null, changeAbs: tasksNow - tasksPrev },
+    followUpTasks: {
+      value: tasksNow,
+      changePct: null,
+      // With no prior baseline the "change" would just restate the value
+      // ("86" against "86"), which reads as a delta it is not.
+      changeAbs: tasksPrev > 0 ? tasksNow - tasksPrev : null,
+    },
     upcomingSessions: { value: sessionsNext, changePct: null },
   }
 }
@@ -400,7 +412,7 @@ export async function getWebinarAttendanceTrend(
     p_workspace: workspaceId, p_from: w.from, p_to: w.to,
   })
   return (data ?? []).map((row: { day: string; attendance_rate: number | null }) => ({
-    day: row.day, rate: row.attendance_rate === null ? 0 : Number(row.attendance_rate) * 100,
+    day: row.day, rate: row.attendance_rate === null ? null : Number(row.attendance_rate) * 100,
   }))
 }
 
@@ -438,9 +450,14 @@ export async function getSponsorshipRevenueTrend(
   const { data } = await supabase.rpc('sponsorship_revenue_trend', {
     p_workspace: workspaceId, p_year: year,
   })
-  return (data ?? []).map((row: { month: string; this_year: string; last_year: string }) => ({
-    day: row.month, thisYear: Number(row.this_year), lastYear: Number(row.last_year),
-  }))
+  // For the current year, stop at this month: later months have not happened,
+  // and plotting them as £0 draws a false collapse at the end of the line.
+  const currentMonth = new Date().toISOString().slice(0, 7)
+  return (data ?? [])
+    .filter((row: { month: string }) => year !== new Date().getFullYear() || String(row.month).slice(0, 7) <= currentMonth)
+    .map((row: { month: string; this_year: string; last_year: string }) => ({
+      day: row.month, thisYear: Number(row.this_year), lastYear: Number(row.last_year),
+    }))
 }
 
 // ---------------------------------------------------------------- run of show
@@ -450,7 +467,7 @@ export async function getRunOfShow(
   /** Restricts auto-selection (live-then-next) to these event_type values — e.g. ['webinar'] on the
    *  Webinars page — so "Run of Show" never surfaces an unrelated live event from elsewhere in the workspace. */
   eventTypes?: string[],
-): Promise<{ sessions: EventSessionRecord[]; event: { id: string; name: string } | null }> {
+): Promise<{ sessions: EventSessionRecord[]; event: { id: string; name: string; start_at: string | null } | null }> {
   let targetEventId = eventId ?? null
 
   if (!targetEventId) {
@@ -470,6 +487,20 @@ export async function getRunOfShow(
       if (eventTypes?.length) nextQuery = nextQuery.in('event_type', eventTypes)
       const { data: next } = await nextQuery.order('start_at', { ascending: true }).limit(1).maybeSingle()
       targetEventId = (next?.id as string) ?? null
+
+      // Nothing live and nothing ahead: fall back to the most recent event of
+      // this type so the panel shows the last run sheet instead of an empty
+      // state the moment an event finishes.
+      if (!targetEventId) {
+        let lastQuery = supabase
+          .from('events').select('id, name')
+          .eq('workspace_id', workspaceId)
+          .not('status', 'in', '(cancelled,archived)')
+          .not('start_at', 'is', null)
+        if (eventTypes?.length) lastQuery = lastQuery.in('event_type', eventTypes)
+        const { data: last } = await lastQuery.order('start_at', { ascending: false }).limit(1).maybeSingle()
+        targetEventId = (last?.id as string) ?? null
+      }
     }
   }
   if (!targetEventId) return { sessions: [], event: null }
@@ -481,12 +512,12 @@ export async function getRunOfShow(
       .eq('workspace_id', workspaceId).eq('event_id', targetEventId)
       .order('position', { ascending: true }).order('start_at', { ascending: true })
       .limit(limit),
-    supabase.from('events').select('id, name').eq('id', targetEventId).maybeSingle(),
+    supabase.from('events').select('id, name, start_at').eq('id', targetEventId).maybeSingle(),
   ])
 
   return {
     sessions: (sessions ?? []) as unknown as EventSessionRecord[],
-    event: event ? { id: event.id as string, name: event.name as string } : null,
+    event: event ? { id: event.id as string, name: event.name as string, start_at: (event.start_at as string | null) ?? null } : null,
   }
 }
 
@@ -573,6 +604,10 @@ export async function getWebinarKpis(
     .eq('workspace_id', workspaceId).eq('event_type', 'webinar').is('archived_at', null)
 
   const ids = (webinarEvents ?? []).map(e => e.id as string)
+  const nowIso = new Date().toISOString()
+  const pastIds = (webinarEvents ?? [])
+    .filter(e => e.start_at && (e.start_at as string) <= nowIso)
+    .map(e => e.id as string)
   const upcoming = (webinarEvents ?? []).filter(
     e => e.start_at && (e.start_at as string) > new Date().toISOString() && e.status !== 'cancelled',
   ).length
@@ -586,18 +621,21 @@ export async function getWebinarKpis(
     }
   }
 
-  const [{ data: regs }, { data: prevRegs }, { data: stats }, { data: details }, { data: leads }] = await Promise.all([
-    supabase.from('event_registrations').select('id', { count: 'exact', head: false })
+  // Counted with `head: true` so PostgREST returns the true count. Reading
+  // `data.length` silently caps at the 1,000-row response limit, which made
+  // every large workspace report exactly 1,000 registrations.
+  const [{ count: regs }, { count: prevRegs }, { data: stats }, { count: questionCount }, { count: leads }] = await Promise.all([
+    supabase.from('event_registrations').select('id', { count: 'exact', head: true })
       .eq('workspace_id', workspaceId).in('event_id', ids).gte('registered_at', w.from),
-    supabase.from('event_registrations').select('id')
+    supabase.from('event_registrations').select('id', { count: 'exact', head: true })
       .eq('workspace_id', workspaceId).in('event_id', ids)
       .gte('registered_at', w.prevFrom).lt('registered_at', w.prevTo),
     supabase.from('event_registration_stats')
       .select('eligible_registrations, attended, avg_watch_seconds')
+      .eq('workspace_id', workspaceId).in('event_id', pastIds.length ? pastIds : ids),
+    supabase.from('webinar_questions').select('id', { count: 'exact', head: true })
       .eq('workspace_id', workspaceId).in('event_id', ids),
-    supabase.from('webinar_details').select('questions_count')
-      .eq('workspace_id', workspaceId).in('event_id', ids),
-    supabase.from('event_registrations').select('id')
+    supabase.from('event_registrations').select('id', { count: 'exact', head: true })
       .eq('workspace_id', workspaceId).in('event_id', ids)
       .in('follow_up_status', ['not_contacted', 'in_progress', 'waiting']),
   ])
@@ -609,19 +647,16 @@ export async function getWebinarKpis(
   return {
     upcoming: { value: upcoming, changePct: null },
     registrations: {
-      value: regs?.length ?? 0,
-      changePct: changePct(regs?.length ?? 0, prevRegs?.length ?? 0),
+      value: regs ?? 0,
+      changePct: changePct(regs ?? 0, prevRegs ?? 0),
     },
     attendanceRate: { value: attendanceRate(eligible, attended), changePct: null },
     avgWatchSeconds: {
       value: watchValues.length ? Math.round(watchValues.reduce((a, b) => a + b, 0) / watchValues.length) : null,
       changePct: null,
     },
-    questions: {
-      value: (details ?? []).reduce((s, d) => s + Number(d.questions_count ?? 0), 0),
-      changePct: null,
-    },
-    followUpLeads: { value: leads?.length ?? 0, changePct: null },
+    questions: { value: questionCount ?? 0, changePct: null },
+    followUpLeads: { value: leads ?? 0, changePct: null },
   }
 }
 
@@ -806,7 +841,12 @@ export async function listSponsorships(
   if (filters.dateFrom) query = query.gte('created_at', filters.dateFrom)
   if (filters.dateTo) query = query.lte('created_at', filters.dateTo)
 
-  const { data, count } = await query.order('value', { ascending: false }).range((page - 1) * pageSize, page * pageSize - 1)
+  // Most recently worked relationships first, so a long book of completed
+  // contracts never pushes live sponsorships off the portfolio.
+  const { data, count } = await query
+    .order('updated_at', { ascending: false })
+    .order('value', { ascending: false })
+    .range((page - 1) * pageSize, page * pageSize - 1)
 
   let rows = rowsOf(data)
   const sponsorIds = [...new Set(rows.map(r => r.sponsor_id as string))]
@@ -888,12 +928,19 @@ export async function getSponsorshipKpis(
   const pipeline = rows
     .filter(r => ['prospect', 'contacted', 'proposal', 'negotiation', 'verbal'].includes(r.stage as string))
     .reduce((s, r) => s + Number(r.value ?? 0), 0)
-  const revenue = rows
-    .filter(r => ['contracted', 'active', 'completed'].includes(r.stage as string))
-    .reduce((s, r) => s + Number(r.value ?? 0), 0)
+  // Revenue is the value CONTRACTED IN THE SELECTED WINDOW. Summing the whole
+  // book here while comparing against a single previous month produced a
+  // meaningless delta (a lifetime total vs one month, e.g. "+109.3%").
+  const signedAt = (r: { contract_signed_at?: unknown; created_at?: unknown }) =>
+    (r.contract_signed_at as string | null) ?? (r.created_at as string)
+  const revenue = rows.filter(r => {
+    if (!['contracted', 'active', 'completed'].includes(r.stage as string)) return false
+    const at = signedAt(r)
+    return at >= w.from && at <= w.to
+  }).reduce((s, r) => s + Number(r.value ?? 0), 0)
   const revenuePrev = rows.filter(r => {
     if (!['contracted', 'active', 'completed'].includes(r.stage as string)) return false
-    const at = (r.contract_signed_at as string | null) ?? (r.created_at as string)
+    const at = signedAt(r)
     return at >= w.prevFrom && at < w.prevTo
   }).reduce((s, r) => s + Number(r.value ?? 0), 0)
   const renewals = rows.filter(
@@ -975,25 +1022,33 @@ export async function getFollowUpKpis(
       q => q.not('status', 'in', '(completed,cancelled)').lte('due_at', new Date().toISOString())),
   ])
 
-  const { data: outreach } = await supabase
-    .from('event_outreach_events')
-    .select('outreach_type, occurred_at')
-    .eq('workspace_id', workspaceId)
-    .gte('occurred_at', w.prevFrom)
+  // Counted server-side per type and window. Fetching the rows and filtering
+  // in JS silently capped at PostgREST's 1,000-row limit once a workspace had
+  // real outreach volume, understating every figure on this page.
+  const countOutreach = async (type: string, from: string, to: string) => {
+    const { count } = await supabase
+      .from('event_outreach_events')
+      .select('id', { count: 'exact', head: true })
+      .eq('workspace_id', workspaceId)
+      .eq('outreach_type', type)
+      .gte('occurred_at', from)
+      .lt('occurred_at', to)
+    return count ?? 0
+  }
 
-  const inWindow = (row: { occurred_at: string }) => row.occurred_at >= w.from
-  const rows = outreach ?? []
-  const count = (type: string, current: boolean) =>
-    rows.filter(r => r.outreach_type === type && (current ? inWindow(r as { occurred_at: string }) : !inWindow(r as { occurred_at: string }))).length
-
-  const replies = count('email_replied', true)
-  const repliesPrev = count('email_replied', false)
-  const meetings = count('meeting_booked', true)
-  const meetingsPrev = count('meeting_booked', false)
-  const sent = count('email_sent', true)
-  const conversions = count('converted', true)
-  const sentPrev = count('email_sent', false)
-  const conversionsPrev = count('converted', false)
+  const [
+    replies, repliesPrev, meetings, meetingsPrev,
+    sent, sentPrev, conversions, conversionsPrev,
+  ] = await Promise.all([
+    countOutreach('email_replied', w.from, w.to),
+    countOutreach('email_replied', w.prevFrom, w.prevTo),
+    countOutreach('meeting_booked', w.from, w.to),
+    countOutreach('meeting_booked', w.prevFrom, w.prevTo),
+    countOutreach('email_sent', w.from, w.to),
+    countOutreach('email_sent', w.prevFrom, w.prevTo),
+    countOutreach('converted', w.from, w.to),
+    countOutreach('converted', w.prevFrom, w.prevTo),
+  ])
 
   const rate = sent ? conversions / sent : null
   const ratePrev = sentPrev ? conversionsPrev / sentPrev : null
@@ -1132,14 +1187,16 @@ export async function getFollowUpReminders(
   supabase: SupabaseClient, workspaceId: string,
 ) {
   const endOfDay = new Date(); endOfDay.setHours(23, 59, 59, 999)
-  const weekAhead = new Date(Date.now() + 7 * 86_400_000).toISOString()
+  const weekAgo = new Date(Date.now() - 7 * 86_400_000).toISOString()
 
   const [dueToday, sequencesNeedingAttention, meetingsThisWeek] = await Promise.all([
     countRows(supabase, 'event_followup_tasks', workspaceId,
       q => q.not('status', 'in', '(completed,cancelled)').lte('due_at', endOfDay.toISOString())),
     countRows(supabase, 'event_followup_sequences', workspaceId, q => q.eq('status', 'paused')),
     countRows(supabase, 'event_outreach_events', workspaceId,
-      q => q.eq('outreach_type', 'meeting_booked').gte('occurred_at', new Date().toISOString()).lte('occurred_at', weekAhead)),
+      // Outreach events record when a meeting was BOOKED (always in the past);
+      // there is no scheduled-meeting time, so count bookings made this week.
+      q => q.eq('outreach_type', 'meeting_booked').gte('occurred_at', weekAgo)),
   ])
 
   return { dueToday, sequencesNeedingAttention, meetingsThisWeek }

@@ -4,6 +4,7 @@
 // supabase/migrations/20260901000000_creators_ugc_module.sql.
 
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { R2_PREFIX, signReadUrls } from '@/lib/storage/r2'
 import {
   AUDIENCE_BANDS, ACTIVE_RELATIONSHIPS, RIGHTS_EXPIRING_DAYS, TREND_WINDOW_DAYS,
   daysUntil, effectiveRightsStatus,
@@ -53,7 +54,7 @@ const BRIEF_COLUMNS = `
   category, cover_url, channels, platforms, deliverables, do_instructions, dont_instructions,
   rights_requirement, budget, currency, deadline, max_creators, creators_assigned,
   deliverables_target, deliverables_submitted, owner_id, completed_at, archived_at,
-  board_position, created_at, updated_at,
+  board_position, created_at, updated_at, cover_path,
   owner:profiles!ugc_briefs_owner_id_fkey(${PERSON}),
   campaign:campaigns!ugc_briefs_campaign_id_fkey(id, name)
 `
@@ -63,7 +64,7 @@ const SUBMISSION_COLUMNS = `
   asset_type, version, rights_status, reviewer_id, thumbnail_url, submission_url,
   media_urls, duration_seconds, file_count, views, engagement_rate, comments_count,
   issue_count, payment_eligible, notes, feedback, submitted_at, review_started_at,
-  review_seconds, reviewed_at, archived_at, created_at, updated_at,
+  review_seconds, reviewed_at, archived_at, created_at, updated_at, thumbnail_path,
   creator:ugc_creators!ugc_submissions_creator_id_fkey(id, name, handle, avatar_url, niche),
   brief:ugc_briefs!ugc_submissions_brief_id_fkey(id, title),
   reviewer:profiles!ugc_submissions_reviewer_id_fkey(${PERSON})
@@ -76,7 +77,7 @@ const RIGHTS_COLUMNS = `
   agreement_url, agreement_signed, status, owner_id, notes, archived_at, created_at, updated_at,
   creator:ugc_creators!ugc_rights_creator_id_fkey(id, name, handle, avatar_url),
   owner:profiles!ugc_rights_owner_id_fkey(${PERSON}),
-  submission:ugc_submissions!ugc_rights_submission_id_fkey(id, title, status, thumbnail_url),
+  submission:ugc_submissions!ugc_rights_submission_id_fkey(id, title, status, thumbnail_url, thumbnail_path),
   campaign:campaigns!ugc_rights_campaign_id_fkey(id, name, end_date)
 `
 
@@ -100,6 +101,73 @@ export interface Page<T> {
 
 function emptyPage<T>(error: string | null = null): Page<T> {
   return { rows: [], total: 0, error }
+}
+
+// ── Private media ────────────────────────────────────────────────────────────
+// Submission thumbnails, brief covers and agreements live in the private
+// `ugc-submissions` bucket. Rows carry the storage path; pages only ever see a
+// short-lived signed URL, resolved here in one batched request per query.
+
+const MEDIA_BUCKET = 'ugc-submissions'
+const SIGNED_URL_TTL_SECONDS = 60 * 30
+
+export async function signStoragePaths(
+  supabase: SupabaseClient, paths: (string | null | undefined)[],
+): Promise<Map<string, string>> {
+  const unique = [...new Set(paths.filter((p): p is string => Boolean(p)))]
+  if (unique.length === 0) return new Map()
+  const { data } = await supabase.storage.from(MEDIA_BUCKET).createSignedUrls(unique, SIGNED_URL_TTL_SECONDS)
+  const map = new Map<string, string>()
+  for (const entry of data ?? []) {
+    if (entry.path && entry.signedUrl && !entry.error) map.set(entry.path, entry.signedUrl)
+  }
+  return map
+}
+
+/**
+ * Member avatars uploaded through Brand & Assets are stored as `r2:` object
+ * references. Walks loaded rows once, signs every such avatar in a single
+ * batch and swaps in the short-lived URL (or null if it cannot be signed).
+ */
+export async function signAvatars<T>(data: T): Promise<T> {
+  const refs = new Set<string>()
+  const visit = (value: unknown) => {
+    if (!value || typeof value !== 'object') return
+    if (Array.isArray(value)) { value.forEach(visit); return }
+    for (const [key, inner] of Object.entries(value)) {
+      if (key === 'avatar_url' && typeof inner === 'string' && inner.startsWith(R2_PREFIX)) refs.add(inner)
+      else if (inner && typeof inner === 'object') visit(inner)
+    }
+  }
+  visit(data)
+  if (refs.size === 0) return data
+  const signed = await signReadUrls([...refs], 60 * 30)
+  const swap = (value: unknown): unknown => {
+    if (!value || typeof value !== 'object') return value
+    if (Array.isArray(value)) return value.map(swap)
+    return Object.fromEntries(Object.entries(value).map(([key, inner]) => [
+      key,
+      key === 'avatar_url' && typeof inner === 'string' && inner.startsWith(R2_PREFIX) ? signed.get(inner) ?? null : swap(inner),
+    ]))
+  }
+  return swap(data) as T
+}
+
+async function withSubmissionMedia<T extends SubmissionRow>(supabase: SupabaseClient, rows: T[]): Promise<T[]> {
+  const signed = await signStoragePaths(supabase, rows.map(r => r.thumbnail_path))
+  return signAvatars(rows.map(r => (r.thumbnail_path ? { ...r, thumbnail_url: signed.get(r.thumbnail_path) ?? null } : r)))
+}
+
+async function withBriefCovers<T extends BriefRow>(supabase: SupabaseClient, rows: T[]): Promise<T[]> {
+  const signed = await signStoragePaths(supabase, rows.map(r => r.cover_path))
+  return signAvatars(rows.map(r => (r.cover_path ? { ...r, cover_url: signed.get(r.cover_path) ?? null } : r)))
+}
+
+async function withRightsMedia<T extends RightsRow>(supabase: SupabaseClient, rows: T[]): Promise<T[]> {
+  const signed = await signStoragePaths(supabase, rows.map(r => r.submission?.thumbnail_path))
+  return signAvatars(rows.map(r => (r.submission?.thumbnail_path
+    ? { ...r, submission: { ...r.submission, thumbnail_url: signed.get(r.submission.thumbnail_path) ?? null } }
+    : r)))
 }
 
 function isoDaysAgo(days: number): string {
@@ -151,7 +219,7 @@ export async function workspaceMembers(supabase: SupabaseClient, workspaceId: st
   const ids = (members ?? []).map(m => m.user_id as string)
   if (ids.length === 0) return []
   const { data } = await supabase.from('profiles').select(PERSON).in('id', ids)
-  return (data ?? []) as PersonLite[]
+  return signAvatars((data ?? []) as PersonLite[])
 }
 
 export async function workspaceCampaigns(
@@ -235,7 +303,7 @@ export async function listCreators(
     .range(offset, offset + q.size - 1)
 
   if (error) return emptyPage<CreatorRow>(error.message)
-  return { rows: (data ?? []) as unknown as CreatorRow[], total: count ?? 0, error: null }
+  return { rows: await signAvatars((data ?? []) as unknown as CreatorRow[]), total: count ?? 0, error: null }
 }
 
 export interface CreatorAggregates {
@@ -363,14 +431,36 @@ export interface CreatorPerformance {
   spark: number[]
 }
 
+export interface PerformanceFilters {
+  q?: string
+  campaign?: string
+  channel?: string
+  status?: string
+  from?: string
+  to?: string
+}
+
 export async function topCreatorPerformance(
-  supabase: SupabaseClient, workspaceId: string, limit = 5,
+  supabase: SupabaseClient, workspaceId: string, limit = 5, filters: PerformanceFilters = {},
 ): Promise<CreatorPerformance[]> {
+  let creatorQuery = supabase.from('ugc_creators').select(CREATOR_COLUMNS)
+    .eq('workspace_id', workspaceId).is('archived_at', null)
+  if (filters.q) {
+    const term = likeTerm(filters.q)
+    creatorQuery = creatorQuery.or(`name.ilike.%${term}%,handle.ilike.%${term}%,niche.ilike.%${term}%`)
+  }
+  if (filters.channel) creatorQuery = creatorQuery.contains('platforms', [filters.channel])
+
+  let submissionQuery = supabase.from('ugc_submissions').select('creator_id, status, views, engagement_rate, submitted_at')
+    .eq('workspace_id', workspaceId).is('archived_at', null)
+  if (filters.campaign) submissionQuery = submissionQuery.eq('campaign_id', filters.campaign)
+  if (filters.status) submissionQuery = submissionQuery.eq('status', filters.status)
+  if (filters.from) submissionQuery = submissionQuery.gte('submitted_at', `${filters.from}T00:00:00Z`)
+  if (filters.to) submissionQuery = submissionQuery.lte('submitted_at', `${filters.to}T23:59:59Z`)
+
   const [{ data: creators }, { data: submissions }, { data: rights }, { data: payments }] = await Promise.all([
-    supabase.from('ugc_creators').select(CREATOR_COLUMNS)
-      .eq('workspace_id', workspaceId).is('archived_at', null),
-    supabase.from('ugc_submissions').select('creator_id, status, views, engagement_rate, submitted_at')
-      .eq('workspace_id', workspaceId).is('archived_at', null),
+    creatorQuery,
+    submissionQuery,
     supabase.from('ugc_rights').select('creator_id, status, expiry_date')
       .eq('workspace_id', workspaceId).is('archived_at', null),
     supabase.from('ugc_payments').select('creator_id, amount, status')
@@ -418,7 +508,9 @@ export async function topCreatorPerformance(
   }
 
   return [...byCreator.values()]
-    .filter(entry => entry.submissions > 0 || entry.earnings > 0)
+    .filter(entry => (filters.campaign || filters.status || filters.from || filters.to)
+      ? entry.submissions > 0
+      : entry.submissions > 0 || entry.earnings > 0)
     .sort((a, b) => b.reach - a.reach || b.earnings - a.earnings)
     .slice(0, limit)
 }
@@ -498,7 +590,7 @@ export async function listBriefs(
 
   const { data, count, error } = await builder
   if (error) return emptyPage<BriefRow>(error.message)
-  return { rows: (data ?? []) as unknown as BriefRow[], total: count ?? 0, error: null }
+  return { rows: await withBriefCovers(supabase, (data ?? []) as unknown as BriefRow[]), total: count ?? 0, error: null }
 }
 
 export interface BriefAggregates {
@@ -517,12 +609,14 @@ const EMPTY_BRIEF_STATUS: Record<BriefStatus, number> = {
 }
 
 export async function briefAggregates(
-  supabase: SupabaseClient, workspaceId: string,
+  supabase: SupabaseClient, workspaceId: string, campaignId?: string,
 ): Promise<BriefAggregates> {
-  const { data } = await supabase
+  let builder = supabase
     .from('ugc_briefs')
     .select('id, status, deliverables_target, deliverables_submitted, created_at, completed_at')
     .eq('workspace_id', workspaceId).is('archived_at', null)
+  if (campaignId) builder = builder.eq('campaign_id', campaignId)
+  const { data } = await builder
 
   const rows = data ?? []
   const byStatus = { ...EMPTY_BRIEF_STATUS }
@@ -572,7 +666,9 @@ export async function getBrief(
   const { data } = await supabase
     .from('ugc_briefs').select(BRIEF_COLUMNS)
     .eq('workspace_id', workspaceId).eq('id', id).maybeSingle()
-  return (data as unknown as BriefRow) ?? null
+  if (!data) return null
+  const [brief] = await withBriefCovers(supabase, [data as unknown as BriefRow])
+  return brief
 }
 
 export async function briefCreators(
@@ -608,7 +704,7 @@ export async function upcomingBriefDeadlines(
     .not('deadline', 'is', null).gte('deadline', today)
     .in('status', ['draft', 'open', 'in_progress', 'submitted'])
     .order('deadline', { ascending: true }).limit(limit)
-  return (data ?? []) as unknown as BriefRow[]
+  return withBriefCovers(supabase, (data ?? []) as unknown as BriefRow[])
 }
 
 // ============================================================================
@@ -676,7 +772,7 @@ export async function listSubmissions(
 
   const { data, count, error } = await builder
   if (error) return emptyPage<SubmissionRow>(error.message)
-  return { rows: (data ?? []) as unknown as SubmissionRow[], total: count ?? 0, error: null }
+  return { rows: await withSubmissionMedia(supabase, (data ?? []) as unknown as SubmissionRow[]), total: count ?? 0, error: null }
 }
 
 export interface SubmissionAggregates {
@@ -747,7 +843,9 @@ export async function getSubmission(
   const { data } = await supabase
     .from('ugc_submissions').select(SUBMISSION_COLUMNS)
     .eq('workspace_id', workspaceId).eq('id', id).maybeSingle()
-  return (data as unknown as SubmissionRow) ?? null
+  if (!data) return null
+  const [submission] = await withSubmissionMedia(supabase, [data as unknown as SubmissionRow])
+  return submission
 }
 
 /**
@@ -783,7 +881,7 @@ export async function submissionReviews(
       reviewer:profiles!ugc_submission_reviews_reviewer_id_fkey(${PERSON})`)
     .eq('workspace_id', workspaceId).eq('submission_id', submissionId)
     .order('created_at', { ascending: false })
-  return (data ?? []) as unknown as SubmissionReviewRow[]
+  return signAvatars((data ?? []) as unknown as SubmissionReviewRow[])
 }
 
 export async function submissionIssues(
@@ -823,7 +921,7 @@ export async function reviewQueue(
     .eq('workspace_id', workspaceId).is('archived_at', null)
     .in('status', ['waiting_review', 'in_review'])
     .order('submitted_at', { ascending: true }).limit(limit)
-  return (data ?? []) as unknown as SubmissionRow[]
+  return withSubmissionMedia(supabase, (data ?? []) as unknown as SubmissionRow[])
 }
 
 export async function reviewQueueCount(
@@ -898,7 +996,7 @@ export async function listRights(
 
   const { data, count, error } = await builder
   if (error) return emptyPage<RightsRow>(error.message)
-  return { rows: (data ?? []) as unknown as RightsRow[], total: count ?? 0, error: null }
+  return { rows: await withRightsMedia(supabase, (data ?? []) as unknown as RightsRow[]), total: count ?? 0, error: null }
 }
 
 export interface RightsAggregates {
@@ -1000,7 +1098,9 @@ export async function getRights(
   const { data } = await supabase
     .from('ugc_rights').select(RIGHTS_COLUMNS)
     .eq('workspace_id', workspaceId).eq('id', id).maybeSingle()
-  return (data as unknown as RightsRow) ?? null
+  if (!data) return null
+  const [record] = await withRightsMedia(supabase, [data as unknown as RightsRow])
+  return record
 }
 
 export async function expiringLicences(
@@ -1013,7 +1113,7 @@ export async function expiringLicences(
     .in('status', ['active', 'renewal_pending'])
     .not('expiry_date', 'is', null).gte('expiry_date', today)
     .order('expiry_date', { ascending: true }).limit(limit)
-  return (data ?? []) as unknown as RightsRow[]
+  return withRightsMedia(supabase, (data ?? []) as unknown as RightsRow[])
 }
 
 export async function recentRightsApprovals(
@@ -1023,19 +1123,21 @@ export async function recentRightsApprovals(
     .from('ugc_rights').select(RIGHTS_COLUMNS)
     .eq('workspace_id', workspaceId).is('archived_at', null).eq('status', 'active')
     .order('updated_at', { ascending: false }).limit(limit)
-  return (data ?? []) as unknown as RightsRow[]
+  return withRightsMedia(supabase, (data ?? []) as unknown as RightsRow[])
 }
 
 export async function listRightsRequests(
-  supabase: SupabaseClient, workspaceId: string, limit = 25,
+  supabase: SupabaseClient, workspaceId: string, limit = 25, creatorId?: string,
 ): Promise<RightsRequestRow[]> {
-  const { data } = await supabase
+  let builder = supabase
     .from('ugc_rights_requests')
     .select(`id, workspace_id, rights_id, creator_id, submission_id, requested_channels,
       requested_territories, requested_duration_days, paid_media, exclusivity, proposed_fee,
       currency, message, status, counter_fee, expires_at, responded_at, created_at,
       creator:ugc_creators!ugc_rights_requests_creator_id_fkey(id, name, handle, avatar_url)`)
     .eq('workspace_id', workspaceId)
+  if (creatorId) builder = builder.eq('creator_id', creatorId)
+  const { data } = await builder
     .order('created_at', { ascending: false }).limit(limit)
   return (data ?? []) as unknown as RightsRequestRow[]
 }
@@ -1181,7 +1283,7 @@ export async function listPayments(
 
   const { data, count, error } = await builder
   if (error) return emptyPage<PaymentRow>(error.message)
-  return { rows: (data ?? []) as unknown as PaymentRow[], total: count ?? 0, error: null }
+  return { rows: await signAvatars((data ?? []) as unknown as PaymentRow[]), total: count ?? 0, error: null }
 }
 
 export interface PaymentAggregates {
@@ -1343,7 +1445,7 @@ export async function getPayment(
   const { data } = await supabase
     .from('ugc_payments').select(PAYMENT_COLUMNS)
     .eq('workspace_id', workspaceId).eq('id', id).maybeSingle()
-  return (data as unknown as PaymentRow) ?? null
+  return data ? signAvatars(data as unknown as PaymentRow) : null
 }
 
 export async function payoutAttempts(
@@ -1400,7 +1502,7 @@ export async function flaggedInvoices(
     .eq('workspace_id', workspaceId)
     .or('invoice_status.eq.flagged,tax_status.eq.missing,status.eq.failed')
     .order('updated_at', { ascending: false }).limit(limit)
-  return (data ?? []) as unknown as PaymentRow[]
+  return signAvatars((data ?? []) as unknown as PaymentRow[])
 }
 
 /**
@@ -1461,7 +1563,7 @@ export async function recentActivity(
   if (opts.surface) builder = builder.eq('surface', opts.surface)
 
   const { data } = await builder.order('created_at', { ascending: false }).limit(limit)
-  return (data ?? []) as unknown as ActivityRow[]
+  return signAvatars((data ?? []) as unknown as ActivityRow[])
 }
 
 // ============================================================================
@@ -1538,4 +1640,168 @@ export function deliveryRate(briefs: BriefAggregates, submissions: SubmissionAgg
   if (briefs.targetDeliverables > 0) return Math.min(100, (approved / briefs.targetDeliverables) * 100)
   if (submissions.total === 0) return 0
   return (approved / submissions.total) * 100
+}
+
+// ============================================================================
+// Design panels
+// ============================================================================
+
+export interface SavedViewRow {
+  id: string
+  name: string
+  surface: string
+  query: Record<string, string>
+  is_shared: boolean
+  owner_id: string
+}
+
+/** The caller's own views plus views teammates shared, for one surface. */
+export async function listSavedViews(
+  supabase: SupabaseClient, workspaceId: string, surface: string,
+): Promise<SavedViewRow[]> {
+  const { data } = await supabase.from('creator_saved_views')
+    .select('id, name, surface, query, is_shared, owner_id')
+    .eq('workspace_id', workspaceId).eq('surface', surface)
+    .order('name', { ascending: true }).limit(50)
+  return (data ?? []) as SavedViewRow[]
+}
+
+export interface AvailabilitySummary {
+  available: number
+  previousAvailable: number
+  series: number[]
+  campaigns: { id: string; name: string; fit: number }[]
+}
+
+/**
+ * "Availability & Campaign Fit". Availability counts live creator
+ * relationships marked available; the week-on-week comparison uses creators
+ * added before the last 7 days. Campaign fit is the average stored fit score
+ * (0-100) of the creators assigned to that campaign's briefs.
+ */
+export async function availabilitySummary(
+  supabase: SupabaseClient, workspaceId: string,
+): Promise<AvailabilitySummary> {
+  const [{ data: creators }, { data: assignments }] = await Promise.all([
+    supabase.from('ugc_creators').select('id, availability, campaign_fit, created_at')
+      .eq('workspace_id', workspaceId).is('archived_at', null),
+    supabase.from('ugc_brief_creators')
+      .select('creator_id, brief:ugc_briefs!ugc_brief_creators_brief_id_fkey(campaign_id, archived_at, campaign:campaigns!ugc_briefs_campaign_id_fkey(id, name))')
+      .eq('workspace_id', workspaceId),
+  ])
+  const rows = creators ?? []
+  const weekAgo = Date.now() - 7 * 86_400_000
+  const available = rows.filter(r => r.availability === 'available')
+  const fitById = new Map(rows.map(r => [r.id as string, Number(r.campaign_fit ?? 0)]))
+
+  type Assignment = { creator_id: string; brief: { archived_at: string | null; campaign: { id: string; name: string } | null } | null }
+  const byCampaign = new Map<string, { name: string; scores: number[] }>()
+  for (const row of (assignments ?? []) as unknown as Assignment[]) {
+    const campaign = row.brief?.campaign
+    if (!campaign || row.brief?.archived_at) continue
+    const entry = byCampaign.get(campaign.id) ?? { name: campaign.name, scores: [] }
+    const score = fitById.get(row.creator_id)
+    if (score !== undefined) entry.scores.push(score)
+    byCampaign.set(campaign.id, entry)
+  }
+
+  return {
+    available: available.length,
+    previousAvailable: available.filter(r => new Date(r.created_at as string).getTime() < weekAgo).length,
+    series: dailySeries(available.map(r => r.created_at as string), 14).reduce<number[]>((acc, v) => [...acc, (acc.at(-1) ?? 0) + v], []),
+    campaigns: [...byCampaign.entries()]
+      .filter(([, e]) => e.scores.length > 0)
+      .map(([id, e]) => ({ id, name: e.name, fit: Math.round(e.scores.reduce((a, b) => a + b, 0) / e.scores.length) }))
+      .sort((a, b) => b.fit - a.fit)
+      .slice(0, 5),
+  }
+}
+
+export interface ActivityVisual { avatarUrl: string | null; thumbnailUrl: string | null }
+
+/**
+ * Thumbnails for activity rows: the submission's signed preview or the
+ * creator's avatar, resolved in two batched reads so the feed never N+1s.
+ */
+export async function activityVisuals(
+  supabase: SupabaseClient, workspaceId: string, items: ActivityRow[],
+): Promise<Record<string, ActivityVisual>> {
+  const submissionIds = items.filter(i => i.entity_type === 'submission' && i.entity_id).map(i => i.entity_id as string)
+  const creatorIds = items.filter(i => i.entity_type === 'creator' && i.entity_id).map(i => i.entity_id as string)
+  const [{ data: subs }, { data: creators }] = await Promise.all([
+    submissionIds.length
+      ? supabase.from('ugc_submissions').select('id, thumbnail_path, thumbnail_url').eq('workspace_id', workspaceId).in('id', submissionIds)
+      : Promise.resolve({ data: [] as { id: string; thumbnail_path: string | null; thumbnail_url: string | null }[] }),
+    creatorIds.length
+      ? supabase.from('ugc_creators').select('id, avatar_url').eq('workspace_id', workspaceId).in('id', creatorIds)
+      : Promise.resolve({ data: [] as { id: string; avatar_url: string | null }[] }),
+  ])
+  const signed = await signStoragePaths(supabase, (subs ?? []).map(s => s.thumbnail_path))
+  const out: Record<string, ActivityVisual> = {}
+  for (const item of items) {
+    if (!item.entity_id) continue
+    if (item.entity_type === 'submission') {
+      const sub = (subs ?? []).find(s => s.id === item.entity_id)
+      if (sub) out[item.id] = { avatarUrl: null, thumbnailUrl: sub.thumbnail_path ? signed.get(sub.thumbnail_path) ?? null : sub.thumbnail_url }
+    } else if (item.entity_type === 'creator') {
+      const creator = (creators ?? []).find(c => c.id === item.entity_id)
+      if (creator) out[item.id] = { avatarUrl: creator.avatar_url, thumbnailUrl: null }
+    }
+  }
+  return out
+}
+
+/** Workspace members who can review, for reviewer filters and reassignment. */
+export async function workspaceReviewers(supabase: SupabaseClient, workspaceId: string): Promise<PersonLite[]> {
+  const { data: members } = await supabase.from('workspace_members').select('user_id, role')
+    .eq('workspace_id', workspaceId).in('role', ['owner', 'admin', 'manager'])
+  const ids = (members ?? []).map(m => m.user_id as string)
+  if (ids.length === 0) return []
+  const { data } = await supabase.from('profiles').select(PERSON).in('id', ids).order('full_name')
+  return signAvatars((data ?? []) as PersonLite[])
+}
+
+export interface RightsTrendPoint extends MetricPoint { created: number; expired: number }
+
+/** Daily created vs expired licences for the "Rights Activity Trend" chart. */
+export function rightsTrend(aggregates: RightsAggregates): RightsTrendPoint[] {
+  return aggregates.createdSeries.map((created, index) => ({
+    date: new Date(Date.now() - (aggregates.createdSeries.length - 1 - index) * 86_400_000).toISOString().slice(0, 10),
+    created,
+    expired: aggregates.expiredSeries[index] ?? 0,
+  }))
+}
+/** Open brief assignments per creator, for the "Active Briefs" column (one query per page). */
+export async function activeBriefCounts(
+  supabase: SupabaseClient, workspaceId: string, creatorIds: string[],
+): Promise<Record<string, number>> {
+  if (creatorIds.length === 0) return {}
+  const { data } = await supabase.from('ugc_brief_creators')
+    .select('creator_id, status, brief:ugc_briefs!ugc_brief_creators_brief_id_fkey(status, archived_at)')
+    .eq('workspace_id', workspaceId).in('creator_id', creatorIds)
+    .not('status', 'in', '(declined,cancelled,completed)')
+  const counts: Record<string, number> = {}
+  type Row = { creator_id: string; brief: { status: string; archived_at: string | null } | null }
+  for (const row of (data ?? []) as unknown as Row[]) {
+    if (!row.brief || row.brief.archived_at || !['open', 'in_progress', 'submitted'].includes(row.brief.status)) continue
+    counts[row.creator_id] = (counts[row.creator_id] ?? 0) + 1
+  }
+  return counts
+}
+
+/** Creators currently engaged on at least one open brief ("Active Collaborations"). */
+export async function activeCollaborations(
+  supabase: SupabaseClient, workspaceId: string,
+): Promise<{ current: number; previous: number }> {
+  const { data } = await supabase.from('ugc_brief_creators')
+    .select('creator_id, status, invited_at, brief:ugc_briefs!ugc_brief_creators_brief_id_fkey(status, archived_at)')
+    .eq('workspace_id', workspaceId)
+    .in('status', ['accepted', 'in_production', 'submitted', 'changes_requested', 'approved'])
+  type Row = { creator_id: string; invited_at: string; brief: { status: string; archived_at: string | null } | null }
+  const rows = ((data ?? []) as unknown as Row[]).filter(r => r.brief && !r.brief.archived_at && ['open', 'in_progress', 'submitted'].includes(r.brief.status))
+  const cutoff = Date.now() - TREND_WINDOW_DAYS * 86_400_000
+  return {
+    current: new Set(rows.map(r => r.creator_id)).size,
+    previous: new Set(rows.filter(r => Date.parse(r.invited_at) < cutoff).map(r => r.creator_id)).size,
+  }
 }

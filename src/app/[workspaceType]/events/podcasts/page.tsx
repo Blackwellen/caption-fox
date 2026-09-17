@@ -5,10 +5,10 @@ import GalaDockPromotion from '@/components/events/GalaDockPromotion'
 import { EventsFilterBar, Pagination, RangePicker, ViewSwitcher } from '@/components/events/FilterBar'
 import { ExportButton, MoreActionsButton } from '@/components/events/HeaderActions'
 import { CreatePodcastEpisodeButton } from '@/components/events/CreateModals'
-import { ChartLegend, ListenerTrendChart } from '@/components/events/charts'
+import { ListenerTrendChart } from '@/components/events/charts'
 import { ActivityPanel, RunOfShowPanel } from '@/components/events/records'
 import {
-  EventsEmptyState, EventsPageHeader, KpiCard, KpiStrip, Panel, PanelLink, StatusBadge,
+  EventsEmptyState, EventsPageHeader, KpiCard, KpiStrip, Panel, PanelLink, StatusBadge, SummaryStat,
 } from '@/components/events/primitives'
 import { getEventsPageContext, parseEventsFilters } from '@/lib/events/page-context'
 import {
@@ -96,21 +96,21 @@ export default async function PodcastsPage({
       />
 
       <KpiStrip>
-        <KpiCard label="Planned Episodes" tone="blue" icon={<CalendarDays size={17} />}
+        <KpiCard label="Planned Episodes" tone="blue" icon={<CalendarDays size={18} />}
           value={formatNumber(kpis.plannedEpisodes.value)} comparison="Draft, planned or scheduled" />
-        <KpiCard label="Live Recordings" tone="violet" icon={<Mic size={17} />}
+        <KpiCard label="Live Recordings" tone="violet" icon={<Mic size={18} />}
           value={formatNumber(kpis.liveRecordings.value)} comparison="Recording now" />
-        <KpiCard label="Downloads / Listeners" tone="indigo" icon={<Headphones size={17} />}
+        <KpiCard label="Downloads / Listeners" tone="indigo" icon={<Headphones size={18} />}
           value={formatNumber(kpis.listeners.value)} kpi={kpis.listeners}
           comparison={`vs last ${filters.range} days`} />
-        <KpiCard label="Completion Rate" tone="emerald" icon={<TrendingUp size={17} />}
+        <KpiCard label="Completion Rate" tone="emerald" icon={<TrendingUp size={18} />}
           value={formatRate(kpis.completionRate.value)}
           comparison={kpis.completionRate.value === null ? 'Needs provider metrics' : 'Average across episodes'} />
-        <KpiCard label="Sponsor Slots" tone="amber" icon={<DollarSign size={17} />}
+        <KpiCard label="Sponsor Slots" tone="amber" icon={<DollarSign size={18} />}
           value={formatNumber(kpis.sponsorSlots.value)}
           href={page.visibleTabs.includes('sponsorships') ? `${page.basePath}/sponsorships` : undefined}
           comparison="Podcast read deliverables" />
-        <KpiCard label="Follow-up Items" tone="rose" icon={<CheckCircle2 size={17} />}
+        <KpiCard label="Follow-up Items" tone="rose" icon={<CheckCircle2 size={18} />}
           value={formatNumber(kpis.followUpItems.value)}
           href={page.visibleTabs.includes('follow-up') ? `${page.basePath}/follow-up` : undefined}
           comparison="Open tasks" />
@@ -125,18 +125,20 @@ export default async function PodcastsPage({
         dismissed={gala.dismissedPlacements.includes('podcasts-banner')}
         title="Manage your podcast productions on Gala Dock"
         body="Streamline venues, recording logistics, sponsors and distribution in one powerful platform."
-        className="mb-5"
+        className="mb-3.5"
       />
 
-      <div className="mb-4">
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-          <div className="min-w-[280px] flex-1">
+      <div className="mb-3.5 grid grid-cols-1 gap-3.5 xl:grid-cols-[779fr_384fr]">
+        <div className="min-w-0 rounded-xl border border-slate-200 bg-white px-3 py-2">
+          <div className="min-w-0">
             <EventsFilterBar
+              variant="inline"
               searchPlaceholder="Search episodes..."
               dateRangeLabel="Date Range"
+              showMoreFilters={false}
               filters={[
                 {
-                  key: 'status', label: 'Status', allLabel: 'All Statuses',
+                  key: 'status', label: 'Status', allLabel: 'All Statuses', width: 72,
                   options: [
                     { value: 'draft', label: 'Draft' },
                     { value: 'planned', label: 'Planned' },
@@ -148,7 +150,7 @@ export default async function PodcastsPage({
                   ],
                 },
                 {
-                  key: 'type', label: 'Recording Type',
+                  key: 'type', label: 'Recording Type', width: 118,
                   options: [
                     { value: 'in_studio', label: 'In-studio' },
                     { value: 'remote', label: 'Remote' },
@@ -157,7 +159,7 @@ export default async function PodcastsPage({
                   ],
                 },
                 {
-                  key: 'distribution', label: 'Distribution',
+                  key: 'distribution', label: 'Distribution', width: 100,
                   options: [
                     { value: 'not_distributed', label: 'Not distributed' },
                     { value: 'queued', label: 'Queued' },
@@ -168,27 +170,19 @@ export default async function PodcastsPage({
               ]}
             />
           </div>
-          <ViewSwitcher views={allowedViews} active={filters.view} />
+        </div>
+        <div className="min-w-0 rounded-xl border border-slate-200 bg-white px-3 py-2">
+          <ViewSwitcher views={allowedViews} active={filters.view} fill />
         </div>
       </div>
 
-      <div className="mb-4 grid gap-4 xl:grid-cols-[1.15fr_1fr_1fr]">
-        <Panel title="Listener Trends" action={<RangePicker value={filters.range} />}>
-          <dl className="mb-2 grid grid-cols-2 gap-3">
-            <div>
-              <dd className="text-[19px] font-bold text-slate-900">{formatNumber(listens)}</dd>
-              <dt className="text-[11.5px] text-slate-500">Listens</dt>
-            </div>
-            <div>
-              <dd className="text-[19px] font-bold text-slate-900">{formatNumber(unique)}</dd>
-              <dt className="text-[11.5px] text-slate-500">Unique Listeners</dt>
-            </div>
+      <div className="mb-3.5 grid grid-cols-1 gap-3.5 xl:grid-cols-[421fr_346fr_384fr]">
+        <Panel title="Listener Trends" action={<RangePicker value={filters.range} />} contentClassName="px-4 pb-3 pt-4">
+          <dl className="mb-3 grid grid-cols-2 divide-x divide-slate-100">
+            <SummaryStat label="Listeners" value={formatNumber(listens)} change={kpis.listeners.changePct} />
+            <SummaryStat label="Unique Listeners" value={formatNumber(unique)} change={null} />
           </dl>
-          <ChartLegend items={[
-            { label: 'Listens', colour: '#2563eb' },
-            { label: 'Unique listeners', colour: '#7c3aed' },
-          ]} />
-          <div className="mt-2"><ListenerTrendChart data={trend} height={175} /></div>
+          <div className="mt-1"><ListenerTrendChart data={trend} height={150} /></div>
         </Panel>
 
         <Panel
@@ -204,25 +198,25 @@ export default async function PodcastsPage({
               />
             </div>
           ) : (
-            <ol className="divide-y divide-slate-50">
+            <ol className="px-4 py-2">
               {topEpisodes.map((episode, index) => (
-                <li key={episode.id} className="flex items-center gap-3 px-4 py-2.5">
-                  <span className="w-3 shrink-0 text-[12px] font-bold text-slate-400">{index + 1}</span>
-                  <EpisodeThumb episode={episode} size={34} />
+                <li key={episode.id} className="flex min-h-[39px] items-center gap-3 py-[3px]">
+                  <span className="w-3 shrink-0 text-[11px] font-medium text-slate-600">{index + 1}</span>
+                  <EpisodeThumb episode={episode} size={30} />
                   <span className="min-w-0 flex-1">
-                    <Link href={episodeHref(episode)} className="block truncate text-[12.5px] font-semibold text-slate-900 hover:text-blue-700">
+                    <Link href={episodeHref(episode)} className="block truncate text-[10.5px] font-semibold text-slate-900 hover:text-blue-700">
                       {episode.title}
                     </Link>
-                    <span className="block text-[11px] text-slate-500">
+                    <span className="block text-[10px] text-slate-500">
                       {formatEventDate(episode.published_at ?? episode.scheduled_at, workspace.timezone)}
                     </span>
                   </span>
-                  <span className="shrink-0 text-[12px] font-semibold tabular-nums text-slate-700">
+                  <span className="shrink-0 text-[10px] tabular-nums text-slate-700">
                     {formatNumber(episode.listens)}
                   </span>
                   <Link
                     href={episodeHref(episode)}
-                    className="shrink-0 rounded-full p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+                    className="shrink-0 rounded-full border border-slate-200 p-1 text-slate-500 hover:bg-slate-100 hover:text-slate-700"
                     aria-label={`Open ${episode.title}`}
                   >
                     <Play size={13} />
@@ -236,14 +230,14 @@ export default async function PodcastsPage({
         <RunOfShowPanel
           sessions={runOfShow.sessions}
           title="Run of Show"
-          subtitle={runOfShow.event?.name}
+          titleSuffix={runOfShow.event ? `• ${runOfShow.event.name}` : undefined}
           viewAllHref={runOfShow.event ? `${page.basePath}/podcasts/${runOfShow.event.id}` : `${page.basePath}/podcasts`}
           timezone={workspace.timezone}
           relativeOffsets
         />
       </div>
 
-      <div className="grid gap-4 xl:grid-cols-[1.62fr_1fr]">
+      <div className="grid grid-cols-1 gap-3.5 xl:grid-cols-[779fr_384fr]">
         <Panel
           title="Episodes"
           action={<PanelLink href={`${page.basePath}/podcasts?view=table`}>View all episodes →</PanelLink>}
@@ -348,9 +342,9 @@ function EpisodeCard({
           <p className="mt-2 flex items-center gap-2">
             <Avatar name={guest.full_name} src={guest.avatar_url} size={26} />
             <span className="min-w-0">
-              <span className="block truncate text-[12px] font-semibold text-slate-800">{guest.full_name}</span>
+              <span className="block truncate text-[11px] font-semibold text-slate-800">{guest.full_name}</span>
               {(guest.job_title || guest.company) && (
-                <span className="block truncate text-[10.5px] text-slate-500">
+                <span className="block truncate text-[10px] text-slate-500">
                   {[guest.job_title, guest.company].filter(Boolean).join(', ')}
                 </span>
               )}
@@ -358,7 +352,7 @@ function EpisodeCard({
           </p>
         )}
 
-        <p className="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-slate-500">
+        <p className="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-slate-500">
           <span className="inline-flex items-center gap-1">
             <CalendarDays size={11} aria-hidden />
             {formatEventDate(episode.scheduled_at ?? episode.published_at, timezone)}
@@ -369,7 +363,7 @@ function EpisodeCard({
         </p>
 
         <p className="mt-auto flex items-center justify-between gap-2 border-t border-slate-100 pt-3">
-          <span className="inline-flex items-center gap-1.5 text-[11.5px] font-medium text-slate-600">
+          <span className="inline-flex items-center gap-1.5 text-[10.5px] font-medium text-slate-600">
             <StatusBadge status={episode.distribution_state === 'published' ? 'published' : 'draft'}
               label={titleCase(episode.distribution_state)} />
           </span>
@@ -393,11 +387,11 @@ function EpisodeTable({
   timezone: string
 }) {
   return (
-    <div className="overflow-x-auto">
+    <div className="relative overflow-x-auto">
       <table className="w-full min-w-[760px] border-collapse text-left">
         <caption className="sr-only">Podcast episodes</caption>
         <thead>
-          <tr className="border-b border-slate-100 text-[11.5px] font-semibold uppercase tracking-wide text-slate-500">
+          <tr className="border-b border-slate-100 text-[10.5px] font-semibold uppercase tracking-wide text-slate-500">
             <th scope="col" className="px-4 py-3">Episode</th>
             <th scope="col" className="px-3 py-3">Show</th>
             <th scope="col" className="px-3 py-3">Status</th>

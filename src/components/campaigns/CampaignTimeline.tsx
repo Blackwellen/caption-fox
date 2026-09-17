@@ -5,15 +5,19 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { Avatar, CARD, CARD_SHADOW } from './primitives'
+import { Avatar, CARD, CARD_SHADOW, ProgressBar } from './primitives'
+import { CampaignThumb } from './CampaignCard'
+import { Badge } from '@/components/ui/Badge'
+import { LIFECYCLE_BADGE, LIFECYCLE_LABELS, type LifecycleStage } from '@/lib/campaigns/constants'
 import { useToast } from './Toast'
 import { rescheduleCampaign } from '@/app/app/campaigns/actions'
 import type { CampaignRow, MilestoneRow, PhaseRow } from '@/lib/campaigns/types'
 import type { CampaignCapabilities } from '@/lib/campaigns/entitlements'
+import { useCampaignsBase } from './links'
 
 const DAY_MS = 86_400_000
-const ROW_HEIGHT = 52
-const DAY_WIDTH = 34
+const ROW_HEIGHT = 66
+const DAY_WIDTH = 27
 
 const PHASE_ACCENTS: Record<string, string> = {
   blue: 'bg-blue-500', violet: 'bg-violet-500', emerald: 'bg-emerald-500',
@@ -26,6 +30,11 @@ function toDate(value: string): Date {
 
 function daysBetween(a: Date, b: Date): number {
   return Math.round((b.getTime() - a.getTime()) / DAY_MS)
+}
+
+/** "12 Sept" — the milestone caption format used in the design. */
+function formatMilestoneDate(value: string): string {
+  return new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short' }).format(new Date(value))
 }
 
 function formatDay(date: Date): { day: number; month: string } {
@@ -48,6 +57,7 @@ export default function CampaignTimeline({
   rangeEnd: string
 }) {
   const router = useRouter()
+  const campaignsBase = useCampaignsBase()
   const { notify } = useToast()
   const [pending, startTransition] = useTransition()
   const [drag, setDrag] = useState<{ id: string; mode: 'move' | 'resize-end'; startX: number; origStart: Date; origEnd: Date; deltaDays: number } | null>(null)
@@ -147,14 +157,14 @@ export default function CampaignTimeline({
           <div style={{ minWidth: 260 + totalDays * DAY_WIDTH }}>
             {/* Header */}
             <div className="sticky top-0 z-10 flex border-b border-slate-200 bg-slate-50/90 backdrop-blur">
-              <div className="w-[260px] shrink-0 border-r border-slate-200 px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+              <div className="w-[260px] shrink-0 border-r border-slate-200 px-3 py-2 text-[11px] lg:text-[8.5px] font-semibold uppercase tracking-wide text-slate-500">
                 Campaign
               </div>
               <div className="relative flex">
                 {weeks.map((week, i) => (
                   <div
                     key={i} style={{ width: week.days * DAY_WIDTH }}
-                    className="shrink-0 border-r border-slate-200 px-1.5 py-2 text-[10px] font-medium text-slate-500"
+                    className="shrink-0 border-r border-slate-200 px-1.5 py-2 text-[10px] lg:text-[8px] font-medium text-slate-500"
                   >
                     {week.start.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
                     {' – '}
@@ -187,11 +197,26 @@ export default function CampaignTimeline({
 
                 return (
                   <div key={campaign.id} className="flex border-b border-slate-100" style={{ height: ROW_HEIGHT }}>
-                    <div className="flex w-[260px] shrink-0 items-center gap-2 border-r border-slate-200 px-3">
-                      <Link href={`/app/campaigns/${campaign.id}`} className="min-w-0 flex-1">
-                        <span className="block truncate text-[12px] font-semibold text-slate-900 hover:text-blue-600">{campaign.name}</span>
-                      </Link>
-                      <Avatar person={campaign.owner} size={20} />
+                    <div className="flex w-[260px] shrink-0 items-center gap-2 border-r border-slate-200 px-3 lg:px-2.5">
+                      <CampaignThumb campaign={campaign} className="h-[38px] w-[42px] lg:h-[34px] lg:w-[38px]" />
+                      <div className="min-w-0 flex-1">
+                        <Link href={`${campaignsBase}/${campaign.id}`}>
+                          <span className="block truncate text-[12px] lg:text-[9.5px] font-semibold text-slate-900 hover:text-blue-600">{campaign.name}</span>
+                        </Link>
+                        <span className="mt-0.5 flex items-center gap-1">
+                          <Avatar person={campaign.owner} size={14} />
+                          <span className="truncate text-[11px] lg:text-[8.5px] text-slate-500">
+                            {campaign.owner?.full_name ?? campaign.owner?.email ?? 'Unassigned'}
+                          </span>
+                        </span>
+                        <span className="mt-1 flex items-center gap-1.5">
+                          <Badge variant={LIFECYCLE_BADGE[campaign.lifecycle_stage as LifecycleStage] ?? 'slate'} className="text-[10px] lg:text-[7.5px]">
+                            {LIFECYCLE_LABELS[campaign.lifecycle_stage as LifecycleStage] ?? campaign.lifecycle_stage}
+                          </Badge>
+                          <ProgressBar value={campaign.progress} health={campaign.health} className="w-10" label={`${campaign.name} progress`} />
+                          <span className="shrink-0 text-[10px] lg:text-[8px] font-medium text-slate-500">{campaign.progress}%</span>
+                        </span>
+                      </div>
                     </div>
 
                     <div className="relative flex-1">
@@ -205,7 +230,7 @@ export default function CampaignTimeline({
                               className={cn('absolute top-2.5 h-6 rounded-md opacity-90', PHASE_ACCENTS[phase.accent] ?? 'bg-slate-400')}
                               style={{ left: pos.left, width: pos.width }}
                             >
-                              <span className="flex h-full items-center truncate px-2 text-[10px] font-medium text-white">
+                              <span className="flex h-full items-center truncate px-2 text-[10px] lg:text-[8px] font-medium text-white">
                                 {phase.name}
                               </span>
                             </div>
@@ -220,7 +245,7 @@ export default function CampaignTimeline({
                           )}
                           style={{ left, width }}
                         >
-                          <span className="flex h-full items-center justify-between gap-1 truncate px-2 text-[10px] font-medium text-white">
+                          <span className="flex h-full items-center justify-between gap-1 truncate px-2 text-[10px] lg:text-[8px] font-medium text-white">
                             <span className="truncate">{campaign.progress}%</span>
                           </span>
                           {capabilities.manageTimeline && (
@@ -240,13 +265,21 @@ export default function CampaignTimeline({
                           <span
                             key={milestone.id}
                             title={`${milestone.title} — ${milestone.due_date}`}
-                            className={cn(
-                              'absolute top-1 h-3 w-3 rotate-45',
-                              milestone.status === 'completed' ? 'bg-emerald-500'
-                                : milestone.status === 'at_risk' || milestone.status === 'blocked' ? 'bg-red-500' : 'bg-violet-500',
-                            )}
+                            className="pointer-events-none absolute top-[34px] flex items-start gap-1"
                             style={{ left: offset + DAY_WIDTH / 2 - 6 }}
-                          />
+                          >
+                            <span
+                              className={cn(
+                                'mt-[3px] h-3 w-3 shrink-0 rotate-45',
+                                milestone.status === 'completed' ? 'bg-emerald-500'
+                                  : milestone.status === 'at_risk' || milestone.status === 'blocked' ? 'bg-red-500' : 'bg-violet-500',
+                              )}
+                            />
+                            <span className="hidden max-w-[104px] flex-col leading-tight lg:flex">
+                              <span className="truncate text-[8px] font-medium text-slate-700">{milestone.title}</span>
+                              <span className="truncate text-[7.5px] text-slate-400">{formatMilestoneDate(milestone.due_date)}</span>
+                            </span>
+                          </span>
                         )
                       })}
                     </div>
@@ -259,7 +292,7 @@ export default function CampaignTimeline({
       </div>
 
       {pending && (
-        <p className="mt-2 flex items-center gap-1.5 text-[13px] text-slate-500" role="status">
+        <p className="mt-2 flex items-center gap-1.5 text-[13px] lg:text-[10px] text-slate-500" role="status">
           <Loader2 size={13} className="animate-spin" /> Saving schedule change…
         </p>
       )}

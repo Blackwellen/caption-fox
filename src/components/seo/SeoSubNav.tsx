@@ -43,7 +43,7 @@ export function SeoSubNav({ tabs, active, query }: { tabs: SeoTabId[]; active: S
                   aria-selected={current}
                   aria-current={current ? 'page' : undefined}
                   className={cn(
-                    'inline-flex h-10 items-center whitespace-nowrap border-b-2 px-3 text-sm font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-blue-500',
+                    'inline-flex h-9 items-center whitespace-nowrap border-b-2 px-3 text-[13px] font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-blue-500',
                     current
                       ? 'border-blue-600 text-blue-600'
                       : 'border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-800',

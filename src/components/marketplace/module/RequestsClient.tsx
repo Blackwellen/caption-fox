@@ -4,7 +4,7 @@ import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Plus, MoreHorizontal, Loader2, Download } from 'lucide-react'
-import { cn, formatDate, formatRelative } from '@/lib/utils'
+import { cn, formatRelative } from '@/lib/utils'
 import type { MarketplaceCategory, MarketplaceProfile, MarketplaceRequest, MarketplaceProposal } from '@/lib/marketplace/module'
 import { REQUEST_STATUS_META, PROPOSAL_STATUS_META, money, deadlineState, MODULE_ROUTES } from '@/lib/marketplace/module'
 import { setRequestStatus, setProposalStatus } from '@/lib/marketplace/actions'
@@ -13,13 +13,15 @@ import { ProfileAvatar, StatusPill } from './primitives'
 
 /** "New request" launcher — kept client-side so the wizard can own its own state. */
 export function NewRequestButton({
-  categories, suppliers, canCreate, canInvite, defaultKind,
+  categories, suppliers, canCreate, canInvite, defaultKind, onBlue = false,
 }: {
   categories: MarketplaceCategory[]
   suppliers: MarketplaceProfile[]
   canCreate: boolean
   canInvite: boolean
   defaultKind?: 'discovery' | 'rfq'
+  /** White treatment for placement on the blue search hero. */
+  onBlue?: boolean
 }) {
   const [open, setOpen] = useState(Boolean(defaultKind))
 
@@ -30,8 +32,10 @@ export function NewRequestButton({
         onClick={() => setOpen(true)}
         disabled={!canCreate}
         title={canCreate ? 'Create a marketplace request' : 'Your role cannot create requests'}
-        className={cn('inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium text-white transition',
-          canCreate ? 'bg-blue-600 hover:bg-blue-700' : 'cursor-not-allowed bg-slate-300')}
+        className={cn('inline-flex items-center justify-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium transition',
+          onBlue ? 'h-11 bg-white text-blue-700 hover:bg-blue-50 lg:h-10 lg:text-[11px]' : 'text-white',
+          !onBlue && (canCreate ? 'bg-blue-600 hover:bg-blue-700' : 'cursor-not-allowed bg-slate-300'),
+          onBlue && !canCreate && 'cursor-not-allowed opacity-60')}
       >
         <Plus size={15} />New request
       </button>
@@ -82,7 +86,7 @@ export function RequestActions({
         type="button" onClick={() => setOpen(value => !value)}
         aria-expanded={open} aria-haspopup="menu"
         aria-label={`Actions for ${request.title}`}
-        className="rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+        className="rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 lg:p-0.5 [&>svg]:lg:h-3.5 [&>svg]:lg:w-3.5"
       >
         {pending ? <Loader2 size={15} className="animate-spin" /> : <MoreHorizontal size={15} />}
       </button>
@@ -201,9 +205,10 @@ export function RequestCard({
   const due = deadlineState(request.deadline)
 
   return (
-    <article className="flex flex-col rounded-xl border border-slate-200 bg-white p-4 transition hover:border-slate-300">
+    <article className="flex min-w-0 flex-col rounded-xl border border-slate-200 bg-white p-4 transition hover:border-slate-300 lg:p-2.5">
       <div className="flex items-start justify-between gap-2">
-        <span className="inline-flex items-center gap-1 rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-600">
+        <span className={cn('inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-semibold lg:text-[8.5px]',
+          request.kind === 'rfq' ? 'bg-sky-50 text-sky-700' : 'bg-violet-50 text-violet-700')}>
           {request.kind === 'rfq' ? 'RFQ' : 'Discovery'}
         </span>
         <div className="flex items-center gap-1">
@@ -212,54 +217,56 @@ export function RequestCard({
         </div>
       </div>
 
-      <h3 className="mt-2.5 text-sm font-semibold text-slate-900">{request.title}</h3>
-      <p className="mt-0.5 text-xs text-slate-500">{request.category ?? 'Uncategorised'}</p>
-      <p className="mt-1.5 text-sm font-semibold text-slate-900">
+      <h3 className="mt-2.5 truncate text-sm font-semibold text-slate-900 lg:mt-1.5 lg:text-[11px]">{request.title}</h3>
+      <p className="mt-0.5 truncate text-xs text-slate-500 lg:text-[9px]">{request.category ?? 'Uncategorised'}</p>
+      <p className="mt-1.5 text-sm font-semibold text-slate-900 lg:mt-1 lg:text-[10.5px]">
         {money(request.budget_min_cents)} – {money(request.budget_max_cents)}
       </p>
 
-      <dl className="mt-3 grid grid-cols-3 gap-2 border-t border-slate-100 pt-3 text-[11px]">
+      <dl className="mt-3 grid grid-cols-3 gap-2 border-t border-slate-100 pt-3 text-[11px] lg:mt-2 lg:grid-cols-[1.25fr_0.75fr_1fr] lg:gap-1.5 lg:pt-2 lg:text-[8.5px]">
         <div className="min-w-0">
           <dt className="text-slate-400">Invited</dt>
-          <dd className="mt-1 flex -space-x-1.5">
-            {request.invited_profiles.map(profile => (
+          <dd className="mt-1 flex -space-x-1.5 lg:mt-0.5">
+            {request.invited_profiles.slice(0, 3).map(profile => (
               <ProfileAvatar
                 key={profile.id}
                 profile={{ ...profile, slug: profile.id, avatar_url: profile.avatar_url }}
-                size={22}
+                size={18}
               />
             ))}
-            {request.invited_count > request.invited_profiles.length && (
-              <span className="flex h-[22px] items-center rounded-full bg-slate-100 px-1.5 text-[10px] font-medium text-slate-600 ring-2 ring-white">
-                +{request.invited_count - request.invited_profiles.length}
+            {request.invited_count > Math.min(3, request.invited_profiles.length) && (
+              <span className="flex h-[22px] items-center rounded-full bg-slate-100 px-1.5 text-[10px] font-medium text-slate-600 ring-2 ring-white lg:h-[18px] lg:px-1 lg:text-[8px]">
+                +{request.invited_count - Math.min(3, request.invited_profiles.length)}
               </span>
             )}
           </dd>
         </div>
         <div>
           <dt className="text-slate-400">Responses</dt>
-          <dd className="mt-1 text-sm font-semibold text-slate-900">{request.response_count}</dd>
+          <dd className="mt-1 text-sm font-semibold text-slate-900 lg:mt-0.5 lg:text-[10.5px]">{request.response_count}</dd>
         </div>
         <div>
           <dt className="text-slate-400">Deadline</dt>
-          <dd className="mt-1 text-xs font-medium text-slate-800">
-            {request.deadline ? formatDate(request.deadline) : '—'}
+          <dd className="mt-1 truncate text-xs font-medium text-slate-800 lg:mt-0.5 lg:text-[9px]">
+            {request.deadline
+              ? new Date(request.deadline).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'Europe/London' })
+              : '—'}
           </dd>
-          <dd className={cn('text-[10px] font-medium',
+          <dd className={cn('truncate whitespace-nowrap text-[10px] font-medium lg:text-[8px]',
             due.tone === 'danger' ? 'text-red-600' : due.tone === 'warn' ? 'text-amber-600' : 'text-slate-400')}>
             {due.label}
           </dd>
         </div>
       </dl>
 
-      <div className="mt-3 flex items-center justify-between border-t border-slate-100 pt-2.5">
+      <div className="mt-3 flex items-center justify-between border-t border-slate-100 pt-2.5 lg:mt-2 lg:pt-1.5">
         <Link
           href={`${MODULE_ROUTES.requests}?q=${encodeURIComponent(request.reference)}`}
-          className="text-xs font-medium text-blue-600 hover:text-blue-700"
+          className="text-xs font-medium text-blue-600 hover:text-blue-700 lg:text-[9.5px]"
         >
           View details
         </Link>
-        <span className="text-[11px] text-slate-400">{formatRelative(request.updated_at)}</span>
+        <span className="text-[11px] text-slate-400 lg:text-[8.5px]">{formatRelative(request.updated_at)}</span>
       </div>
     </article>
   )

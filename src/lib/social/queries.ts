@@ -49,14 +49,19 @@ interface ChannelDailyRow {
   posts_published: number | null
 }
 
-async function channelDaily(session: SocialSession, range: DateRange): Promise<ChannelDailyRow[]> {
-  const { data } = await session.supabase
+/** Optional narrowing shared by the aggregate queries: one connected channel. */
+export interface ChannelScope { channelId?: string | null; platform?: string | null }
+
+async function channelDaily(session: SocialSession, range: DateRange, scope: ChannelScope = {}): Promise<ChannelDailyRow[]> {
+  let query = session.supabase
     .from('channel_analytics')
     .select('channel_id, date, total_reach, total_impressions, total_engagement, follower_change, follower_count, posts_published')
     .eq('workspace_id', session.ctx.workspaceId)
     .gte('date', isoDate(range.from))
     .lte('date', isoDate(range.to))
     .order('date')
+  if (scope.channelId) query = query.eq('channel_id', scope.channelId)
+  const { data } = await query
   return (data ?? []) as ChannelDailyRow[]
 }
 
@@ -76,13 +81,16 @@ interface PostAnalyticsRow {
   engagement_rate: number | null
 }
 
-async function postAnalytics(session: SocialSession, range: DateRange): Promise<PostAnalyticsRow[]> {
-  const { data } = await session.supabase
+async function postAnalytics(session: SocialSession, range: DateRange, scope: ChannelScope = {}): Promise<PostAnalyticsRow[]> {
+  let query = session.supabase
     .from('post_analytics')
     .select('post_id, platform, recorded_at, impressions, reach, likes, comments, shares, saves, clicks, profile_visits, video_views, engagement_rate')
     .eq('workspace_id', session.ctx.workspaceId)
     .gte('recorded_at', range.from.toISOString())
     .lte('recorded_at', range.to.toISOString())
+  // Post metrics carry the platform, not the channel; a channel scope narrows by platform.
+  if (scope.platform) query = query.eq('platform', scope.platform)
+  const { data } = await query
   return (data ?? []) as PostAnalyticsRow[]
 }
 
@@ -135,18 +143,20 @@ function totalsFrom(daily: ChannelDailyRow[], posts: PostAnalyticsRow[]): Period
 export async function getPeriodTotals(
   session: SocialSession,
   range: DateRange,
-): Promise<{ current: PeriodTotals; previous: PeriodTotals; series: TimeseriesPoint[]; daily: ChannelDailyRow[] }> {
+  scope: ChannelScope = {},
+): Promise<{ current: PeriodTotals; previous: PeriodTotals; series: TimeseriesPoint[]; previousSeries: TimeseriesPoint[]; daily: ChannelDailyRow[] }> {
   const prev = previousRange(range)
   const [daily, prevDaily, posts, prevPosts] = await Promise.all([
-    channelDaily(session, range),
-    channelDaily(session, prev),
-    postAnalytics(session, range),
-    postAnalytics(session, prev),
+    channelDaily(session, range, scope),
+    channelDaily(session, prev, scope),
+    postAnalytics(session, range, scope),
+    postAnalytics(session, prev, scope),
   ])
   return {
     current: totalsFrom(daily, posts),
     previous: totalsFrom(prevDaily, prevPosts),
     series: buildSeries(range, daily),
+    previousSeries: buildSeries(prev, prevDaily),
     daily,
   }
 }
@@ -261,14 +271,18 @@ export async function getPostsInRange(
 export async function getRecentPublishedPosts(
   session: SocialSession,
   limit = 5,
+  platform?: string | null,
 ): Promise<{ post: SocialPostRow; reach: number; engagementRate: number | null }[]> {
-  const { data } = await session.supabase
+  let query = session.supabase
     .from('content_posts')
     .select(POST_COLUMNS)
     .eq('workspace_id', session.ctx.workspaceId)
     .in('status', ['published', 'partially_published'])
+    .not('published_at', 'is', null)
     .order('published_at', { ascending: false })
     .limit(limit)
+  if (platform) query = query.contains('platforms', [platform])
+  const { data } = await query
   const posts = (data ?? []) as unknown as SocialPostRow[]
   if (posts.length === 0) return []
 
@@ -286,12 +300,12 @@ export async function getRecentPublishedPosts(
   })
 }
 
-export async function getUpcomingPosts(session: SocialSession, limit = 6): Promise<SocialPostRow[]> {
+export async function getUpcomingPosts(session: SocialSession, limit = 6, statuses: string[] = ['scheduled', 'queued', 'approved', 'pending_approval']): Promise<SocialPostRow[]> {
   const { data } = await session.supabase
     .from('content_posts')
     .select(POST_COLUMNS)
     .eq('workspace_id', session.ctx.workspaceId)
-    .in('status', ['scheduled', 'queued', 'approved', 'pending_approval'])
+    .in('status', statuses)
     .gte('scheduled_at', new Date().toISOString())
     .order('scheduled_at')
     .limit(limit)
@@ -456,7 +470,7 @@ export async function getPublishingAlerts(session: SocialSession): Promise<Publi
       title: `${failedRows.length} post${failedRows.length === 1 ? '' : 's'} failed to publish`,
       detail: failedRows[0].error_message ?? 'Open the queue to review the provider error.',
       actionLabel: 'View details',
-      href: '/app/social/publishing?view=queue&status=failed',
+      href: `${session.basePath}/publishing?view=queue&status=failed`,
       at: failedRows[0].last_attempt_at ?? new Date().toISOString(),
     })
   }
@@ -467,7 +481,7 @@ export async function getPublishingAlerts(session: SocialSession): Promise<Publi
       title: issue.message,
       detail: ISSUE_HINTS[issue.issue_type as keyof typeof ISSUE_HINTS] ?? 'Open Connections to resolve.',
       actionLabel: 'Open connection',
-      href: `/app/social/connections?channel=${issue.channel_id ?? ''}`,
+      href: `${session.basePath}/connections?channel=${issue.channel_id ?? ''}`,
       at: issue.detected_at,
     })
   }
@@ -478,7 +492,7 @@ export async function getPublishingAlerts(session: SocialSession): Promise<Publi
       title: `${pendingApproval} post${pendingApproval === 1 ? '' : 's'} pending approval`,
       detail: 'Approvals block scheduled delivery until they are cleared.',
       actionLabel: 'Review now',
-      href: '/app/social/publishing?view=list&approval=pending',
+      href: `${session.basePath}/publishing?view=list&approval=pending`,
       at: new Date().toISOString(),
     })
   }
@@ -696,7 +710,7 @@ export async function getResponseAnalytics(session: SocialSession, range: DateRa
 export async function getTeamWorkload(session: SocialSession) {
   const [{ data: members }, { data: threads }] = await Promise.all([
     session.supabase.from('workspace_members')
-      .select('user_id, role, profiles(id, full_name, avatar_url)')
+      .select('user_id, role, profiles!workspace_members_user_id_fkey(id, full_name, avatar_url)')
       .eq('workspace_id', session.ctx.workspaceId),
     session.supabase.from('inbox_threads')
       .select('assigned_to, status, first_response_at, created_at, sla_target_minutes')
@@ -749,7 +763,7 @@ export async function getReplyTemplates(session: SocialSession) {
 export async function getWorkspaceMembers(session: SocialSession) {
   const { data } = await session.supabase
     .from('workspace_members')
-    .select('user_id, role, profiles(id, full_name, avatar_url)')
+    .select('user_id, role, profiles!workspace_members_user_id_fkey(id, full_name, avatar_url)')
     .eq('workspace_id', session.ctx.workspaceId)
   type Row = { user_id: string; role: string; profiles: { id: string; full_name: string | null; avatar_url: string | null } | null }
   return ((data ?? []) as unknown as Row[]).map(row => ({
@@ -939,10 +953,11 @@ export async function getShareOfVoice(session: SocialSession, range: DateRange, 
       .eq('workspace_id', session.ctx.workspaceId)
       .gte('mentioned_at', range.from.toISOString()).lte('mentioned_at', range.to.toISOString()),
     session.supabase.from('competitor_profiles')
-      .select('id, name').eq('workspace_id', session.ctx.workspaceId),
+      .select('id, competitor_name').eq('workspace_id', session.ctx.workspaceId).eq('is_active', true),
   ])
   const rows = (mentions ?? []) as { content: string }[]
-  const rivals = (competitors ?? []) as { id: string; name: string }[]
+  const rivals = ((competitors ?? []) as { id: string; competitor_name: string }[])
+    .map(row => ({ id: row.id, name: row.competitor_name }))
   if (rows.length === 0) return { rows: [], method: 'No mentions in this window.' }
 
   const counts: Record<string, number> = { [brandLabel]: 0 }
@@ -1198,6 +1213,8 @@ export interface AnalyticsInsight {
 }
 
 export function buildInsights(input: {
+  /** Canonical Social base path, e.g. `/brand/social`, for evidence links. */
+  basePath: string
   totals: PeriodTotals
   previous: PeriodTotals
   breakdown: ChannelBreakdown[]
@@ -1218,7 +1235,7 @@ export function buildInsights(input: {
         ? `Largest movement on ${leaders.map(row => row.channel.account_name).join(' and ')}.`
         : 'Compared with the previous period of the same length.',
       method: 'Rule: period-over-period reach change of 5% or more.',
-      href: '/app/social/analytics?view=channels',
+      href: `${input.basePath}/analytics?view=channels`,
     })
   }
 
@@ -1233,7 +1250,7 @@ export function buildInsights(input: {
       title: `Engagement rate ${rate >= prevRate ? 'improving' : 'softening'}`,
       detail: `${((rate - prevRate) * 100).toFixed(2)}pp versus the previous period${best ? `, with ${best.channel.account_name} moving most` : ''}.`,
       method: 'Rule: engagement-rate delta of 0.1pp or more, using each provider’s own denominator.',
-      href: '/app/social/analytics?view=channels',
+      href: `${input.basePath}/analytics?view=channels`,
     })
   }
 
@@ -1255,7 +1272,7 @@ export function buildInsights(input: {
       title: `Best posting day: ${names[bestDay[0]]}`,
       detail: `${names[bestDay[0]]}s averaged ${compactNumber(bestDay[1].engagements / bestDay[1].days)} engagements per day in this window.`,
       method: 'Rule: highest mean daily engagements by weekday across the selected range.',
-      href: '/app/social/publishing?view=calendar',
+      href: `${input.basePath}/publishing?view=calendar`,
     })
   }
 

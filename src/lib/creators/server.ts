@@ -8,6 +8,9 @@ import {
   type CreatorCapabilities, type CreatorContext, type CreatorsUgcMode,
 } from './entitlements'
 import type { CreatorModule } from './constants'
+import { creatorsBase } from './routes'
+import { workspaceKindFromType } from '@/lib/navigation/resolver'
+import { currentPathname } from '@/lib/navigation/session'
 
 export interface CreatorSession {
   supabase: SupabaseClient
@@ -17,6 +20,10 @@ export interface CreatorSession {
   capabilities: CreatorCapabilities
   modules: CreatorModule[]
   mode: CreatorsUgcMode
+  /** Shell workspace kind (brand / business / agency / creator). */
+  kind: string
+  /** Canonical route base, e.g. /brand/creators. */
+  basePath: string
 }
 
 /**
@@ -28,7 +35,7 @@ export interface CreatorSession {
 export async function getCreatorSession(): Promise<CreatorSession> {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/login?next=/app/creators')
+  if (!user) redirect(`/login?next=${encodeURIComponent((await currentPathname()) ?? '/app/creators')}`)
 
   const { active } = await getActiveWorkspace(supabase, user.id)
   if (!active) redirect('/onboarding')
@@ -55,6 +62,8 @@ export async function getCreatorSession(): Promise<CreatorSession> {
     capabilities: creatorCapabilities(ctx),
     modules: visibleCreatorModules(ctx),
     mode: resolveMode(ctx),
+    kind: workspaceKindFromType(ctx.workspaceType),
+    basePath: creatorsBase(workspaceKindFromType(ctx.workspaceType)),
   }
 }
 

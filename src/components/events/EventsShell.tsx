@@ -39,13 +39,12 @@ export interface EventsShellProps {
   children: React.ReactNode
 }
 
-export default function EventsShell({ basePath, activeTab, visibleTabs, planUsage = null, children }: EventsShellProps) {
-  const workspaceRoot = basePath.replace(/\/events$/, '')
+export default function EventsShell({ basePath, activeTab, visibleTabs, children }: EventsShellProps) {
 
   return (
     <>
-      <div className="mx-auto w-full max-w-[1215px] px-4 pb-24 pt-6 sm:px-6 md:pb-16 lg:px-8">
-        <div className="mb-6 hidden items-end justify-between gap-4 border-b border-shell-border md:flex">
+      <div className="mx-auto w-full max-w-[1215px] px-4 pb-24 pt-4 sm:px-6 md:pb-16 lg:px-8">
+        <div className="mb-3.5 hidden items-end justify-between gap-4 border-b border-shell-border md:flex">
           <nav aria-label="Events sections" className="cf-hide-scrollbar -mb-px flex min-w-0 overflow-x-auto">
             {visibleTabs.map(tab => {
               const Icon = TAB_ICONS[tab]
@@ -56,7 +55,7 @@ export default function EventsShell({ basePath, activeTab, visibleTabs, planUsag
                   href={tab === 'overview' ? basePath : `${basePath}/${tab}`}
                   aria-current={active ? 'page' : undefined}
                   className={cn(
-                    'flex shrink-0 items-center gap-2 border-b-2 px-3.5 py-3 text-[13.5px] transition-colors',
+                    'flex shrink-0 items-center gap-2 border-b-2 px-3 py-2.5 text-[13px] transition-colors',
                     active ? 'border-shell-blue font-semibold text-shell-blue' : 'border-transparent font-medium text-shell-text-2 hover:text-shell-text',
                   )}
                 >
@@ -66,16 +65,7 @@ export default function EventsShell({ basePath, activeTab, visibleTabs, planUsag
               )
             })}
           </nav>
-          {planUsage && (
-            <div className="mb-2 hidden shrink-0 items-center gap-3 lg:flex">
-              <span className="text-[12px] text-shell-muted">
-                {planUsage.label} · {planUsage.used.toLocaleString('en-GB')} / {planUsage.limit.toLocaleString('en-GB')} contacts
-              </span>
-              <Link href={`${workspaceRoot}/settings/billing`} className="rounded-lg border border-shell-border px-2.5 py-1 text-[12px] font-semibold text-shell-text-2 hover:bg-shell-canvas">
-                Upgrade plan
-              </Link>
-            </div>
-          )}
+
         </div>
         {children}
       </div>

@@ -1,0 +1,218 @@
+{
+  "Mountain Landscape.jpg": {
+    "original": "originals/mountain-landscape.jpg",
+    "thumb": "thumbs/mountain-landscape.jpg",
+    "mime": "image/jpeg",
+    "width": 1920,
+    "height": 1290,
+    "source": "unsplash"
+  },
+  "Summit Hero.jpg": {
+    "original": "originals/summit-hero.jpg",
+    "thumb": "thumbs/summit-hero.jpg",
+    "mime": "image/jpeg",
+    "width": 1920,
+    "height": 1280,
+    "source": "unsplash"
+  },
+  "Workspace Desk.jpg": {
+    "original": "originals/workspace-desk.jpg",
+    "thumb": "thumbs/workspace-desk.jpg",
+    "mime": "image/jpeg",
+    "width": 1600,
+    "height": 1600,
+    "source": "unsplash"
+  },
+  "Remote Work Session.jpg": {
+    "original": "originals/remote-work-session.jpg",
+    "thumb": "thumbs/remote-work-session.jpg",
+    "mime": "image/jpeg",
+    "width": 1600,
+    "height": 1600,
+    "source": "unsplash"
+  },
+  "Studio Chair.jpg": {
+    "original": "originals/studio-chair.jpg",
+    "thumb": "thumbs/studio-chair.jpg",
+    "mime": "image/jpeg",
+    "width": 1600,
+    "height": 1600,
+    "source": "unsplash"
+  },
+  "Monstera Still Life.jpg": {
+    "original": "originals/monstera-still-life.jpg",
+    "thumb": "thumbs/monstera-still-life.jpg",
+    "mime": "image/jpeg",
+    "width": 1600,
+    "height": 1600,
+    "source": "unsplash"
+  },
+  "Team Photo.jpg": {
+    "original": "originals/team-photo.jpg",
+    "thumb": "thumbs/team-photo.jpg",
+    "mime": "image/jpeg",
+    "width": 1920,
+    "height": 1280,
+    "source": "unsplash"
+  },
+  "Hydrating Serum.jpg": {
+    "original": "originals/hydrating-serum.jpg",
+    "thumb": "thumbs/hydrating-serum.jpg",
+    "mime": "image/jpeg",
+    "width": 1600,
+    "height": 1200,
+    "source": "unsplash"
+  },
+  "Skincare Routine.jpg": {
+    "original": "originals/skincare-routine.jpg",
+    "thumb": "thumbs/skincare-routine.jpg",
+    "mime": "image/jpeg",
+    "width": 1600,
+    "height": 1200,
+    "source": "unsplash"
+  },
+  "Creator Portrait.jpg": {
+    "original": "originals/creator-portrait.jpg",
+    "thumb": "thumbs/creator-portrait.jpg",
+    "mime": "image/jpeg",
+    "width": 1600,
+    "height": 1200,
+    "source": "unsplash"
+  },
+  "Office Corridor.jpg": {
+    "original": "originals/office-corridor.jpg",
+    "thumb": "thumbs/office-corridor.jpg",
+    "mime": "image/jpeg",
+    "width": 1600,
+    "height": 1200,
+    "source": "unsplash"
+  },
+  "Analytics Dashboard.jpg": {
+    "original": "originals/analytics-dashboard.jpg",
+    "thumb": "thumbs/analytics-dashboard.jpg",
+    "mime": "image/jpeg",
+    "width": 1600,
+    "height": 1200,
+    "source": "unsplash"
+  },
+  "Strategy Meeting.jpg": {
+    "original": "originals/strategy-meeting.jpg",
+    "thumb": "thumbs/strategy-meeting.jpg",
+    "mime": "image/jpeg",
+    "width": 1600,
+    "height": 1200,
+    "source": "unsplash"
+  },
+  "Planning Workshop.jpg": {
+    "original": "originals/planning-workshop.jpg",
+    "thumb": "thumbs/planning-workshop.jpg",
+    "mime": "image/jpeg",
+    "width": 1600,
+    "height": 1200,
+    "source": "unsplash"
+  },
+  "Product Demo Still.jpg": {
+    "original": "originals/product-demo-still.jpg",
+    "thumb": "thumbs/product-demo-still.jpg",
+    "mime": "image/jpeg",
+    "width": 1920,
+    "height": 1080,
+    "source": "unsplash"
+  },
+  "Customer Story Still.jpg": {
+    "original": "originals/customer-story-still.jpg",
+    "thumb": "thumbs/customer-story-still.jpg",
+    "mime": "image/jpeg",
+    "width": 1920,
+    "height": 1080,
+    "source": "unsplash"
+  },
+  "Create Without Limits.png": {
+    "original": "originals/create-without-limits.png",
+    "thumb": "thumbs/create-without-limits.jpg",
+    "mime": "image/png",
+    "width": 1080,
+    "height": 1350,
+    "source": "designed"
+  },
+  "Future of Digital Marketing.png": {
+    "original": "originals/future-of-digital-marketing.png",
+    "thumb": "thumbs/future-of-digital-marketing.jpg",
+    "mime": "image/png",
+    "width": 1200,
+    "height": 800,
+    "source": "designed"
+  },
+  "Template Grow Your Brand.png": {
+    "original": "originals/template-grow-your-brand.png",
+    "thumb": "thumbs/template-grow-your-brand.jpg",
+    "mime": "image/png",
+    "width": 900,
+    "height": 760,
+    "source": "designed"
+  },
+  "Template New Feature.png": {
+    "original": "originals/template-new-feature.png",
+    "thumb": "thumbs/template-new-feature.jpg",
+    "mime": "image/png",
+    "width": 900,
+    "height": 760,
+    "source": "designed"
+  },
+  "Template Customer Success.png": {
+    "original": "originals/template-customer-success.png",
+    "thumb": "thumbs/template-customer-success.jpg",
+    "mime": "image/png",
+    "width": 900,
+    "height": 760,
+    "source": "designed"
+  },
+  "Template Webinar.png": {
+    "original": "originals/template-webinar.png",
+    "thumb": "thumbs/template-webinar.jpg",
+    "mime": "image/png",
+    "width": 900,
+    "height": 760,
+    "source": "designed"
+  },
+  "Blue Waves Background.png": {
+    "original": "originals/blue-waves-background.png",
+    "thumb": "thumbs/blue-waves-background.jpg",
+    "mime": "image/png",
+    "width": 1200,
+    "height": 1200,
+    "source": "designed"
+  },
+  "Brand Guidelines Cover.png": {
+    "original": "originals/brand-guidelines-cover.png",
+    "thumb": "thumbs/brand-guidelines-cover.jpg",
+    "mime": "image/png",
+    "width": 1200,
+    "height": 900,
+    "source": "designed"
+  },
+  "Onboarding Guide Cover.png": {
+    "original": "originals/onboarding-guide-cover.png",
+    "thumb": "thumbs/onboarding-guide-cover.jpg",
+    "mime": "image/png",
+    "width": 1200,
+    "height": 900,
+    "source": "designed"
+  },
+  "Logo White.png": {
+    "original": "originals/logo-white.png",
+    "thumb": "thumbs/logo-white.jpg",
+    "mime": "image/png",
+    "width": 1000,
+    "height": 1000,
+    "source": "designed"
+  },
+  "UI Kit.png": {
+    "original": "originals/ui-kit.png",
+    "thumb": "thumbs/ui-kit.jpg",
+    "mime": "image/png",
+    "width": 1000,
+    "height": 1000,
+    "source": "designed"
+  }
+}

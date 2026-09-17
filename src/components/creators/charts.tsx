@@ -1,7 +1,7 @@
 'use client'
 
 import {
-  CartesianGrid, Cell, Line, LineChart, Pie, PieChart,
+  Area, AreaChart, CartesianGrid, Cell, Line, LineChart, Pie, PieChart,
   ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from 'recharts'
 import { cn } from '@/lib/utils'
@@ -10,8 +10,17 @@ import type { StatusCount } from '@/lib/creators/types'
 const AXIS = { fontSize: 10, fill: '#94a3b8' }
 const GRID = '#f1f5f9'
 
-function compact(value: number): string {
-  return new Intl.NumberFormat('en-GB', { notation: 'compact', maximumFractionDigits: 1 }).format(value)
+/**
+ * Deterministic compact number ("1.2M", "143K"). Intl's compact notation differs
+ * between Node and browser ICU builds ("143K" vs "143k"), which breaks hydration.
+ */
+export function compact(value: number): string {
+  const abs = Math.abs(value)
+  const units: [number, string][] = [[1e9, 'B'], [1e6, 'M'], [1e3, 'K']]
+  for (const [size, suffix] of units) {
+    if (abs >= size) return `${Number((value / size).toFixed(1))}${suffix}`
+  }
+  return Number(value.toFixed(1)).toLocaleString('en-GB')
 }
 
 function dayLabel(value: string): string {
@@ -89,6 +98,103 @@ export function TrendChart({
         </tbody>
       </table>
     </>
+  )
+}
+
+/** Rolling mean so sparse daily series read as a trend rather than spikes. */
+export function rolling(values: number[], window = 5): number[] {
+  return values.map((_, i) => {
+    const slice = values.slice(Math.max(0, i - window + 1), i + 1)
+    return slice.reduce((a, b) => a + b, 0) / slice.length
+  })
+}
+
+export interface AreaSeries { key: string; label: string; colour: string; dashed?: boolean; area?: boolean }
+
+/**
+ * Reference-style trend chart: centred line legend, light grid, 9px axis text,
+ * soft area under solid series. Values are a 5-day rolling mean of the real
+ * daily series; the accessible table lists the raw daily values.
+ */
+export function AreaTrend({
+  data, series, height = 120, yMode = 'compact', currency = 'GBP', smooth = 5, legend = true, xTicks = 5,
+}: {
+  data: Record<string, string | number>[]
+  series: AreaSeries[]
+  height?: number
+  yMode?: 'compact' | 'money'
+  currency?: string
+  smooth?: number
+  legend?: boolean
+  xTicks?: number
+}) {
+  const fmt = yMode === 'money'
+    ? (v: number) => `${currency === 'GBP' ? '£' : currency === 'USD' ? '$' : currency === 'EUR' ? '€' : `${currency} `}${compact(v)}`
+    : compact
+  const hasData = data.some(point => series.some(s => Number(point[s.key] ?? 0) > 0))
+  const smoothed = data.map((point, i) => {
+    const next: Record<string, string | number> = { ...point }
+    for (const s of series) {
+      const raw = data.map(p => Number(p[s.key] ?? 0))
+      next[s.key] = smooth > 1 ? Number(rolling(raw, smooth)[i].toFixed(2)) : raw[i]
+    }
+    return next
+  })
+  const interval = Math.max(0, Math.round(data.length / xTicks) - 1)
+
+  return (
+    <div>
+      {legend && (
+        <div className="mb-1 flex items-center justify-center gap-5 text-[10px] text-[#475467]" aria-hidden>
+          {series.map(s => (
+            <span key={s.key} className="inline-flex items-center gap-1.5">
+              <svg width="16" height="4"><line x1="0" y1="2" x2="16" y2="2" stroke={s.colour} strokeWidth="2" strokeDasharray={s.dashed ? '3 2' : undefined} /></svg>
+              {s.label}
+            </span>
+          ))}
+        </div>
+      )}
+      {!hasData ? (
+        <div className="flex items-center justify-center text-[12px] text-slate-400" style={{ height }}>No activity in this period yet.</div>
+      ) : (
+        <div style={{ height }} aria-hidden>
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart data={smoothed} margin={{ top: 4, right: 4, left: -14, bottom: 0 }}>
+              <defs>
+                {series.map(s => (
+                  <linearGradient key={s.key} id={`cf-area-${s.key}`} x1="0" x2="0" y1="0" y2="1">
+                    <stop offset="0%" stopColor={s.colour} stopOpacity={0.16} />
+                    <stop offset="100%" stopColor={s.colour} stopOpacity={0} />
+                  </linearGradient>
+                ))}
+              </defs>
+              <CartesianGrid stroke="#eef1f6" vertical={false} />
+              <XAxis dataKey="date" tick={{ fontSize: 9, fill: '#667085' }} tickLine={false} axisLine={false} tickFormatter={dayLabel} interval={interval} />
+              <YAxis tick={{ fontSize: 9, fill: '#667085' }} tickLine={false} axisLine={false} tickFormatter={v => fmt(Number(v))} width={42} tickCount={5} />
+              <Tooltip
+                contentStyle={{ fontSize: 11, borderRadius: 8, border: '1px solid #e2e8f0' }}
+                labelFormatter={label => dayLabel(String(label))}
+                formatter={(value, name) => [fmt(Number(value)), String(name)]}
+              />
+              {series.map(s => (
+                <Area key={s.key} type="monotone" dataKey={s.key} name={s.label} stroke={s.colour} strokeWidth={1.6}
+                  strokeDasharray={s.dashed ? '4 3' : undefined} fill={s.area ? `url(#cf-area-${s.key})` : 'transparent'}
+                  dot={false} activeDot={{ r: 3 }} isAnimationActive={false} />
+              ))}
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
+      )}
+      <table className="sr-only">
+        <caption>Daily values</caption>
+        <thead><tr><th scope="col">Date</th>{series.map(s => <th key={s.key} scope="col">{s.label}</th>)}</tr></thead>
+        <tbody>
+          {data.map(point => (
+            <tr key={String(point.date)}><th scope="row">{dayLabel(String(point.date))}</th>{series.map(s => <td key={s.key}>{fmt(Number(point[s.key] ?? 0))}</td>)}</tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   )
 }
 

@@ -42,6 +42,8 @@ export interface ObjectiveRow {
   start_date: string | null
   due_date: string | null
   tags: string[]
+  ref_number: number | null
+  completed_at: string | null
   archived_at: string | null
   created_at: string
   updated_at: string
@@ -52,7 +54,7 @@ export interface ObjectiveRow {
   linkedPlans?: LinkedRef[]
 }
 
-export interface LinkedRef { id: string; name: string }
+export interface LinkedRef { id: string; name: string; avatar_url?: string | null }
 
 export interface AudienceRow {
   id: string
@@ -124,6 +126,7 @@ export interface ResearchRow {
   title: string
   summary: string | null
   source_type: string
+  method: string
   impact: string
   confidence: number
   status: string
@@ -266,6 +269,8 @@ export interface PlanRow {
   budget: number | null
   budget_spent: number
   currency: string
+  priority: string
+  target_summary: string | null
   owner_id: string | null
   start_date: string | null
   end_date: string | null
@@ -273,7 +278,9 @@ export interface PlanRow {
   created_at: string
   updated_at: string
   owner?: PersonLite | null
+  strategy?: { id: string; name: string } | null
   items?: PlanItemRow[]
+  linkedObjectives?: LinkedRef[]
 }
 
 export interface PlanItemRow {
@@ -343,6 +350,7 @@ export interface ForecastRow {
   status: string
   owner_id: string | null
   last_recalculated_at: string | null
+  refresh_interval_days: number
   archived_at: string | null
   created_at: string
   updated_at: string
@@ -430,6 +438,43 @@ export interface HealthSnapshotRow {
   objectives_on_track: number
   objectives_total: number
 }
+
+export interface NextActionRow {
+  id: string
+  title: string
+  module: string
+  priority: string
+  status: string
+  entity_type: string | null
+  entity_id: string | null
+  owner_id: string | null
+  due_date: string | null
+  completed_at: string | null
+  owner?: PersonLite | null
+}
+
+export interface InsightRow {
+  id: string
+  module: string
+  kind: string
+  title: string
+  detail: string | null
+  impact: string
+  research_id: string | null
+  created_at: string
+}
+
+export interface CommentRow {
+  id: string
+  entity_type: string
+  entity_id: string
+  body: string
+  author_id: string | null
+  created_at: string
+  author?: PersonLite | null
+}
+
+export interface SavedViewRow { id: string; module: string; name: string; query: string; created_at: string }
 
 // ── View models ──────────────────────────────────────────────────────────────
 

@@ -88,7 +88,7 @@ export async function getKeywords(scope: Scope, filters: KeywordFilters = {}) {
 
   let query = scope.supabase
     .from('seo_keywords')
-    .select('*, cluster:seo_keyword_clusters(id, name, colour)', { count: 'exact' })
+    .select('*, cluster:seo_keyword_clusters(id, name, colour), owner:profiles!seo_keywords_owner_id_fkey(id, full_name, avatar_url)', { count: 'exact' })
     .eq('workspace_id', scope.workspaceId)
     .eq('site_id', scope.siteId)
     .is('archived_at', null)
@@ -326,7 +326,7 @@ export async function getCompetitors(scope: Scope, from: string): Promise<SeoCom
 
   const { data: daily } = await scope.supabase
     .from('seo_competitor_daily')
-    .select('competitor_id, date, visibility')
+    .select('competitor_id, date, visibility, avg_rank')
     .eq('workspace_id', scope.workspaceId)
     .in('competitor_id', competitors.map(c => c.id))
     .gte('date', from)
@@ -335,7 +335,7 @@ export async function getCompetitors(scope: Scope, from: string): Promise<SeoCom
   for (const competitor of competitors) {
     competitor.spark = (daily ?? [])
       .filter(row => row.competitor_id === competitor.id)
-      .map(row => ({ date: row.date, visibility: row.visibility }))
+      .map(row => ({ date: row.date, visibility: row.visibility, avg_rank: row.avg_rank }))
   }
   return competitors
 }
@@ -345,6 +345,8 @@ export async function getCompetitors(scope: Scope, from: string): Promise<SeoCom
 export interface RankingChangeRow {
   id: string
   keyword: string
+  intent: string
+  difficulty: number | null
   device: string
   country: string
   current_rank: number | null
@@ -358,14 +360,23 @@ export interface RankingChangeRow {
 
 export async function getRankingChanges(
   scope: Scope,
-  opts: { direction?: 'all' | 'improved' | 'declined'; page?: number; pageSize?: number; sort?: string } = {},
+  opts: {
+    direction?: 'all' | 'improved' | 'declined'
+    intent?: string
+    device?: string
+    country?: string
+    engine?: string
+    page?: number
+    pageSize?: number
+    sort?: string
+  } = {},
 ) {
   const page = Math.max(1, opts.page ?? 1)
   const pageSize = Math.min(100, Math.max(5, opts.pageSize ?? 5))
 
   let query = scope.supabase
     .from('seo_keywords')
-    .select('id, keyword, device, country, current_rank, previous_rank, rank_change, landing_page, search_volume, source', { count: 'exact' })
+    .select('id, keyword, intent, difficulty, device, country, current_rank, previous_rank, rank_change, landing_page, search_volume, source', { count: 'exact' })
     .eq('workspace_id', scope.workspaceId)
     .eq('site_id', scope.siteId)
     .is('archived_at', null)
@@ -373,6 +384,10 @@ export async function getRankingChanges(
 
   if (opts.direction === 'improved') query = query.gt('rank_change', 0)
   if (opts.direction === 'declined') query = query.lt('rank_change', 0)
+  if (opts.intent) query = query.eq('intent', opts.intent)
+  if (opts.device) query = query.eq('device', opts.device)
+  if (opts.country) query = query.eq('country', opts.country)
+  if (opts.engine) query = query.eq('search_engine', opts.engine)
 
   const ascending = opts.sort === 'change.asc'
   query = query

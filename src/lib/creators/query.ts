@@ -72,7 +72,8 @@ export function parseOverviewQuery(params: RawParams): OverviewQuery {
     view: oneOf(one(params, 'view'), ['cards', 'table'] as const, 'cards'),
     campaign: one(params, 'campaign').slice(0, 64),
     channel: oneOf(one(params, 'channel'), ['', ...CREATOR_CHANNELS], ''),
-    status: oneOf(one(params, 'status'), ['', ...RELATIONSHIP_STATUSES], ''),
+    // Overview filters narrow the submission pipeline, so status is a review status.
+    status: oneOf(one(params, 'status'), ['', ...SUBMISSION_STATUSES], ''),
   }
 }
 

@@ -11,11 +11,11 @@ import { CAMPAIGN_MODULE_META, type CampaignModule } from '@/lib/campaigns/const
  * browser back/forward all select the right tab. Modules the workspace is not
  * entitled to are not rendered at all — never as disabled or dead links.
  */
-export default function CampaignsSubNav({ modules }: { modules: CampaignModule[] }) {
+export default function CampaignsSubNav({ modules, base }: { modules: CampaignModule[]; base: string }) {
   const pathname = usePathname()
 
   function isActive(module: CampaignModule): boolean {
-    const href = CAMPAIGN_MODULE_META[module].href
+    const href = `${base}${CAMPAIGN_MODULE_META[module].href}`
     return module === 'overview' ? pathname === href : pathname.startsWith(href)
   }
 
@@ -28,10 +28,10 @@ export default function CampaignsSubNav({ modules }: { modules: CampaignModule[]
           return (
             <li key={module}>
               <Link
-                href={meta.href}
+                href={`${base}${meta.href}`}
                 aria-current={active ? 'page' : undefined}
                 className={cn(
-                  'inline-flex h-8 items-center rounded-lg px-3 text-[13px] font-medium transition-colors',
+                  'inline-flex h-8 items-center rounded-lg px-3 text-[13px] font-medium transition-colors lg:h-7 lg:px-2.5 lg:text-[11px]',
                   active
                     ? 'bg-blue-50 text-blue-600'
                     : 'text-slate-500 hover:bg-slate-100 hover:text-slate-700',

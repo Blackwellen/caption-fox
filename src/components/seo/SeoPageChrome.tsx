@@ -1,6 +1,7 @@
 import type { SeoTabId } from '@/lib/seo/types'
 import { SEO_TOKENS, AccessPanel } from './primitives'
 import { SeoSubNav } from './SeoSubNav'
+import { SeoNavProvider } from './SeoNavContext'
 import type { SeoBlocker } from '@/lib/seo/entitlements'
 import { planName, requiredPlanFor, tabCapability } from '@/lib/seo/entitlements'
 
@@ -13,27 +14,29 @@ const BLOCK_MESSAGE: Record<Exclude<SeoBlocker, null>, string> = {
 }
 
 /**
- * Shared chrome for every SEO & Discovery route: sub-nav (entitlement-driven,
- * tabs the workspace cannot see are simply absent) and the canonical blocked
- * state when the current tab itself is gated.
+ * Shared chrome for every SEO & Discovery route. Section navigation lives on
+ * the page title (see SeoHeader); the standalone sub-nav is only rendered for
+ * blocked states, where there is no header to host it.
  */
 export function SeoPageChrome({
   tab, tabs, blocked, query, children,
 }: { tab: SeoTabId; tabs: SeoTabId[]; blocked: SeoBlocker; query?: string; children: React.ReactNode }) {
   return (
-    <div className={SEO_TOKENS.page}>
-      <SeoSubNav tabs={tabs} active={tab} query={query} />
-      <div className="py-5">
-        {blocked
-          ? (
-            <AccessPanel
-              reason={blocked}
-              message={BLOCK_MESSAGE[blocked]}
-              planName={blocked === 'plan' ? planName(requiredPlanFor(tabCapability(tab)) ?? 'team') : undefined}
-            />
-          )
-          : children}
+    <SeoNavProvider value={{ tabs, active: tab, query }}>
+      <div className={SEO_TOKENS.page}>
+        {blocked && <SeoSubNav tabs={tabs} active={tab} query={query} />}
+        <div className="pb-4 pt-3">
+          {blocked
+            ? (
+              <AccessPanel
+                reason={blocked}
+                message={BLOCK_MESSAGE[blocked]}
+                planName={blocked === 'plan' ? planName(requiredPlanFor(tabCapability(tab)) ?? 'team') : undefined}
+              />
+            )
+            : children}
+        </div>
       </div>
-    </div>
+    </SeoNavProvider>
   )
 }

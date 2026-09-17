@@ -4,9 +4,11 @@ import GalaDockPromotion from '@/components/events/GalaDockPromotion'
 import { EventsFilterBar, Pagination, RangePicker, ViewSwitcher } from '@/components/events/FilterBar'
 import { CreateButton, ExportButton, MoreActionsButton } from '@/components/events/HeaderActions'
 import { RegistrationTrendChart } from '@/components/events/charts'
-import { ActivityPanel, EventCard, EventsTable, RunOfShowPanel } from '@/components/events/records'
+import { ActivityPanel, EventCard, RunOfShowPanel } from '@/components/events/records'
+import EventsTableSelect from '@/components/events/EventsTableSelect'
 import { EventsCalendarView, EventsTimelineView } from '@/components/events/views'
-import { EventsEmptyState, EventsPageHeader, KpiCard, KpiStrip, Panel } from '@/components/events/primitives'
+import { EventsEmptyState, EventsPageHeader, KpiCard, KpiStrip, Panel, SummaryStat } from '@/components/events/primitives'
+import { ChartLegend } from '@/components/events/charts'
 import { getEventsPageContext, parseEventsFilters } from '@/lib/events/page-context'
 import {
   getEventActivity, getGalaDockState, getOverviewKpis, getRegistrationTrend,
@@ -58,9 +60,14 @@ export default async function EventsDirectoryPage({
   ])
 
   const eventHref = (event: EventWithStats) => `${page.basePath}/events/${event.id}`
-  const cardEvents = list.events.slice(0, 4)
+  const cardEvents = list.events
   const totals = trend.reduce((sum, point) => sum + Number(point.registrations ?? 0), 0)
   const attendees = trend.reduce((sum, point) => sum + Number(point.attendees ?? 0), 0)
+  const dayKey = (iso: string) =>
+    new Intl.DateTimeFormat('en-GB', { dateStyle: 'short', timeZone: workspace.timezone }).format(new Date(iso))
+  const runOfShowIsToday = Boolean(
+    runOfShow.event?.start_at && dayKey(runOfShow.event.start_at) === dayKey(new Date().toISOString()),
+  )
 
   return (
     <EventsShell
@@ -105,38 +112,35 @@ export default async function EventsDirectoryPage({
       />
 
       <KpiStrip>
-        <KpiCard label="Total Events" tone="blue" icon={<CalendarDays size={17} />}
+        <KpiCard label="Total Events" tone="blue" icon={<CalendarDays size={18} />}
           value={formatNumber(kpis.totalEvents.value)} kpi={kpis.totalEvents}
           comparison={`vs last ${filters.range} days`} />
-        <KpiCard label="Live Events" tone="emerald" icon={<Radio size={17} />}
+        <KpiCard label="Live Events" tone="emerald" icon={<Radio size={18} />}
           value={formatNumber(live.count ?? 0)} comparison="Running now" />
-        <KpiCard label="Upcoming Events" tone="violet" icon={<Timer size={17} />}
+        <KpiCard label="Upcoming Events" tone="violet" icon={<Timer size={18} />}
           value={formatNumber(upcomingCount.count ?? 0)} comparison="Scheduled ahead" />
-        <KpiCard label="Registrations" tone="sky" icon={<Users size={17} />}
+        <KpiCard label="Registrations" tone="sky" icon={<Users size={18} />}
           value={formatNumber(kpis.registrations.value)} kpi={kpis.registrations}
           comparison={`vs last ${filters.range} days`} />
-        <KpiCard label="Sponsors" tone="amber" icon={<Star size={17} />}
+        <KpiCard label="Sponsors" tone="amber" icon={<Star size={18} />}
           value={formatNumber(sponsorCount.count ?? 0)} comparison="Contracted or active" />
-        <KpiCard label="Follow-up Outstanding" tone="rose" icon={<CheckCircle2 size={17} />}
+        <KpiCard label="Follow-up Outstanding" tone="rose" icon={<CheckCircle2 size={18} />}
           value={formatNumber(kpis.followUpTasks.value)} kpi={kpis.followUpTasks}
           href={page.visibleTabs.includes('follow-up') ? `${page.basePath}/follow-up` : undefined}
           comparison={`vs last ${filters.range} days`} />
       </KpiStrip>
 
-      <div className="grid gap-4 xl:grid-cols-[1.62fr_1fr]">
+      <div className="grid grid-cols-1 gap-3.5 xl:grid-cols-[2fr_1fr]">
         {/* ------------------------------------------------------ main column */}
-        <div className="space-y-4">
-          <div className="flex flex-wrap items-center justify-end gap-2">
-            <ViewSwitcher views={allowedViews} active={filters.view} />
-          </div>
-
+        <div className="min-w-0 space-y-3.5">
           <EventsFilterBar
+            variant="stacked"
             searchPlaceholder="Search events by name, location, or tag..."
             dateRangeLabel="Date Range"
             extraCount={[filters.dateFrom, filters.dateTo].filter(Boolean).length}
             filters={[
               {
-                key: 'type', label: 'Event Type',
+                key: 'type', label: 'Event Type', allLabel: 'All Types',
                 options: [
                   { value: 'conference', label: 'Conference' },
                   { value: 'summit', label: 'Summit' },
@@ -180,9 +184,17 @@ export default async function EventsDirectoryPage({
             <>
               {/* Card strip mirrors the reference: a scannable row above the table. */}
               {filters.view === 'cards' && (
-                <div className="grid gap-3.5 sm:grid-cols-2 xl:grid-cols-4">
+                // Four cards in view; the rest of the page scrolls sideways.
+                <div
+                  className="relative grid snap-x auto-cols-[minmax(172px,calc((100%-30px)/4))] grid-flow-col gap-2.5 overflow-x-auto pb-3 [scrollbar-color:#cbd5e1_transparent] [scrollbar-width:thin]"
+                  role="region"
+                  aria-label="Event cards"
+                  tabIndex={0}
+                >
                   {cardEvents.map(event => (
-                    <EventCard key={event.id} event={event} href={eventHref(event)} timezone={workspace.timezone} />
+                    <div key={event.id} className="snap-start">
+                      <EventCard event={event} href={eventHref(event)} timezone={workspace.timezone} />
+                    </div>
                   ))}
                 </div>
               )}
@@ -193,7 +205,13 @@ export default async function EventsDirectoryPage({
                 ) : filters.view === 'timeline' ? (
                   <EventsTimelineView events={list.events} hrefFor={eventHref} timezone={workspace.timezone} />
                 ) : (
-                  <EventsTable events={list.events} hrefFor={eventHref} timezone={workspace.timezone} showGalaDock />
+                  <EventsTableSelect
+                    events={list.events}
+                    basePath={page.basePath}
+                    timezone={workspace.timezone}
+                    routeSegment={workspaceType}
+                    canExport={page.can('events.export')}
+                  />
                 )}
                 <Pagination page={list.page} pageSize={list.pageSize} total={list.total} />
               </Panel>
@@ -202,7 +220,11 @@ export default async function EventsDirectoryPage({
         </div>
 
         {/* ------------------------------------------------------- right rail */}
-        <div className="space-y-4">
+        <div className="min-w-0 space-y-3.5">
+          <div className="rounded-xl border border-slate-200 bg-white p-2">
+            <ViewSwitcher views={allowedViews} active={filters.view} fill />
+          </div>
+
           <GalaDockPromotion
             placement="events-sidebar"
             routeSegment={workspaceType}
@@ -214,25 +236,25 @@ export default async function EventsDirectoryPage({
             body="Powerful tools for venues, schedules, sponsors and logistics — built to make every event unforgettable."
           />
 
-          <Panel title="Registration Snapshot" action={<RangePicker value={filters.range} />}>
-            <dl className="mb-3 grid grid-cols-2 gap-3">
-              <div>
-                <dd className="text-[19px] font-bold text-slate-900">{formatNumber(totals)}</dd>
-                <dt className="text-[11.5px] text-slate-500">Registrations</dt>
-              </div>
-              <div>
-                <dd className="text-[19px] font-bold text-slate-900">
-                  {formatRate(totals ? attendees / totals : null)}
-                </dd>
-                <dt className="text-[11.5px] text-slate-500">Attendance Rate</dt>
-              </div>
+          <Panel title="Registration Snapshot" action={<RangePicker value={filters.range} />} contentClassName="px-3 pb-3 pt-3">
+            <dl className="mb-2 grid grid-cols-2 divide-x divide-slate-100">
+              <SummaryStat label="Registrations" value={formatNumber(totals)} change={kpis.registrations.changePct} />
+              <SummaryStat label="Attendance Rate" value={formatRate(totals ? attendees / totals : null)} change={kpis.attendanceRate.changePct} points />
             </dl>
-            <RegistrationTrendChart data={trend} height={150} />
+            <RegistrationTrendChart data={trend} height={120} />
+            <div className="mt-1 flex justify-center">
+              <ChartLegend items={[
+                { label: 'Registrations', colour: '#2563eb' },
+                { label: 'Attendees', colour: '#7c3aed' },
+              ]} />
+            </div>
           </Panel>
 
           <RunOfShowPanel
             sessions={runOfShow.sessions}
-            title={runOfShow.event ? `Run of Show (${runOfShow.event.name})` : 'Run of Show'}
+            title="Run of Show"
+            // Same pattern as the reference's "Run of Show • Episode #56": one line, so the row keeps its height.
+            titleSuffix={runOfShowIsToday ? '(Today)' : runOfShow.event ? `• ${runOfShow.event.name}` : undefined}
             viewAllHref={runOfShow.event ? `${page.basePath}/events/${runOfShow.event.id}` : `${page.basePath}/events`}
             timezone={workspace.timezone}
           />

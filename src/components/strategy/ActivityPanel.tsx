@@ -1,71 +1,59 @@
 import Link from 'next/link'
-import { Avatar, Panel, PanelFooterLink, formatRelative } from './primitives'
-import { EmptyState } from './states'
-import { ACTIVITY_ENTITY_HREF, type ActivityEntity } from '@/lib/strategy/constants'
+import { cn } from '@/lib/utils'
+import { ACTIVITY_ENTITY_MODULE, strategyPath, type ActivityEntity, type StrategyModule } from '@/lib/strategy/constants'
+import { formatRelative, shortName } from '@/lib/strategy/format'
 import type { ActivityRow } from '@/lib/strategy/types'
+import { Avatar } from './primitives'
+import { EmptyState } from './states'
 
-/**
- * The shared Strategy activity feed. Entries are workspace-scoped audit rows —
- * never fixtures — and each links back to the record it describes, falling back
- * to the module route when the specific record is gone.
- */
-export default function ActivityPanel({
-  rows, title = 'Recent activity', viewAllHref = '/app/strategy?view=table', action, className,
-}: {
-  rows: ActivityRow[]
-  title?: string
-  viewAllHref?: string
-  action?: React.ReactNode
-  className?: string
-}) {
-  return (
-    <Panel
-      title={title}
-      action={action}
-      className={className}
-      footer={rows.length > 0 ? <PanelFooterLink href={viewAllHref}>View all activity</PanelFooterLink> : undefined}
-    >
-      {rows.length === 0
-        ? (
-          <EmptyState
-            compact
-            title="No activity yet"
-            message="Changes to objectives, research, positioning, plans and forecasts appear here."
-          />
-        )
-        : (
-          <ul className="space-y-3">
-            {rows.map(row => {
-              const href = row.link ?? ACTIVITY_ENTITY_HREF[row.entity_type as ActivityEntity] ?? '/app/strategy'
-              const actor = row.actor?.full_name ?? row.actor?.email ?? 'A teammate'
-              return (
-                <li key={row.id}>
-                  <Link href={href} className="group flex items-start gap-2.5 rounded-lg -mx-1 px-1 py-0.5 hover:bg-slate-50">
-                    <Avatar person={row.actor} size={26} className="mt-0.5" />
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-[12px] text-slate-700">
-                        <span className="font-semibold text-slate-900">{shortName(actor)}</span>
-                        {' '}
-                        <span className="text-slate-500">{row.action}</span>
-                      </p>
-                      <p className="truncate text-[11px] text-slate-500 group-hover:text-slate-600">{row.summary}</p>
-                    </div>
-                    <span className="shrink-0 whitespace-nowrap text-[11px] text-slate-400">
-                      {formatRelative(row.created_at)}
-                    </span>
-                  </Link>
-                </li>
-              )
-            })}
-          </ul>
-        )}
-    </Panel>
-  )
+export function activityHref(kind: string, row: Pick<ActivityRow, 'entity_type' | 'surface'>): string {
+  const area = (row.surface as StrategyModule | null) ?? ACTIVITY_ENTITY_MODULE[row.entity_type as ActivityEntity] ?? 'overview'
+  return strategyPath(kind, area)
 }
 
-/** "Mikasa Ackerman" → "Mikasa A." to match the compact feed rows in the design. */
-function shortName(name: string): string {
-  const parts = name.trim().split(/\s+/)
-  if (parts.length < 2) return parts[0] ?? name
-  return `${parts[0]} ${parts[parts.length - 1][0]}.`
+/**
+ * Human-readable activity feed. Every row links back to the surface the
+ * change happened on; the timestamp carries the exact time for screen readers.
+ */
+export function ActivityList({
+  kind, rows, layout = 'stacked', avatarSize = 26, className, emptyText = 'Changes to strategy records appear here.',
+}: {
+  kind: string
+  rows: ActivityRow[]
+  /** stacked: actor+action on line 1, summary line 2. inline: single row. */
+  layout?: 'stacked' | 'inline' | 'inline-sub'
+  avatarSize?: number
+  className?: string
+  emptyText?: string
+}) {
+  if (rows.length === 0) return <EmptyState compact title="No activity yet" description={emptyText} />
+  return (
+    <ul className={cn('space-y-3 lg:space-y-[13px]', className)}>
+      {rows.map(row => {
+        const name = shortName(row.actor?.full_name ?? row.actor?.email)
+        return (
+          <li key={row.id} className="flex items-start gap-2.5 lg:gap-2">
+            <Avatar person={row.actor} size={avatarSize} className="mt-0.5" />
+            <Link href={activityHref(kind, row)} className="group min-w-0 flex-1 rounded focus-visible:outline-2 focus-visible:outline-sg-blue">
+              {layout === 'inline' ? (
+                <p className="truncate text-[12.5px] text-sg-muted lg:text-[9.5px]">
+                  <span className="font-semibold text-sg-ink">{name}</span> {row.action}{' '}
+                  <span className="text-sg-body group-hover:underline">{row.summary}</span>
+                </p>
+              ) : (
+                <>
+                  <p className="truncate text-[12.5px] text-sg-muted lg:text-[9.5px]">
+                    <span className="font-semibold text-sg-ink">{name}</span>{' '}{row.action}
+                  </p>
+                  <p className="truncate text-[12.5px] text-sg-body group-hover:underline lg:text-[9.5px]">{row.summary}</p>
+                </>
+              )}
+            </Link>
+            <time dateTime={row.created_at} title={new Date(row.created_at).toLocaleString('en-GB')}
+              className="shrink-0 text-[11.5px] text-sg-subtle lg:text-[9px]">{formatRelative(row.created_at)}</time>
+          </li>
+        )
+      })}
+    </ul>
+  )
 }

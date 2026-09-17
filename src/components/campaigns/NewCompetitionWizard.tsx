@@ -10,6 +10,7 @@ import { createCompetition } from '@/app/app/campaigns/entity-actions'
 import { COMPETITION_TYPES, COMPETITION_TYPE_LABELS } from '@/lib/constants'
 import { CAMPAIGN_CHANNELS, CHANNEL_LABELS } from '@/lib/campaigns/constants'
 import type { PersonLite } from '@/lib/campaigns/types'
+import { useCampaignsBase } from './links'
 
 const ISO = /^\d{4}-\d{2}-\d{2}$/
 const COUNTRIES = ['GB', 'IE', 'US', 'CA', 'AU', 'NZ', 'FR', 'DE', 'ES', 'IT', 'NL']
@@ -43,6 +44,7 @@ const EMPTY: Draft = {
 
 export default function NewCompetitionWizard({ members, className }: { members: PersonLite[]; className?: string }) {
   const router = useRouter()
+  const campaignsBase = useCampaignsBase()
   const { notify } = useToast()
   const [open, setOpen] = useState(false)
   const [draft, setDraft] = useState<Draft>(EMPTY)
@@ -265,7 +267,7 @@ export default function NewCompetitionWizard({ members, className }: { members: 
       notify('success', result.message ?? 'Competition created.')
       setOpen(false); setDraft(EMPTY); setDirty(false); setError(null)
       router.refresh()
-      if (result.id) router.push(`/app/campaigns/competitions/${result.id}`)
+      if (result.id) router.push(`${campaignsBase}/competitions/${result.id}`)
     })
   }
 

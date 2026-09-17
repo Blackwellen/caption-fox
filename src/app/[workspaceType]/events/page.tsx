@@ -10,7 +10,7 @@ import {
 } from '@/components/events/records'
 import { EventsCalendarView, EventsTimelineView } from '@/components/events/views'
 import {
-  EventsEmptyState, EventsPageHeader, KpiCard, KpiStrip, Panel, PanelLink,
+  EventsEmptyState, EventsPageHeader, KpiCard, KpiStrip, Panel, PanelLink, SummaryStat,
 } from '@/components/events/primitives'
 import { getEventsPageContext, parseEventsFilters } from '@/lib/events/page-context'
 import {
@@ -68,6 +68,12 @@ export default async function EventsOverviewPage({
     { registrations: 0, attendees: 0 },
   )
   const trendRate = totals.registrations ? totals.attendees / totals.registrations : null
+  // "(Today)" is only claimed when the run sheet really belongs to today.
+  const dayKey = (iso: string) =>
+    new Intl.DateTimeFormat('en-GB', { dateStyle: 'short', timeZone: workspace.timezone }).format(new Date(iso))
+  const runOfShowIsToday = Boolean(
+    runOfShow.event?.start_at && dayKey(runOfShow.event.start_at) === dayKey(new Date().toISOString()),
+  )
 
   return (
     <EventsShell
@@ -106,44 +112,44 @@ export default async function EventsOverviewPage({
 
       <KpiStrip>
         <KpiCard
-          label="Total Events" tone="blue" icon={<CalendarDays size={17} />}
+          label="Total Events" tone="blue" icon={<CalendarDays size={18} />}
           value={formatNumber(kpis.totalEvents.value)} kpi={kpis.totalEvents}
           href={`${page.basePath}/events`} comparison={`vs last ${filters.range} days`}
         />
         <KpiCard
-          label="Registrations" tone="violet" icon={<Users size={17} />}
+          label="Registrations" tone="violet" icon={<Users size={18} />}
           value={formatNumber(kpis.registrations.value)} kpi={kpis.registrations}
           comparison={`vs last ${filters.range} days`}
         />
         <KpiCard
-          label="Attendance Rate" tone="emerald" icon={<TrendingUp size={17} />}
+          label="Attendance Rate" tone="emerald" icon={<TrendingUp size={18} />}
           value={formatRate(kpis.attendanceRate.value)} kpi={kpis.attendanceRate}
           comparison={`vs last ${filters.range} days`}
           tooltip="Attended registrations divided by eligible (confirmed, registered, attended or no-show) registrations."
         />
         {page.can('sponsorships.viewFinancials') ? (
           <KpiCard
-            label="Sponsorship Revenue" tone="amber" icon={<DollarSign size={17} />}
-            value={formatCurrency(kpis.sponsorshipRevenue.value, workspace.currency, true)}
+            label="Sponsorship Revenue" tone="amber" icon={<DollarSign size={18} />}
+            value={formatCurrency(kpis.sponsorshipRevenue.value, workspace.currency)}
             kpi={kpis.sponsorshipRevenue}
             href={page.visibleTabs.includes('sponsorships') ? `${page.basePath}/sponsorships` : undefined}
             comparison={`vs last ${filters.range} days`}
           />
         ) : (
           <KpiCard
-            label="Sponsors" tone="amber" icon={<DollarSign size={17} />}
+            label="Sponsors" tone="amber" icon={<DollarSign size={18} />}
             value="Hidden"
             comparison="Sponsorship values are restricted for your role"
           />
         )}
         <KpiCard
-          label="Follow-up Tasks" tone="rose" icon={<CheckCircle2 size={17} />}
+          label="Follow-up Tasks" tone="rose" icon={<CheckCircle2 size={18} />}
           value={formatNumber(kpis.followUpTasks.value)} kpi={kpis.followUpTasks}
           href={page.visibleTabs.includes('follow-up') ? `${page.basePath}/follow-up` : undefined}
           comparison={`vs last ${filters.range} days`}
         />
         <KpiCard
-          label="Upcoming Sessions" tone="sky" icon={<Clock size={17} />}
+          label="Upcoming Sessions" tone="sky" icon={<Clock size={18} />}
           value={formatNumber(kpis.upcomingSessions.value)} comparison="Next 30 days"
         />
       </KpiStrip>
@@ -156,32 +162,37 @@ export default async function EventsOverviewPage({
         syncError={gala.syncError}
         dismissed={gala.dismissedPlacements.includes('overview-banner')}
         title="Power event operations with Gala Dock"
-        body="Manage venues, schedules, sponsors, and logistics in one powerful platform. Caption Fox keeps the marketing; Gala Dock runs the day."
-        className="mb-5"
+        body="Manage venues, schedules, sponsors, and logistics in one powerful platform."
+        className="mb-3.5"
       />
 
-      <div className="mb-5 grid gap-4 xl:grid-cols-[1.15fr_1fr_1fr]">
+      <div className="mb-3.5 grid grid-cols-1 gap-3.5 xl:grid-cols-[409fr_352fr_376fr]">
         <Panel
           title="Registration Performance"
           action={<RangePicker value={filters.range} />}
+          contentClassName="px-4 pb-3 pt-4"
         >
-          <dl className="mb-3 grid grid-cols-3 gap-3 border-b border-slate-100 pb-3">
-            <SummaryStat label="Registrations" value={formatNumber(totals.registrations)} />
-            <SummaryStat label="Attended" value={formatNumber(totals.attendees)} />
-            <SummaryStat label="Attendance Rate" value={formatRate(trendRate)} />
+          <dl className="mb-5 grid grid-cols-3 divide-x divide-slate-100">
+            <SummaryStat label="Registrations" value={formatNumber(totals.registrations)} change={kpis.registrations.changePct} />
+            <SummaryStat label="Attended" value={formatNumber(totals.attendees)} change={kpis.attended.changePct} />
+            <SummaryStat label="Attendance Rate" value={formatRate(trendRate)} change={kpis.attendanceRate.changePct} points />
           </dl>
-          <ChartLegend items={[
-            { label: 'Registrations', colour: '#2563eb' },
-            { label: 'Attendees', colour: '#7c3aed' },
-          ]} />
+          <div className="pl-10">
+            <ChartLegend items={[
+              { label: 'Registrations', colour: '#2563eb' },
+              { label: 'Attendees', colour: '#7c3aed' },
+            ]} />
+          </div>
           <div className="mt-2">
-            <RegistrationTrendChart data={trend} />
+            <RegistrationTrendChart data={trend} height={140} />
           </div>
         </Panel>
 
         <RunOfShowPanel
           sessions={runOfShow.sessions}
-          title={runOfShow.event ? `Run of Show (${runOfShow.event.name})` : 'Run of Show'}
+          title="Run of Show"
+          // Same pattern as the reference's "Run of Show • Episode #56": one line, so the row keeps its height.
+          titleSuffix={runOfShowIsToday ? '(Today)' : runOfShow.event ? `• ${runOfShow.event.name}` : undefined}
           viewAllHref={runOfShow.event ? `${page.basePath}/events/${runOfShow.event.id}` : `${page.basePath}/events`}
           timezone={workspace.timezone}
         />
@@ -189,42 +200,43 @@ export default async function EventsOverviewPage({
         <ActivityPanel activity={activity} viewAllHref={`${page.basePath}/events`} />
       </div>
 
-      <div className="grid gap-4 xl:grid-cols-[1.6fr_1fr]">
-        <div className="space-y-4">
-          <EventsFilterBar
-            searchPlaceholder="Search events..."
-            dateRangeLabel="Date Range"
-            filters={[
-              {
-                key: 'type', label: 'Event Type',
-                options: [
-                  { value: 'conference', label: 'Conference' },
-                  { value: 'in_person', label: 'In-person' },
-                  { value: 'webinar', label: 'Webinar' },
-                  { value: 'podcast', label: 'Podcast' },
-                  { value: 'workshop', label: 'Workshop' },
-                ],
-              },
-              {
-                key: 'status', label: 'Status', allLabel: 'All Statuses',
-                options: [
-                  { value: 'draft', label: 'Draft' },
-                  { value: 'upcoming', label: 'Upcoming' },
-                  { value: 'scheduled', label: 'Scheduled' },
-                  { value: 'live', label: 'Live' },
-                  { value: 'completed', label: 'Completed' },
-                  { value: 'cancelled', label: 'Cancelled' },
-                ],
-              },
-              { key: 'owner', label: 'Owner', options: owners.map(owner => ({ value: owner.id, label: owner.name })) },
-            ]}
-          />
+      <div className="grid grid-cols-1 gap-3.5 xl:grid-cols-[745fr_405fr]">
+        <section className="min-w-0 rounded-xl border border-slate-200 bg-white" aria-label="Event summary">
+          <div className="border-b border-slate-100 px-3 py-2">
+            <EventsFilterBar
+              variant="inline"
+              searchPlaceholder="Search events..."
+              dateRangeLabel="Date Range"
+              showMoreFilters={false}
+              filters={[
+                {
+                  key: 'type', label: 'Event Type', width: 100,
+                  options: [
+                    { value: 'conference', label: 'Conference' },
+                    { value: 'in_person', label: 'In-person' },
+                    { value: 'webinar', label: 'Webinar' },
+                    { value: 'podcast', label: 'Podcast' },
+                    { value: 'workshop', label: 'Workshop' },
+                  ],
+                },
+                {
+                  key: 'status', label: 'Status', allLabel: 'All Statuses', width: 80,
+                  options: [
+                    { value: 'draft', label: 'Draft' },
+                    { value: 'upcoming', label: 'Upcoming' },
+                    { value: 'scheduled', label: 'Scheduled' },
+                    { value: 'live', label: 'Live' },
+                    { value: 'completed', label: 'Completed' },
+                    { value: 'cancelled', label: 'Cancelled' },
+                  ],
+                },
+                { key: 'owner', label: 'Owner', width: 80, options: owners.map(owner => ({ value: owner.id, label: owner.name })) },
+              ]}
+            />
+          </div>
 
-          <Panel
-            title="Event Summary"
-            action={<ViewSwitcher views={allowedViews} active={filters.view} />}
-            contentClassName={filters.view === 'cards' ? 'p-4' : 'p-0'}
-          >
+          <div className="px-3 pb-4 pt-3">
+            <h2 className="mb-3 text-[13px] font-semibold text-slate-900">Event Summary</h2>
             {list.events.length === 0 ? (
               <EventsEmptyState
                 title="No events match this view"
@@ -236,8 +248,8 @@ export default async function EventsOverviewPage({
                 }
               />
             ) : filters.view === 'cards' ? (
-              <div className="grid gap-3.5 sm:grid-cols-2 xl:grid-cols-4">
-                {list.events.map(event => (
+              <div className="grid gap-2.5 sm:grid-cols-2 xl:grid-cols-4">
+                {list.events.slice(0, 4).map(event => (
                   <EventCard key={event.id} event={event} href={eventHref(event)} timezone={workspace.timezone} />
                 ))}
               </div>
@@ -254,31 +266,28 @@ export default async function EventsOverviewPage({
                 <PanelLink href={`${page.basePath}/events`}>View all events →</PanelLink>
               </div>
             )}
-          </Panel>
-        </div>
+          </div>
+        </section>
 
-        <UpcomingEventsPanel
-          events={upcoming}
-          hrefFor={eventHref}
-          timezone={workspace.timezone}
-          calendarHref={`${page.basePath}/events?view=calendar`}
-          allHref={`${page.basePath}/events`}
-        />
+        <section className="min-w-0 rounded-xl border border-slate-200 bg-white" aria-label="Upcoming events">
+          <div className="border-b border-slate-100 px-3 py-2">
+            <ViewSwitcher views={allowedViews} active={filters.view} fill />
+          </div>
+          <UpcomingEventsPanel
+            embedded
+            events={upcoming}
+            hrefFor={eventHref}
+            timezone={workspace.timezone}
+            calendarHref={`${page.basePath}/events?view=calendar`}
+            allHref={`${page.basePath}/events`}
+          />
+        </section>
       </div>
 
-      <p className="mt-8 text-center text-[11.5px] text-slate-400">
+      <p className="mt-8 text-center text-[10.5px] text-slate-400">
         All figures are computed from live workspace records. Watch time and provider
         metrics appear only where a webinar or podcast provider is connected.
       </p>
     </EventsShell>
-  )
-}
-
-function SummaryStat({ label, value }: { label: string; value: string }) {
-  return (
-    <div>
-      <dd className="text-[19px] font-bold leading-tight text-slate-900">{value}</dd>
-      <dt className="mt-0.5 text-[11.5px] text-slate-500">{label}</dt>
-    </div>
   )
 }

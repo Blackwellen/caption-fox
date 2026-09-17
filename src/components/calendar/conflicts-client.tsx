@@ -113,11 +113,11 @@ export function ConflictCards({
             key={conflict.id}
             className={cn(
               // Reference card: severity pill, title, one-line description, 3 facts, hairline, owner/due footer.
-              'relative flex flex-col rounded-[10px] border bg-white px-3 pt-2.5 transition-shadow hover:shadow-sm',
+              'relative flex flex-col rounded-[10px] border bg-white px-3 pt-2.5 transition-shadow hover:shadow-sm lg:pt-2',
               selectedId === conflict.id ? 'border-blue-400 ring-1 ring-blue-200' : 'border-[#e8ebf0]',
             )}
           >
-            <div className="mb-2 flex items-start">
+            <div className="mb-2 flex items-start lg:mb-1.5">
               <SeverityBadge severity={conflict.severity} />
               <span className="sr-only">Status: {STATUS_LABEL[conflict.status]}</span>
             </div>
@@ -126,32 +126,32 @@ export function ConflictCards({
               <p className="mt-0.5 truncate text-[10.5px] lg:text-[9px] leading-[13px] text-slate-600">{conflict.description}</p>
             </button>
 
-            <dl className="mt-2.5 grid grid-cols-[48px_minmax(0,1.6fr)_minmax(0,1fr)] gap-2 text-[10.5px] lg:text-[9px]">
+            <dl className="mt-2.5 grid grid-cols-[48px_minmax(0,1.6fr)_minmax(0,1fr)] lg:mt-2 gap-2 text-[10.5px] lg:text-[9px]">
               <div>
                 <dt className="text-[10px] lg:text-[9px] text-slate-400">Channels</dt>
-                <dd className="mt-1 flex gap-1">
+                <dd className="mt-1 flex gap-1 lg:mt-0.5">
                   {conflict.channels.length === 0 ? <span className="text-slate-400">—</span>
                     : conflict.channels.slice(0, 3).map(channel => <ChannelIcon key={channel} channel={channel} size={11} />)}
                 </dd>
               </div>
               <div>
                 <dt className="text-[10px] lg:text-[9px] text-slate-400">Date</dt>
-                <dd className="mt-1 text-[10.5px] lg:text-[9px] leading-[13px] font-medium text-slate-700">
+                <dd className="mt-1 text-[10.5px] lg:text-[9px] leading-[13px] lg:leading-[12px] font-medium text-slate-700 lg:mt-0.5">
                   {conflict.startAt ? <>{formatShortDate(conflict.startAt, ctx.timezone, ctx.locale)}<br />{formatTime(conflict.startAt, ctx.timezone, ctx.locale)}</> : formatShortDate(conflict.detectedAt, ctx.timezone, ctx.locale)}
                 </dd>
               </div>
               <div>
                 <dt className="text-[10px] lg:text-[9px] text-slate-400">Impact</dt>
-                <dd className={cn('mt-1 font-semibold capitalize',
+                <dd className={cn('mt-1 font-semibold capitalize lg:mt-0.5',
                   conflict.impact === 'high' ? 'text-red-600' : conflict.impact === 'medium' ? 'text-amber-600' : 'text-emerald-600')}>
                   {conflict.impact}
                 </dd>
               </div>
             </dl>
 
-            <div className="-mx-3 mt-2.5 flex items-center justify-between gap-2 border-t border-[#eef0f4] px-3 py-2">
+            <div className="-mx-3 mt-2.5 flex items-center justify-between gap-2 border-t border-[#eef0f4] px-3 py-2 lg:mt-1.5 lg:py-[3px]">
               <span className="flex min-w-0 items-center gap-1.5">
-                <Avatar name={conflict.assigneeName ?? conflict.ownerName} size={20} />
+                <Avatar name={conflict.assigneeName ?? conflict.ownerName} size={18} />
                 <span className="min-w-0">
                   <span className="block text-[10px] lg:text-[9px] text-slate-400">Owner</span>
                   <span className="block truncate text-[11px] lg:text-[9.5px] font-medium text-slate-700">{conflict.assigneeName ?? conflict.ownerName ?? 'Unassigned'}</span>
@@ -166,7 +166,7 @@ export function ConflictCards({
               <div className="relative">
                 <button type="button" aria-label={`Actions for ${conflict.reference}`} aria-expanded={openMenu === conflict.id}
                   onClick={() => setOpenMenu(openMenu === conflict.id ? null : conflict.id)}
-                  className={cn('flex h-[26px] w-[26px] items-center justify-center rounded-md border border-[#e3e7ed] text-slate-500 hover:bg-slate-50', T.focus)}>
+                  className={cn('flex h-[26px] w-[26px] items-center justify-center rounded-md border border-[#e3e7ed] text-slate-500 hover:bg-slate-50 lg:h-[22px] lg:w-[22px]', T.focus)}>
                   <MoreVertical size={14} />
                 </button>
                 {openMenu === conflict.id && (
@@ -193,7 +193,7 @@ export function ConflictCards({
       </div>
 
       {/* Reference: count on the left, pagination centred, no divider. */}
-      <div className="grid grid-cols-[1fr_auto_1fr] items-center px-3.5 pb-3 pt-1">
+      <div className="grid grid-cols-[1fr_auto_1fr] items-center px-3.5 pb-3 pt-1 lg:pb-2 lg:pt-0.5">
         <p className="text-[11px] lg:text-[9.5px] text-slate-500">
           Showing {(page - 1) * pageSize + 1} to {Math.min(page * pageSize, total)} of {total} conflicts
         </p>
@@ -235,6 +235,8 @@ export function ResolutionPanel({
   const [applying, setApplying] = useState<{ action: string; label: string } | null>(null)
   // Reference panel lists three linked records; the rest sit behind a toggle.
   const [showAllRecords, setShowAllRecords] = useState(false)
+  // Reference shows only the action row; the note opens on demand.
+  const [showNote, setShowNote] = useState(false)
 
   const canResolve = canAccessCalendarCapability(ctx, 'conflicts.resolve')
   const canAssign = canAccessCalendarCapability(ctx, 'conflicts.assign')
@@ -279,20 +281,20 @@ export function ResolutionPanel({
 
   return (
     <section className={cn(T.card, 'overflow-hidden')}>
-      <header className="flex h-9 items-center justify-between gap-2 px-3.5 pt-0.5">
+      <header className="flex h-9 lg:h-7 items-center justify-between gap-2 px-3.5 pt-0.5">
         <h2 className="text-[13px] lg:text-[11.5px] font-semibold text-slate-900">Resolution panel</h2>
         <button type="button" onClick={hide} className={cn('text-[11.5px] lg:text-[10px] font-medium text-blue-600 hover:text-blue-700', T.focus)}>Hide</button>
       </header>
 
       {/* Reference: the selected conflict sits in an inner bordered card. */}
-      <div className="px-3.5 pb-3.5">
-      <div className="space-y-3 rounded-[10px] border border-[#eef0f4] p-3">
+      <div className="px-3.5 pb-3.5 lg:pb-2.5">
+      <div className="space-y-3 rounded-[10px] border border-[#eef0f4] p-3 lg:space-y-1 lg:p-2">
         <div>
           <div className="flex items-center gap-2">
             <SeverityBadge severity={conflict.severity} />
             <span className="text-[12.5px] lg:text-[11px] font-semibold text-slate-900">{conflict.title}</span>
           </div>
-          <p className="mt-1 text-[10.5px] lg:text-[9px] leading-[14px] text-slate-500">{conflict.description}</p>
+          <p className="mt-1 lg:mt-0.5 text-[10.5px] lg:text-[9px] leading-[14px] lg:leading-[12px] text-slate-500">{conflict.description}</p>
           {/* Not shown in the reference panel; kept for assistive tech and support references. */}
           <p className="sr-only">
             {conflict.reference} · {CONFLICT_TYPE_LABELS[conflict.type]} · detected {formatShortDate(conflict.detectedAt, ctx.timezone, ctx.locale)}
@@ -301,14 +303,14 @@ export function ResolutionPanel({
 
         {conflict.recommendations.length > 0 && (
           <div>
-            <p className="text-[11px] lg:text-[9.5px] font-medium text-slate-600">Recommended actions</p>
-            <ul className="mt-1.5 space-y-1.5">
+            <p className="text-[11px] lg:text-[9.5px] lg:leading-[12px] font-medium text-slate-600">Recommended actions</p>
+            <ul className="mt-1.5 space-y-1.5 lg:mt-1 lg:space-y-1">
               {conflict.recommendations.map(recommendation => (
                 <li key={recommendation.id} className="flex items-start gap-2">
                   <span className="mt-px flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-emerald-500 text-white" aria-hidden>
                     <Check size={10} strokeWidth={3} />
                   </span>
-                  <span className="min-w-0 flex-1 text-[11px] lg:text-[9.5px] leading-[14px] text-slate-700">
+                  <span className="min-w-0 flex-1 text-[11px] lg:text-[9.5px] leading-[14px] lg:leading-[12px] text-slate-700">
                     {recommendation.label}
                     {recommendation.advisory && <span className="ml-1 text-[10.5px] lg:text-[9px] text-slate-400">(suggestion — review before applying)</span>}
                   </span>
@@ -316,7 +318,7 @@ export function ResolutionPanel({
                     <button
                       type="button"
                       onClick={() => setApplying({ action: recommendation.action as string, label: recommendation.label })}
-                      className={cn('shrink-0 rounded-md border border-slate-200 px-1.5 py-0.5 text-[11px] lg:text-[9.5px] font-medium text-slate-600 hover:bg-slate-50', T.focus)}
+                      className={cn('shrink-0 rounded-md border border-slate-200 px-1.5 py-0.5 lg:py-0 text-[11px] lg:text-[9.5px] font-medium text-slate-600 hover:bg-slate-50', T.focus)}
                     >
                       Apply
                     </button>
@@ -327,32 +329,32 @@ export function ResolutionPanel({
           </div>
         )}
 
-        <div className="grid grid-cols-2 gap-3">
-          <label className="text-[11px] lg:text-[9.5px] font-medium text-slate-600">
+        <div className="grid grid-cols-2 gap-3 lg:gap-2">
+          <label className="text-[11px] lg:text-[9.5px] lg:leading-[12px] font-medium text-slate-600">
             Assignee
             <select
               defaultValue={conflict.assigneeId ?? ''}
               disabled={!canAssign || pending}
               onChange={e => run('Assignee updated', () => updateConflict({ basePath: ctx.basePath, id: conflict.id, assigneeId: e.target.value || null }))}
-              className={cn(dialogInputClass, 'mt-1 !h-8 w-full text-[11px] lg:text-[9.5px] normal-case')}
+              className={cn(dialogInputClass, 'mt-1 lg:mt-0.5 !h-8 lg:!h-7 w-full text-[11px] lg:text-[9.5px] normal-case')}
             >
               <option value="">Unassigned</option>
               {lookups.owners.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
             </select>
           </label>
-          <label className="text-[11px] lg:text-[9.5px] font-medium text-slate-600">
+          <label className="text-[11px] lg:text-[9.5px] lg:leading-[12px] font-medium text-slate-600">
             Due date
             <input
               type="date"
               defaultValue={conflict.dueAt ? conflict.dueAt.slice(0, 10) : ''}
               disabled={!canAssign || pending}
               onChange={e => run('Due date updated', () => updateConflict({ basePath: ctx.basePath, id: conflict.id, dueDate: e.target.value || null }))}
-              className={cn(dialogInputClass, 'mt-1 !h-8 w-full text-[11px] lg:text-[9.5px]')}
+              className={cn(dialogInputClass, 'mt-1 lg:mt-0.5 !h-8 lg:!h-7 w-full text-[11px] lg:text-[9.5px]')}
             />
           </label>
         </div>
 
-        <label className="block text-[11px] lg:text-[9.5px] font-medium text-slate-600">
+        <label className="block text-[11px] lg:text-[9.5px] lg:leading-[12px] font-medium text-slate-600">
           Status
           <select
             value={conflict.status}
@@ -361,7 +363,7 @@ export function ResolutionPanel({
               const value = e.target.value as 'open' | 'in_progress' | 'reopened'
               run('Status updated', () => updateConflict({ basePath: ctx.basePath, id: conflict.id, status: value }))
             }}
-            className={cn(dialogInputClass, 'mt-1 !h-8 w-full text-[11px] lg:text-[9.5px] normal-case')}
+            className={cn(dialogInputClass, 'mt-1 lg:mt-0.5 !h-8 lg:!h-7 w-full text-[11px] lg:text-[9.5px] normal-case')}
           >
             <option value="open">Open</option>
             <option value="in_progress">In progress</option>
@@ -372,10 +374,18 @@ export function ResolutionPanel({
 
         {conflict.linkedRecords.length > 0 && (
           <div>
-            <p className="text-[11px] lg:text-[9.5px] font-medium text-slate-600">Linked records</p>
-            <ul className="mt-1.5 divide-y divide-[#eef0f4] overflow-hidden rounded-lg border border-[#eef0f4]">
+            <div className="flex items-baseline justify-between gap-2">
+              <p className="text-[11px] lg:text-[9.5px] lg:leading-[12px] font-medium text-slate-600">Linked records</p>
+              {conflict.linkedRecords.length > 3 && (
+                <button type="button" onClick={() => setShowAllRecords(v => !v)} aria-expanded={showAllRecords}
+                  className={cn('shrink-0 text-[10.5px] lg:text-[9px] font-medium text-blue-600 hover:text-blue-700', T.focus)}>
+                  {showAllRecords ? 'Show fewer' : `Show ${conflict.linkedRecords.length - 3} more`}
+                </button>
+              )}
+            </div>
+            <ul className="mt-1.5 lg:mt-1 divide-y divide-[#eef0f4] overflow-hidden rounded-lg border border-[#eef0f4]">
               {(showAllRecords ? conflict.linkedRecords : conflict.linkedRecords.slice(0, 3)).map(record => (
-                <li key={`${record.kind}-${record.id}`} className="flex items-center justify-between gap-2 px-2.5 py-[5px]">
+                <li key={`${record.kind}-${record.id}`} className="flex items-center justify-between gap-2 px-2.5 py-[5px] lg:py-[2px]">
                   {record.href
                     ? <Link href={record.href} className={cn('min-w-0 flex-1 truncate text-[11px] lg:text-[9.5px] font-medium text-slate-800 hover:text-blue-700 hover:underline', T.focus)}>{record.label}</Link>
                     : <span className="min-w-0 flex-1 truncate text-[11px] lg:text-[9.5px] text-slate-700">{record.label}</span>}
@@ -385,12 +395,6 @@ export function ResolutionPanel({
                 </li>
               ))}
             </ul>
-            {conflict.linkedRecords.length > 3 && (
-              <button type="button" onClick={() => setShowAllRecords(v => !v)} aria-expanded={showAllRecords}
-                className={cn('mt-1 text-[10.5px] lg:text-[9px] font-medium text-blue-600 hover:text-blue-700', T.focus)}>
-                {showAllRecords ? 'Show fewer' : `Show ${conflict.linkedRecords.length - 3} more`}
-              </button>
-            )}
           </div>
         )}
 
@@ -410,7 +414,13 @@ export function ResolutionPanel({
           </div>
         ) : (canResolve || canDismiss) && (
           <div>
-            <label className="block">
+            {!showNote && (
+              <button type="button" onClick={() => setShowNote(true)}
+                className={cn('text-[10.5px] lg:text-[9px] font-medium text-blue-600 hover:text-blue-700', T.focus)}>
+                Add resolution note
+              </button>
+            )}
+            <label className={cn('block', !showNote && 'hidden')}>
               <span className="sr-only">Resolution note</span>
               <textarea
                 value={notes}
@@ -418,17 +428,17 @@ export function ResolutionPanel({
                 rows={1}
                 maxLength={2000}
                 placeholder="What did you change to resolve this?"
-                className={cn(dialogInputClass, 'h-auto min-h-8 w-full py-1.5 text-[11px] lg:text-[9.5px] normal-case')}
+                className={cn(dialogInputClass, 'h-auto min-h-8 w-full py-1.5 lg:min-h-7 lg:py-1 text-[11px] lg:text-[9.5px] normal-case')}
               />
             </label>
             {noteError && <p role="alert" className="mt-1 text-[11.5px] lg:text-[10px] text-red-600">{noteError}</p>}
-            <div className="mt-2 flex gap-2">
+            <div className="mt-2 lg:mt-1.5 flex gap-2">
               {canResolve && (
                 <button
                   type="button"
                   disabled={pending}
                   onClick={() => run('Conflict marked as resolved', () => updateConflict({ basePath: ctx.basePath, id: conflict.id, status: 'resolved', resolutionNotes: notes }))}
-                  className={cn('inline-flex h-8 flex-1 items-center justify-center gap-1.5 rounded-lg bg-blue-600 text-[12.5px] lg:text-[11px] font-semibold text-white shadow-sm hover:bg-blue-700 disabled:opacity-60', T.focus)}
+                  className={cn('inline-flex h-8 lg:h-7 flex-1 items-center justify-center gap-1.5 rounded-lg bg-blue-600 text-[12.5px] lg:text-[11px] font-semibold text-white shadow-sm hover:bg-blue-700 disabled:opacity-60', T.focus)}
                 >
                   {pending ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}Mark as resolved
                 </button>
@@ -441,7 +451,7 @@ export function ResolutionPanel({
                     if (!window.confirm('Dismiss this conflict as a false positive? It will stop appearing in active conflicts.')) return
                     run('Conflict dismissed', () => updateConflict({ basePath: ctx.basePath, id: conflict.id, status: 'dismissed', resolutionNotes: notes || 'Dismissed as a false positive.' }))
                   }}
-                  className={cn('inline-flex h-8 items-center justify-center rounded-lg border border-[#e3e7ed] px-3 text-[12.5px] lg:text-[11px] font-semibold text-slate-800 hover:bg-slate-50 disabled:opacity-60', T.focus)}
+                  className={cn('inline-flex h-8 lg:h-7 items-center justify-center rounded-lg border border-[#e3e7ed] px-3 text-[12.5px] lg:text-[11px] font-semibold text-slate-800 hover:bg-slate-50 disabled:opacity-60', T.focus)}
                 >
                   Dismiss
                 </button>

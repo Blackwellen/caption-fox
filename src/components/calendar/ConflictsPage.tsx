@@ -344,7 +344,7 @@ function Heatmap({
                     <td key={bucket} className="p-0">
                       <span
                         title={`${CHANNEL_LABELS[channel] ?? channel}, ${bucket}: ${count} conflict${count === 1 ? '' : 's'}`}
-                        className={cn('block h-6 rounded-[3px]', HEAT_CLASS[cell?.weight ?? 'none'])}
+                        className={cn('block h-6 lg:h-3 rounded-[3px]', HEAT_CLASS[cell?.weight ?? 'none'])}
                       >
                         <span className="sr-only">{CHANNEL_LABELS[channel] ?? channel}, {bucket}: {count} conflicts</span>
                       </span>
@@ -356,7 +356,7 @@ function Heatmap({
           </tbody>
         </table>
       </div>
-      <ul className="mt-3 flex items-center justify-center gap-4 border-t border-slate-100 pt-2.5">
+      <ul className="mt-3 lg:mt-2 flex items-center justify-center gap-4 border-t border-slate-100 pt-2.5 lg:pt-2">
         {(['low', 'medium', 'high'] as const).map(level => (
           <li key={level} className="flex items-center gap-1.5 text-[11px] lg:text-[9.5px] capitalize text-slate-500">
             <span className={cn('h-2.5 w-4 rounded-[2px]', HEAT_CLASS[level])} aria-hidden />{level}

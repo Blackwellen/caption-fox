@@ -43,6 +43,10 @@ Migration: `supabase/migrations/20260829000000_calendar_module.sql` — confirme
 Captured at 1491 × 1055 in Chrome (MCP), saved in `docs/ui-verification/caption-fox/calendar/`:
 `calendar-before.png`, `calendar-pass1*.png`, `calendar-pass2-full.png`, `queue-pass1-full.png`, `queue-pass2-full.png`, `agenda-pass1-full.png`, `agenda-pass2-full.png`, `agenda-pass3-full.png`, `agenda-october-nav.png`, `conflicts-pass1-full.png`, `calendar-empty-workspace.png`.
 
+**Scored pass (2026-09-16, later):** per-page scores from `scripts/ui-diff-content.py` (shell cropped, reference scaled to our content width; lower is closer) — Calendar 13.4 → 12.9, Publishing Queue 14.0 → 13.2, Agenda 12.6 → 12.2, Conflicts 16.7 → 15.8. Fixes: header block shifted up 6px with tighter H1/subtitle rhythm (live element tops now within a few px of the reference), Conflicts resolution panel 469 → 385px, conflict cards 155 → 149px, heatmap rows 24 → 12px, shared panel headers 36 → 32px, donut 168 → 132px. The residual score is demo-data difference, not layout: the reference images show 42 conflicts over 6 channels against our 8 over 4, with different names, dates and counts throughout.
+
+**Native-pixel captures (2026-09-16):** the browser profile is no longer at 80% zoom, so the reference viewport is emulated directly as `1491x1055x1` and screenshots need no rescaling. Native-pixel stacks (`scripts/ui-stack.py`, 50px rulers) showed the remaining gap was type size: the reference runs ~0.87x ours at identical box sizes. Applied as a desktop-only (`lg:`) scale across the twelve Calendar component files (241 overrides); phone and tablet keep the larger, touch-friendly sizes. Also in this pass: queue default page size 7 (the reference pages 7 rows), Calendar bottom-row rhythm, and a two-step compaction of the Conflicts cards (178 → 155px) and resolution panel (543 → 469px). Details in the tracker.
+
 **True-size captures (2026-09-15):** the Chrome profile runs at 80% zoom, so the earlier captures were not at true size. These were re-taken by emulating `1193x844x1` (innerWidth 1491 × 1055) and compared side by side with each design: `calendar-true1491.png`, `queue-true1491.png`, `agenda-true1491.png`, `conflicts-true1491.png` (plus `*-scaled.png` at 1491). This pass reduced text density across all four pages to match the designs; details are in the tracker under "Typography density pass".
 
 **Not yet captured:** 1440 / 1366 / 1280 / 1024 / tablet / mobile / PWA. The shell build error that blocked this is resolved; the pass is still to be run.
@@ -76,6 +80,8 @@ Captured at 1491 × 1055 in Chrome (MCP), saved in `docs/ui-verification/caption
 14. Agenda window started on the week start (Sunday), so past days came before today. The design starts on today. Root cause: the Agenda page, the Calendar's Agenda view and the export route all mapped `'agenda'` to the generic `'range'`. The view is now passed through, and the Agenda window starts on the focused day. Unit test added (42 tests).
 15. Conflict card date wrapped mid-time ("…09:00 / AM"). Date and time now sit on separate lines.
 16. Conflicts resolution panel pushed the bottom row below the fold. It now shows 3 linked records plus a "Show N more" toggle, with a compact note field.
+17. Queue paged 10 rows where the reference pages 7 ("Showing 1 to 7 of 128 items"), pushing the bottom row ~100px down. Default page size is now 7 across `parsePage`, the query clamp, the page-size select and its unit test.
+18. Calendar and Queue text ran ~15% larger than the reference at identical box sizes, the last visible 1:1 gap. Fixed with a measured desktop-only type scale (see tracker).
 
 ## 6. Tests run
 

@@ -10,6 +10,7 @@ import { createGiveaway } from '@/app/app/campaigns/entity-actions'
 import { GIVEAWAY_ENTRY_METHODS, GIVEAWAY_ENTRY_LABELS } from '@/lib/constants'
 import { CAMPAIGN_CHANNELS, CHANNEL_LABELS } from '@/lib/campaigns/constants'
 import type { PersonLite } from '@/lib/campaigns/types'
+import { useCampaignsBase } from './links'
 
 const ISO = /^\d{4}-\d{2}-\d{2}$/
 
@@ -46,6 +47,7 @@ const EMPTY: Draft = {
 
 export default function NewGiveawayWizard({ members, className }: { members: PersonLite[]; className?: string }) {
   const router = useRouter()
+  const campaignsBase = useCampaignsBase()
   const { notify } = useToast()
   const [open, setOpen] = useState(false)
   const [draft, setDraft] = useState<Draft>(EMPTY)
@@ -266,7 +268,7 @@ export default function NewGiveawayWizard({ members, className }: { members: Per
       notify('success', result.message ?? 'Giveaway created.')
       setOpen(false); setDraft(EMPTY); setDirty(false); setError(null)
       router.refresh()
-      if (result.id) router.push(`/app/campaigns/giveaways/${result.id}`)
+      if (result.id) router.push(`${campaignsBase}/giveaways/${result.id}`)
     })
   }
 

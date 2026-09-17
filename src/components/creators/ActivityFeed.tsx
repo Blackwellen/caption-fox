@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils'
 import { Avatar, formatAgo } from './primitives'
 import { PanelEmpty } from './states'
 import type { ActivityRow } from '@/lib/creators/types'
+import { resolveCreatorsLink } from '@/lib/creators/routes'
 
 const ENTITY_ICON: Record<string, typeof FileText> = {
   creator: UserPlus,
@@ -36,8 +37,8 @@ const ENTITY_TINT: Record<string, string> = {
  */
 export default function ActivityFeed({
   items, emptyMessage = 'Activity from creators, briefs, submissions, rights and payments will appear here.',
-  className,
-}: { items: ActivityRow[]; emptyMessage?: string; className?: string }) {
+  className, basePath = '/app/creators',
+}: { items: ActivityRow[]; emptyMessage?: string; className?: string; basePath?: string }) {
   if (items.length === 0) return <PanelEmpty message={emptyMessage} />
 
   return (
@@ -65,10 +66,10 @@ export default function ActivityFeed({
         )
         return (
           <li key={item.id}>
-            {item.link
+            {resolveCreatorsLink(item.link, basePath)
               ? (
                 <Link
-                  href={item.link}
+                  href={resolveCreatorsLink(item.link, basePath)!}
                   className="block rounded-lg px-1 transition-colors hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
                 >
                   {row}

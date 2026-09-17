@@ -65,6 +65,21 @@
   --shadow-shell-pop: 0 2px 6px rgb(10 22 48 / 0.05), 0 16px 36px -14px rgb(10 22 48 / 0.2);
   --shadow-shell-button: 0 1px 2px rgb(10 22 48 / 0.08), 0 6px 14px -8px rgb(23 105 255 / 0.55);
 
+  /* Campaign Manager → Strategy density set (approved Strategy designs).
+     Sampled from designs/Universal Sections/Strategy at native pixels. */
+  --color-sg-blue: #3f6ff8;
+  --color-sg-blue-hover: #2f5fe9;
+  --color-sg-blue-soft: #eef3ff;
+  --color-sg-ink: #0f172a;
+  --color-sg-body: #334155;
+  --color-sg-muted: #64748b;
+  --color-sg-subtle: #94a3b8;
+  --color-sg-line: #e8ecf2;
+  --color-sg-line-soft: #f1f4f8;
+  --color-sg-canvas: #f8fafc;
+  --shadow-sg-card: 0 1px 2px rgb(15 23 42 / 0.03), 0 2px 10px -4px rgb(15 23 42 / 0.06);
+  --shadow-sg-pop: 0 4px 10px rgb(15 23 42 / 0.06), 0 18px 40px -16px rgb(15 23 42 / 0.25);
+
   /* Font */
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);

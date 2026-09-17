@@ -232,8 +232,8 @@ export function canAccessBrandCapability(
       message: 'You do not have access to this workspace.' }
   }
 
-  const module = moduleFor(capability)
-  const moduleDecision = isModuleAvailable(ctx, module)
+  const moduleId = moduleFor(capability)
+  const moduleDecision = isModuleAvailable(ctx, moduleId)
   if (!moduleDecision.allowed) return moduleDecision
 
   const granted = ROLE_CAPABILITIES[String(ctx.role)] ?? []

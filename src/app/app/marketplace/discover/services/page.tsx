@@ -8,9 +8,10 @@ import { MODULE_ROUTES, POPULAR_SEARCHES, compactNumber, percent, responseTime }
 import {
   searchProfiles, getCategories, getCategorySupplierIds, getSavedSupplierIds,
   getShortlistIds, getProfilesByIds, getRequests,
+  getPortfolioBySupplier,
 } from '@/lib/marketplace/data'
 import { MarketplacePage, AccessBlocked, NoResults } from '@/components/marketplace/module/Layout'
-import SearchHero from '@/components/marketplace/module/SearchHero'
+import SearchHero, { SaveSearchControl } from '@/components/marketplace/module/SearchHero'
 import { serviceFilters } from '@/components/marketplace/module/filters'
 import { ServiceCard, SupplierRow, type CardContext } from '@/components/marketplace/module/ProfileCards'
 import { Panel, PanelLink, ProfileAvatar, TrustStrip } from '@/components/marketplace/module/primitives'
@@ -53,8 +54,10 @@ export default async function ServicesSearchPage({ searchParams }: { searchParam
 
   const compareProfiles = await getProfilesByIds(session.supabase, query.compare)
 
+  const portfolio = await getPortfolioBySupplier(session.supabase, rows.map(row => row.id))
+
   const ctx: CardContext = {
-    query, pathname: PATH,
+    query, pathname: PATH, portfolio,
     savedIds: new Set(savedIds),
     shortlistIds: new Set(shortlistIds),
     canSave: session.capabilities.save,
@@ -80,36 +83,40 @@ export default async function ServicesSearchPage({ searchParams }: { searchParam
       module="services" modules={session.modules} showDiscoverNav
       title="Services Search"
       subtitle="Find the perfect service provider for your next project."
-      breadcrumb={[{ label: 'Marketplace', href: MODULE_ROUTES.overview }, { label: 'Discover', href: MODULE_ROUTES.discover }, { label: 'Services' }]}
     >
-      <SearchHero
-        title="Find the perfect service partner"
-        subtitle={`Search ${compactNumber(total)} verified service providers and specialists worldwide.`}
-        placeholder="What service do you need? e.g. Video Editing, Voice Over, Logo Design…"
-        query={query} pathname={PATH} mode="services" resultCount={total}
-        filters={serviceFilters(categories)}
-        popular={POPULAR_SEARCHES.services}
-        canSaveSearch={session.capabilities.search}
-        aside={
-          <div className="flex items-center gap-2">
-            <div className="flex -space-x-2">
-              {rows.slice(0, 5).map(profile => <ProfileAvatar key={profile.id} profile={profile} size={30} />)}
-            </div>
-            <span className="rounded-full bg-white/20 px-2 py-0.5 text-xs font-semibold">{compactNumber(total)}</span>
-            <span className="text-xs text-blue-100">Active providers</span>
-          </div>
-        }
-      />
-
-      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_300px]">
+      <div className="grid gap-5 lg:gap-4 xl:grid-cols-[minmax(0,1fr)_250px]">
         <div className="min-w-0">
+        <SearchHero
+          title="Find the perfect service partner"
+          subtitle={`Search ${compactNumber(total)} verified service providers and specialists worldwide.`}
+          placeholder="What service do you need? e.g. Video Editing, Voice Over, Logo Design…"
+          query={query} pathname={PATH} mode="services" resultCount={total}
+          filters={serviceFilters(categories)}
+          segmentedFilters
+          popular={POPULAR_SEARCHES.services}
+          canSaveSearch={session.capabilities.search}
+          saveInHero={false}
+          aside={
+            <div className="flex items-center gap-2">
+              <div className="flex -space-x-2">
+                {rows.slice(0, 5).map(profile => <ProfileAvatar key={profile.id} profile={profile} size={30} />)}
+              </div>
+              <span className="rounded-full bg-white/20 px-2 py-0.5 text-xs font-semibold lg:text-[10px]">{compactNumber(total)}</span>
+              <span className="text-xs text-blue-100 lg:text-[10px]">Active providers</span>
+            </div>
+          }
+        />
+
           <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-            <p className="text-sm text-slate-600" role="status" aria-live="polite">
+            <p className="text-sm text-slate-600 lg:text-[11px]" role="status" aria-live="polite">
               {total > 0
                 ? <>Showing <span className="font-semibold text-slate-900">{first}–{last}</span> of {total.toLocaleString('en-GB')} providers</>
                 : 'No providers match these filters'}
             </p>
             <div className="flex items-center gap-2">
+              {session.capabilities.search && (
+                <SaveSearchControl mode="services" query={query} resultCount={total} variant="outline" />
+              )}
               <ViewSwitcher query={query} pathname={PATH} views={['cards', 'list']} withLabels />
               <SortSelect query={query} pathname={PATH} />
             </div>
@@ -129,7 +136,7 @@ export default async function ServicesSearchPage({ searchParams }: { searchParam
           {rows.length === 0 ? (
             <NoResults
               title="No providers match these filters"
-              action={<Link href={PATH} className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700">Reset search</Link>}
+              action={<Link href={PATH} className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 lg:text-[11px] lg:px-3">Reset search</Link>}
             />
           ) : query.view === 'list' ? (
             <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
@@ -164,18 +171,18 @@ export default async function ServicesSearchPage({ searchParams }: { searchParam
             padded={false}
           >
             {compareProfiles.length === 0 ? (
-              <p className="p-5 text-xs text-slate-500">
+              <p className="p-5 text-xs text-slate-500 lg:text-[10px] lg:p-3">
                 Add up to {session.capabilities.compareLimit} providers to compare price, turnaround and delivery record.
               </p>
             ) : (
               <>
                 <ul className="divide-y divide-slate-100">
                   {compareProfiles.map(profile => (
-                    <li key={profile.id} className="flex items-center gap-2.5 px-4 py-2.5">
+                    <li key={profile.id} className="flex items-center gap-2.5 px-4 py-2.5 lg:py-1.5 lg:px-3">
                       <ProfileAvatar profile={profile} size={30} />
                       <div className="min-w-0 flex-1">
-                        <p className="truncate text-xs font-medium text-slate-800">{profile.display_name}</p>
-                        <p className="truncate text-[11px] text-slate-400">{profile.location}</p>
+                        <p className="truncate text-xs font-medium text-slate-800 lg:text-[10px]">{profile.display_name}</p>
+                        <p className="truncate text-[11px] text-slate-400 lg:text-[9px]">{profile.location}</p>
                       </div>
                       <Link
                         href={buildMarketplaceHref(PATH, query, { compare: query.compare.filter(id => id !== profile.id), page: query.page })}
@@ -190,13 +197,13 @@ export default async function ServicesSearchPage({ searchParams }: { searchParam
                 <div className="space-y-2 p-3">
                   <Link
                     href={`/app/marketplace/compare?ids=${query.compare.join(',')}`}
-                    className="block rounded-lg bg-blue-600 px-3 py-2 text-center text-sm font-medium text-white hover:bg-blue-700"
+                    className="block rounded-lg bg-blue-600 px-3 py-2 text-center text-sm font-medium text-white hover:bg-blue-700 lg:text-[11px]"
                   >
                     Compare {compareProfiles.length} provider{compareProfiles.length === 1 ? '' : 's'}
                   </Link>
                   <Link
                     href={`/app/marketplace/compare?ids=${query.compare.join(',')}`}
-                    className="flex items-center justify-center gap-1.5 text-xs font-medium text-blue-600 hover:text-blue-700"
+                    className="flex items-center justify-center gap-1.5 text-xs font-medium text-blue-600 hover:text-blue-700 lg:text-[10px]"
                   >
                     <GitCompareArrows size={13} />View comparison table
                   </Link>
@@ -206,13 +213,13 @@ export default async function ServicesSearchPage({ searchParams }: { searchParam
           </Panel>
 
           {session.capabilities.createRequest && (
-            <div className="rounded-xl border border-violet-200 bg-gradient-to-br from-violet-50 to-blue-50 p-5">
+            <div className="rounded-xl border border-violet-200 bg-gradient-to-br from-violet-50 to-blue-50 p-5 lg:p-3">
               <div className="flex items-center justify-between">
-                <h3 className="text-sm font-semibold text-violet-900">Create an RFQ</h3>
-                <span className="rounded-full bg-violet-100 px-2 py-0.5 text-[10px] font-semibold text-violet-700">Recommended</span>
+                <h3 className="text-sm font-semibold text-violet-900 lg:text-[11px]">Create an RFQ</h3>
+                <span className="rounded-full bg-violet-100 px-2 py-0.5 text-[10px] font-semibold text-violet-700 lg:text-[8.5px]">Recommended</span>
               </div>
-              <p className="mt-1 text-xs text-violet-800">Get tailored proposals from verified providers.</p>
-              <ul className="mt-3 space-y-1.5 text-xs text-violet-900">
+              <p className="mt-1 text-xs text-violet-800 lg:text-[10px]">Get tailored proposals from verified providers.</p>
+              <ul className="mt-3 space-y-1.5 text-xs text-violet-900 lg:text-[10px]">
                 {['Describe your project', 'Receive custom proposals', 'Compare and hire confidently'].map(item => (
                   <li key={item} className="flex items-center gap-1.5">
                     <ShieldCheck size={13} className="shrink-0 text-violet-600" />{item}
@@ -221,13 +228,13 @@ export default async function ServicesSearchPage({ searchParams }: { searchParam
               </ul>
               <Link
                 href={`${MODULE_ROUTES.requests}?new=rfq`}
-                className="mt-4 block rounded-lg bg-violet-600 px-3 py-2 text-center text-sm font-medium text-white hover:bg-violet-700"
+                className="mt-4 block rounded-lg bg-violet-600 px-3 py-2 text-center text-sm font-medium text-white hover:bg-violet-700 lg:text-[11px]"
               >
                 Create RFQ
               </Link>
               <Link
                 href={`${MODULE_ROUTES.requests}?type=rfq`}
-                className="mt-2 block text-center text-xs font-medium text-violet-700 hover:text-violet-900"
+                className="mt-2 block text-center text-xs font-medium text-violet-700 hover:text-violet-900 lg:text-[10px]"
               >
                 View my RFQs ({requests.total})
               </Link>
@@ -243,11 +250,11 @@ export default async function ServicesSearchPage({ searchParams }: { searchParam
                 { href: '/help/marketplace', icon: <LifeBuoy size={15} />, title: 'Help and support', note: 'Get help with the marketplace' },
               ].map(action => (
                 <li key={action.title}>
-                  <Link href={action.href} className="flex items-center gap-2.5 px-4 py-3 hover:bg-slate-50">
+                  <Link href={action.href} className="flex items-center gap-2.5 px-4 py-3 hover:bg-slate-50 lg:py-2 lg:px-3">
                     <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-600">{action.icon}</span>
                     <div className="min-w-0">
-                      <p className="text-xs font-semibold text-slate-800">{action.title}</p>
-                      <p className="truncate text-[11px] text-slate-500">{action.note}</p>
+                      <p className="text-xs font-semibold text-slate-800 lg:text-[10px]">{action.title}</p>
+                      <p className="truncate text-[11px] text-slate-500 lg:text-[9px]">{action.note}</p>
                     </div>
                   </Link>
                 </li>
@@ -256,7 +263,7 @@ export default async function ServicesSearchPage({ searchParams }: { searchParam
           </Panel>
 
           <Panel title="Buying with confidence" padded>
-            <ul className="space-y-2.5 text-xs text-slate-600">
+            <ul className="space-y-2.5 text-xs text-slate-600 lg:text-[10px]">
               <li className="flex items-start gap-2">
                 <ShieldCheck size={14} className="mt-0.5 shrink-0 text-emerald-600" />
                 Funds are held in escrow until you approve delivery.
@@ -274,7 +281,7 @@ export default async function ServicesSearchPage({ searchParams }: { searchParam
         </div>
       </div>
 
-      <CompareTray
+      <CompareTray railWidth={250}
         profiles={compareProfiles} query={query} pathname={PATH}
         limit={session.capabilities.compareLimit}
       />

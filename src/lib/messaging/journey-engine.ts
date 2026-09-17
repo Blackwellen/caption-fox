@@ -13,7 +13,8 @@ interface JourneyNode {
   conditionType?: 'opened_previous' | 'clicked_previous'
   order: number
 }
-interface JourneyEdge { from: string; to: string }
+/** ranch labels the outgoing edges of a condition node: 'yes' when met, 'no' when not. */
+interface JourneyEdge { from: string; to: string; branch?: 'yes' | 'no' }
 interface JourneyCanvas { nodes: JourneyNode[]; edges: JourneyEdge[] }
 
 interface JourneyRecord {
@@ -24,10 +25,11 @@ interface JourneyRecord {
   total_entered: number
 }
 
-function nextNodeId(canvas: JourneyCanvas, currentId: string | null): string | null {
+function nextNodeId(canvas: JourneyCanvas, currentId: string | null, branch?: 'yes' | 'no'): string | null {
   if (currentId === null) return canvas.nodes[0]?.id ?? null
-  const edge = canvas.edges.find(e => e.from === currentId)
-  return edge?.to ?? null
+  const outgoing = canvas.edges.filter(e => e.from === currentId)
+  if (branch) return (outgoing.find(e => e.branch === branch) ?? outgoing.find(e => !e.branch && branch === 'yes'))?.to ?? null
+  return (outgoing.find(e => !e.branch) ?? outgoing[0])?.to ?? null
 }
 
 function previousNodeId(canvas: JourneyCanvas, currentId: string): string | null {
@@ -189,14 +191,15 @@ async function advanceParticipants(supabase: SupabaseClient, journey: JourneyRec
 
     if (node.type === 'condition') {
       const met = await evaluateCondition(supabase, journey, node, contact.id)
-      if (!met) {
+      // Follow the matching yes/no branch; a condition with no 'no' branch exits unmet participants.
+      const next = nextNodeId(journey.canvas, node.id, met ? 'yes' : 'no')
+      if (!met && !next) {
         await supabase.from('messaging_journey_participants')
           .update({ status: 'exited', exited_at: new Date().toISOString(), metadata: { exit_reason: `condition not met: ${node.conditionType ?? node.id}` } })
           .eq('id', participant.id)
         advanced += 1
         continue
       }
-      const next = nextNodeId(journey.canvas, node.id)
       await supabase.from('messaging_journey_participants')
         .update({ status: next ? 'active' : 'exited', current_node_id: next, exited_at: next ? null : new Date().toISOString() })
         .eq('id', participant.id)

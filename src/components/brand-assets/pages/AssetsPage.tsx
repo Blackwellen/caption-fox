@@ -6,11 +6,11 @@ import {
 import { cn } from '@/lib/utils'
 import type { BrandContext } from '@/lib/brand-assets/context'
 import type { AssetsPage as AssetsPageData } from '@/lib/brand-assets/queries'
-import { ADDED_PRESETS, buildHref, chipsFor, type AssetFilters, type RawParams } from '@/lib/brand-assets/filters'
+import { ADDED_PRESETS, buildHref, chipsFor, exportHref, type AssetFilters, type RawParams } from '@/lib/brand-assets/filters'
 import { can, canAccessBrandCapability } from '@/lib/brand-assets/entitlements'
 import type { BrandAssetCard } from '@/types/brand-assets'
 import {
-  ActionLink, EmptyPanel, KpiStrip, PageHeading, Pagination, Panel, ProgressRing, StatusBadge, type KpiSpec,
+  ActionLink, EmptyPanel, ExportCsvLink, KpiStrip, PageHeading, Pagination, Panel, ProgressRing, StatusBadge, type KpiSpec,
 } from '../ui/primitives'
 import { FilterChips, FilterSelect, MoreFiltersButton, SearchField, SortSelect, ViewSwitcher } from '../ui/controls'
 import { Avatar } from '../shell/BrandAssetsShell'
@@ -127,16 +127,18 @@ export default function AssetsPage({
 
       <div className="grid gap-3.5 xl:grid-cols-[minmax(0,1fr)_246px]">
         <div className="min-w-0">
-          <Panel className="p-3">
-            <div className="mb-2.5 flex flex-wrap items-center gap-2">
+          <Panel className="p-3 lg:p-2.5">
+            <div className="mb-2.5 flex flex-wrap items-center gap-2 lg:mb-2">
               <SearchField pathname={pathname} params={params} placeholder="Search assets by name, keyword, or tag..."
                 defaultValue={filters.q} className="w-full sm:w-[270px]" />
-              <div className="ml-auto">
+              <div className="ml-auto flex items-center gap-2">
+                <ExportCsvLink href={exportHref(pathname, params)} allowed={can(e, 'brand.assets.download')}
+                  blockedReason="Your role or plan does not permit downloading assets or exporting the list." />
                 <ViewSwitcher pathname={pathname} params={params} active={filters.view}
                   views={[{ value: 'grid', label: 'Grid' }, { value: 'list', label: 'List' }, { value: 'table', label: 'Table' }]} />
               </div>
             </div>
-            <div className="mb-3 flex flex-wrap items-center gap-2">
+            <div className="mb-3 flex flex-wrap items-center gap-2 lg:mb-2.5">
               <FilterSelect pathname={pathname} params={params} name="type" label="Asset Type" allLabel="Asset Type" value={filters.kind} options={KIND_OPTIONS} className="w-[102px]" />
               <FilterSelect pathname={pathname} params={params} name="status" label="Status" allLabel="Status" value={filters.status} options={[
                 { value: 'approved', label: 'Approved' }, { value: 'pending', label: 'In Review' },

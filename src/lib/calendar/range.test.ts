@@ -61,7 +61,7 @@ describe('pickView / readParams / parsePage', () => {
     expect(params.search).toBeUndefined()
   })
   it('clamps page and only allows the offered page sizes', () => {
-    expect(parsePage({ page: 'abc', pageSize: '37' } as never)).toEqual({ page: 1, pageSize: 10 })
+    expect(parsePage({ page: 'abc', pageSize: '37' } as never)).toEqual({ page: 1, pageSize: 7 })
     expect(parsePage({ page: '3', pageSize: '25' } as never)).toEqual({ page: 3, pageSize: 25 })
   })
 })

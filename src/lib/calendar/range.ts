@@ -139,7 +139,7 @@ export function monthTitle(ctx: CalendarContext, anchorIso: string) {
 
 export function parsePage(filters: CalendarFilters): { page: number; pageSize: number } {
   const page = Math.max(1, Math.min(1000, Number(filters.page ?? '1') || 1))
-  const pageSize = [10, 25, 50, 100].includes(Number(filters.pageSize)) ? Number(filters.pageSize) : 10
+  const pageSize = [7, 10, 25, 50, 100].includes(Number(filters.pageSize)) ? Number(filters.pageSize) : 7
   return { page, pageSize }
 }
 

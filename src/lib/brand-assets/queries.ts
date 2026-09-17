@@ -472,13 +472,14 @@ export interface AssetsPage {
   insights: { kind: string; count: number; percent: number }[]
 }
 
-export async function getAssetsPage(ctx: BrandContext, f: AssetFilters): Promise<AssetsPage> {
+/** Row filters shared by the Assets grid and its CSV export, so both return exactly the same rows. */
+async function assetQuery(ctx: BrandContext, f: AssetFilters, withCount = false) {
   const ws = ctx.workspace.id
   const { supabase } = ctx
-
-  let q = supabase.from('media_assets').select(ASSET_SELECT, { count: 'exact' })
-    .eq('workspace_id', ws)
-    .is('archived_at', null)
+  const base = withCount
+    ? supabase.from('media_assets').select(ASSET_SELECT, { count: 'exact' })
+    : supabase.from('media_assets').select(ASSET_SELECT)
+  let q = base.eq('workspace_id', ws).is('archived_at', null)
 
   if (f.brandId) q = q.eq('brand_id', f.brandId)
   else if (ctx.activeBrand) q = q.eq('brand_id', ctx.activeBrand.id)
@@ -507,7 +508,13 @@ export async function getAssetsPage(ctx: BrandContext, f: AssetFilters): Promise
     const ids = ((links ?? []) as { asset_id: string }[]).map(r => r.asset_id)
     q = q.in('id', ids.length ? ids : ['00000000-0000-0000-0000-000000000000'])
   }
+  // Wrapped: a Supabase builder is thenable, so returning it bare would execute.
+  return { q }
+}
 
+export async function getAssetsPage(ctx: BrandContext, f: AssetFilters): Promise<AssetsPage> {
+  const ws = ctx.workspace.id
+  let q = (await assetQuery(ctx, f, true)).q
   q = applyAssetSort(q, f.sort)
   const from = (f.page - 1) * f.pageSize
   q = q.range(from, from + f.pageSize - 1)
@@ -892,6 +899,36 @@ async function rightsCalendar(ctx: BrandContext, from: string, to: string) {
 }
 
 /** Every licence matching the current filters, for CSV export (bounded). */
+/** Every asset matching the current filters/sort, for the CSV export (capped at 5,000 rows). */
+export async function exportAssets(ctx: BrandContext, f: AssetFilters): Promise<BrandAssetCard[]> {
+  const rows: BrandAssetCard[] = []
+  for (let page = 1; page <= 50; page++) {
+    let q = (await assetQuery(ctx, f)).q
+    q = applyAssetSort(q, f.sort)
+    const from = (page - 1) * 100
+    const { data } = await q.range(from, from + 99)
+    const batch = (data ?? []) as unknown as BrandAssetCard[]
+    rows.push(...batch)
+    if (batch.length < 100) break
+  }
+  return rows
+}
+
+/** Every product matching the current filters/sort, for the CSV export (capped at 5,000 rows). */
+export async function exportProducts(ctx: BrandContext, f: ProductFilters): Promise<ProductCard[]> {
+  const rows: ProductCard[] = []
+  for (let page = 1; page <= 50; page++) {
+    let q = (await productQuery(ctx, f)).q
+    q = applyProductSort(q, f.sort)
+    const from = (page - 1) * 100
+    const { data } = await q.range(from, from + 99)
+    const batch = await hydrateProducts(ctx, data ?? [])
+    rows.push(...batch)
+    if (batch.length < 100) break
+  }
+  return rows
+}
+
 export async function exportRights(ctx: BrandContext, f: RightsFilters): Promise<RightsLicenseRow[]> {
   const rows: RightsLicenseRow[] = []
   for (let page = 1; page <= 50; page++) {
@@ -1133,13 +1170,14 @@ export interface ProductsPage {
   collections: { id: string; name: string }[]
 }
 
-export async function getProductsPage(ctx: BrandContext, f: ProductFilters): Promise<ProductsPage> {
+/** Row filters shared by the Product Library and its CSV export. */
+async function productQuery(ctx: BrandContext, f: ProductFilters, withCount = false) {
   const ws = ctx.workspace.id
   const { supabase } = ctx
-
-  let q = supabase.from('products').select(PRODUCT_SELECT, { count: 'exact' })
-    .eq('workspace_id', ws)
-    .is('archived_at', null)
+  const base = withCount
+    ? supabase.from('products').select(PRODUCT_SELECT, { count: 'exact' })
+    : supabase.from('products').select(PRODUCT_SELECT)
+  let q = base.eq('workspace_id', ws).is('archived_at', null)
 
   if (f.brandId) q = q.eq('brand_id', f.brandId)
   else if (ctx.activeBrand) q = q.eq('brand_id', ctx.activeBrand.id)
@@ -1165,7 +1203,14 @@ export async function getProductsPage(ctx: BrandContext, f: ProductFilters): Pro
     const ids = ((data ?? []) as { product_id: string }[]).map(r => r.product_id)
     q = q.in('id', ids.length ? ids : ['00000000-0000-0000-0000-000000000000'])
   }
+  // Wrapped: a Supabase builder is thenable, so returning it bare would execute.
+  return { q }
+}
 
+export async function getProductsPage(ctx: BrandContext, f: ProductFilters): Promise<ProductsPage> {
+  const ws = ctx.workspace.id
+  const { supabase } = ctx
+  let q = (await productQuery(ctx, f, true)).q
   q = applyProductSort(q, f.sort)
   const from = (f.page - 1) * f.pageSize
   q = q.range(from, from + f.pageSize - 1)

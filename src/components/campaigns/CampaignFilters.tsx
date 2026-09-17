@@ -28,7 +28,7 @@ const VIEW_META: Record<ViewOption, { label: string; Icon: typeof LayoutGrid }> 
   timeline: { label: 'Timeline', Icon: GanttChartSquare },
 }
 
-const CONTROL = 'inline-flex h-9 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 text-[13px] font-medium text-slate-600 transition-colors hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-blue-600'
+const CONTROL = 'inline-flex h-9 lg:h-[30px] items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 lg:px-2.5 text-[13px] lg:text-[11px] font-medium text-slate-600 transition-colors hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-blue-600'
 
 /**
  * URL-driven filter bar shared by the Campaigns surfaces.
@@ -107,7 +107,7 @@ export default function CampaignFilters({
             onChange={e => { typed.current = true; setTerm(e.target.value) }}
             placeholder={searchPlaceholder}
             aria-label={searchPlaceholder}
-            className="h-9 w-full rounded-lg border border-slate-200 bg-white pl-8 pr-8 text-[13px] text-slate-700 placeholder:text-slate-400 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
+            className="h-9 lg:h-[30px] w-full rounded-lg border border-slate-200 bg-white pl-8 pr-8 text-[13px] lg:text-[11px] text-slate-700 placeholder:text-slate-400 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
           />
           {term && (
             <button
@@ -210,7 +210,7 @@ export default function CampaignFilters({
                 onClick={() => push({ view })}
                 aria-pressed={active}
                 className={cn(
-                  'inline-flex h-[34px] items-center gap-1.5 px-3 text-[13px] font-medium transition-colors',
+                  'inline-flex h-[34px] lg:h-[28px] items-center gap-1.5 px-3 lg:px-2.5 text-[13px] lg:text-[11px] font-medium transition-colors',
                   active ? 'bg-blue-600 text-white' : 'text-slate-600 hover:bg-slate-50',
                 )}
               >
@@ -236,7 +236,7 @@ function SelectControl({
         onChange={e => onChange(e.target.value)}
         aria-label={label}
         className={cn(
-          'h-9 cursor-pointer appearance-none rounded-lg border bg-white pl-3 pr-7 text-[13px] font-medium focus:outline-none focus:ring-2 focus:ring-blue-100',
+          'h-9 lg:h-[30px] cursor-pointer appearance-none rounded-lg border bg-white pl-3 lg:pl-2.5 pr-7 text-[13px] lg:text-[11px] font-medium focus:outline-none focus:ring-2 focus:ring-blue-100',
           value ? 'border-blue-200 bg-blue-50/60 text-blue-700' : 'border-slate-200 text-slate-600',
         )}
       >

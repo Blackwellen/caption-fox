@@ -2,11 +2,12 @@
 
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { CheckCheck } from 'lucide-react'
+import { UserCheck } from 'lucide-react'
+import { BUTTON_SECONDARY } from './design'
 import { Button } from '@/components/ui/Button'
 import { Modal } from '@/components/ui/Modal'
 import { useToast } from '@/components/campaigns/Toast'
-import { bulkApproveSubmissions } from '@/app/app/creators/actions'
+import { bulkApproveSubmissions } from '@/lib/creators/actions'
 
 /**
  * Bulk-approves the submissions currently eligible for review on this page
@@ -33,12 +34,13 @@ export default function BulkApproveButton({ ids }: { ids: string[] }) {
 
   return (
     <>
-      <Button
-        variant="secondary" size="sm" icon={<CheckCheck size={14} />}
+      <button
+        type="button" className={BUTTON_SECONDARY}
         disabled={ids.length === 0} onClick={() => setOpen(true)}
+        title={ids.length === 0 ? 'No submissions on this page are waiting for or in review.' : undefined}
       >
-        Bulk Approve{ids.length > 0 ? ` (${ids.length})` : ''}
-      </Button>
+        <UserCheck size={16} aria-hidden />Bulk Approve
+      </button>
       <Modal
         open={open} onClose={() => setOpen(false)}
         title="Bulk approve submissions" description={`This will approve ${ids.length} submission(s) currently waiting or in review, and mark each as payment-eligible.`}

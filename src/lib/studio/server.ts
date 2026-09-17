@@ -8,6 +8,7 @@ import {
   type StudioCapabilities, type StudioContext, type StudioLimits,
 } from './entitlements'
 import type { StudioModule } from './constants'
+import { studioBase } from './paths'
 
 export interface StudioSession {
   supabase: SupabaseClient
@@ -17,6 +18,8 @@ export interface StudioSession {
   capabilities: StudioCapabilities
   limits: StudioLimits
   modules: StudioModule[]
+  /** Canonical route base, e.g. `/brand/studio`. */
+  base: string
 }
 
 /**
@@ -54,6 +57,7 @@ export async function getStudioSession(): Promise<StudioSession> {
     capabilities: studioCapabilities(ctx),
     limits: studioLimits(ctx),
     modules: visibleStudioModules(ctx),
+    base: studioBase(ctx),
   }
 }
 

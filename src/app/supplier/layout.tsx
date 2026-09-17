@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import { loadWorkspaceShell } from '@/lib/navigation/session'
 import { getNavigationForContext } from '@/lib/navigation/resolver'
 import CaptionFoxAppShell from '@/components/shell/app-shell/CaptionFoxAppShell'
+import FoxAIBubble from '@/components/fox-ai/FoxAIBubble'
 
 // Standalone supplier/seller WORKSPACE (a supplier logs into their own
 // workspace — not a portal controlled from a marketer workspace). Requires a
@@ -17,7 +18,11 @@ export default async function SupplierLayout({ children }: { children: React.Rea
     hasWorkspaces: session.workspaces.length > 0,
   })
 
+  const active = session.active
+  const canAssign = session.isPlatformAdmin || ['owner', 'admin', 'manager'].includes(active?.role ?? '')
+
   return (
+    <>
     <CaptionFoxAppShell
       nav={nav}
       user={{ ...session.shellUser, secondary: `${session.supplier.display_name} · Supplier workspace` }}
@@ -32,5 +37,7 @@ export default async function SupplierLayout({ children }: { children: React.Rea
     >
       {children}
     </CaptionFoxAppShell>
+    {active && <FoxAIBubble workspaceId={active.id} userId={session.user.id} canAssign={canAssign} />}
+    </>
   )
 }

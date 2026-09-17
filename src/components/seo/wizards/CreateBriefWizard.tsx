@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { HeaderActionButton } from '../HeaderActionButton'
+import { HeaderActionButton, type HeaderActionMenuItem } from '../HeaderActionButton'
 import { WizardModal, FIELD, LABEL } from '../WizardModal'
 import { createBrief } from '@/lib/seo/actions'
 
@@ -10,8 +10,8 @@ const CONTENT_TYPES = ['guide', 'how_to', 'checklist', 'listicle', 'comparison',
 const PRIORITIES = ['high', 'medium', 'low']
 
 export function CreateBriefWizard({
-  label = 'Create Brief', variant = 'button',
-}: { label?: string; variant?: 'button' | 'link' }) {
+  label = 'Create Brief', variant = 'button', menu,
+}: { label?: string; variant?: 'button' | 'link'; menu?: HeaderActionMenuItem[] }) {
   const router = useRouter()
   const [open, setOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -50,7 +50,7 @@ export function CreateBriefWizard({
 
   return (
     <>
-      <HeaderActionButton label={label} onClick={() => setOpen(true)} variant={variant} />
+      <HeaderActionButton label={label} onClick={() => setOpen(true)} variant={variant} menu={menu} />
       <WizardModal
         titleId="create-brief-title"
         title="Create content brief"

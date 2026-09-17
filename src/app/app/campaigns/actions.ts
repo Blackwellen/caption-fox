@@ -1,6 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
+import { CAMPAIGNS_ROUTE_PATTERN } from '@/lib/campaigns/paths'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { getCampaignSession } from '@/lib/campaigns/server'
 import { canTransitionStage, LIFECYCLE_LABELS, type LifecycleStage } from '@/lib/campaigns/constants'
@@ -15,14 +16,9 @@ export interface ActionResult {
   message?: string
 }
 
-const CAMPAIGN_PATHS = [
-  '/app/campaigns', '/app/campaigns/all', '/app/campaigns/giveaways',
-  '/app/campaigns/competitions', '/app/campaigns/templates',
-  '/app/campaigns/board', '/app/campaigns/timeline',
-]
 
 function revalidateCampaigns() {
-  for (const path of CAMPAIGN_PATHS) revalidatePath(path)
+  revalidatePath(CAMPAIGNS_ROUTE_PATTERN, 'layout')
 }
 
 function fail(error: string): ActionResult {
@@ -165,7 +161,7 @@ export async function createCampaign(input: CampaignInput): Promise<ActionResult
 
   await logActivity(supabase, ctx.workspaceId, userId, {
     entityType: 'campaign', entityId: data.id, action: 'created',
-    summary: `created campaign ${data.name}`, link: `/app/campaigns/${data.id}`, surface: 'campaigns',
+    summary: `created campaign ${data.name}`, link: `${session.base}/${data.id}`, surface: 'campaigns',
   })
 
   revalidateCampaigns()
@@ -203,7 +199,7 @@ export async function updateCampaign(id: string, input: Partial<CampaignInput>):
 
   await logActivity(supabase, ctx.workspaceId, userId, {
     entityType: 'campaign', entityId: id, action: 'updated',
-    summary: `updated campaign details`, link: `/app/campaigns/${id}`, surface: 'campaigns',
+    summary: `updated campaign details`, link: `${session.base}/${id}`, surface: 'campaigns',
     metadata: { fields: Object.keys(patch) },
   })
 
@@ -242,7 +238,7 @@ export async function moveCampaignStage(id: string, stage: string): Promise<Acti
   await logActivity(supabase, ctx.workspaceId, userId, {
     entityType: 'campaign', entityId: id, action: 'stage_changed',
     summary: `moved ${campaign.name} to ${LIFECYCLE_LABELS[stage as LifecycleStage] ?? stage}`,
-    link: `/app/campaigns/${id}`, surface: 'board',
+    link: `${session.base}/${id}`, surface: 'board',
     metadata: { from, to: stage },
   })
 
@@ -268,7 +264,7 @@ export async function archiveCampaign(id: string, restore = false): Promise<Acti
   await logActivity(supabase, ctx.workspaceId, userId, {
     entityType: 'campaign', entityId: id, action: restore ? 'restored' : 'archived',
     summary: `${restore ? 'restored' : 'archived'} campaign ${campaign.name}`,
-    link: `/app/campaigns/${id}`, surface: 'campaigns',
+    link: `${session.base}/${id}`, surface: 'campaigns',
   })
 
   revalidateCampaigns()
@@ -392,7 +388,7 @@ export async function createTemplate(input: TemplateInput): Promise<ActionResult
 
   await logActivity(supabase, ctx.workspaceId, userId, {
     entityType: 'template', entityId: data.id, action: 'created',
-    summary: `created template ${data.name}`, link: '/app/campaigns/templates', surface: 'templates',
+    summary: `created template ${data.name}`, link: `${session.base}/templates`, surface: 'templates',
   })
 
   revalidateCampaigns()
@@ -439,7 +435,7 @@ export async function setTemplateStatus(
   await logActivity(supabase, ctx.workspaceId, userId, {
     entityType: 'template', entityId: id, action: intent,
     summary: `${intent.replace('_', ' ')} template ${template.name}`,
-    link: '/app/campaigns/templates', surface: 'templates',
+    link: `${session.base}/templates`, surface: 'templates',
   })
 
   revalidateCampaigns()
@@ -472,7 +468,7 @@ export async function duplicateTemplate(id: string): Promise<ActionResult> {
 
   await logActivity(supabase, ctx.workspaceId, userId, {
     entityType: 'template', entityId: data.id, action: 'duplicated',
-    summary: `duplicated ${source.name}`, link: '/app/campaigns/templates', surface: 'templates',
+    summary: `duplicated ${source.name}`, link: `${session.base}/templates`, surface: 'templates',
   })
 
   revalidateCampaigns()
@@ -494,7 +490,7 @@ export async function toggleTemplateFavourite(id: string): Promise<ActionResult>
     .eq('id', id).eq('workspace_id', ctx.workspaceId)
   if (updateError) return fail(updateError.message)
 
-  revalidatePath('/app/campaigns/templates')
+  revalidatePath(CAMPAIGNS_ROUTE_PATTERN, 'layout')
   return { ok: true, message: template.is_favourite ? 'Removed from favourites.' : 'Added to favourites.' }
 }
 
@@ -651,7 +647,7 @@ export async function importGiveawayEntries(
   await logActivity(supabase, ctx.workspaceId, userId, {
     entityType: 'entry', entityId: giveawayId, action: 'entries_imported',
     summary: `imported ${payload.length} entries for ${giveaway.title}`,
-    link: `/app/campaigns/giveaways/${giveawayId}`, surface: 'giveaways',
+    link: `${session.base}/giveaways/${giveawayId}`, surface: 'giveaways',
     metadata: { imported: payload.length, duplicates, invalid },
   })
 
@@ -714,7 +710,7 @@ export async function reviewGiveawayWinner(
   await logActivity(supabase, ctx.workspaceId, userId, {
     entityType: 'entry', entityId: entryId, action: `winner_${nextStatus}`,
     summary: `marked ${entry.participant_handle ?? 'an entrant'} as ${nextStatus}`,
-    link: `/app/campaigns/giveaways/${entry.giveaway_id}`, surface: 'giveaways',
+    link: `${session.base}/giveaways/${entry.giveaway_id}`, surface: 'giveaways',
   })
 
   revalidateCampaigns()
@@ -797,7 +793,7 @@ export async function importCompetitionSubmissions(
   await logActivity(supabase, ctx.workspaceId, userId, {
     entityType: 'submission', entityId: competitionId, action: 'submissions_imported',
     summary: `imported ${payload.length} submissions for ${competition.title}`,
-    link: `/app/campaigns/competitions/${competitionId}`, surface: 'competitions',
+    link: `${session.base}/competitions/${competitionId}`, surface: 'competitions',
     metadata: { imported: payload.length, duplicates, invalid },
   })
 
@@ -835,7 +831,7 @@ export async function setSubmissionJudgingStatus(
   await logActivity(supabase, ctx.workspaceId, userId, {
     entityType: 'submission', entityId: submissionId, action: `judging_${status}`,
     summary: `moved ${submission.participant_handle ?? 'a submission'} to ${status.replace('_', ' ')}`,
-    link: `/app/campaigns/competitions/${submission.competition_id}`, surface: 'competitions',
+    link: `${session.base}/competitions/${submission.competition_id}`, surface: 'competitions',
   })
 
   revalidateCampaigns()
@@ -886,7 +882,7 @@ export async function createMilestone(input: {
   await logActivity(supabase, ctx.workspaceId, userId, {
     entityType: 'milestone', entityId: data.id, action: 'created',
     summary: `added milestone ${title} for ${campaign.name}`,
-    link: '/app/campaigns/timeline', surface: 'timeline',
+    link: `${session.base}/timeline`, surface: 'timeline',
   })
 
   revalidateCampaigns()
@@ -914,7 +910,7 @@ export async function setMilestoneStatus(id: string, status: string): Promise<Ac
   await logActivity(supabase, ctx.workspaceId, userId, {
     entityType: 'milestone', entityId: id, action: `status_${status}`,
     summary: `marked milestone ${milestone.title} as ${status.replace('_', ' ')}`,
-    link: '/app/campaigns/timeline', surface: 'timeline',
+    link: `${session.base}/timeline`, surface: 'timeline',
   })
 
   revalidateCampaigns()
@@ -946,7 +942,7 @@ export async function rescheduleCampaign(
 
   await logActivity(supabase, ctx.workspaceId, userId, {
     entityType: 'campaign', entityId: id, action: 'rescheduled',
-    summary: `rescheduled ${campaign.name}`, link: `/app/campaigns/${id}`, surface: 'timeline',
+    summary: `rescheduled ${campaign.name}`, link: `${session.base}/${id}`, surface: 'timeline',
     metadata: { from: { start: campaign.start_date, end: campaign.end_date }, to: { start: startDate, end: endDate } },
   })
 

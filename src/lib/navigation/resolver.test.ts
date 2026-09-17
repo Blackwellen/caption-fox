@@ -93,11 +93,13 @@ describe('canonical routes', () => {
     const items = flatNavItems(getNavigationForContext({ context: 'brand', entitlements: owner('brand', 'brand') }))
     const byId = Object.fromEntries(items.map(item => [item.id, item]))
     expect(byId.campaigns.route).toBe('/brand/campaigns')
-    expect(byId.campaigns.href).toBe('/app/campaigns')
+    expect(byId.campaigns.href).toBe('/brand/campaigns')
     expect(byId.calendar.href).toBe('/brand/calendar')
     expect(byId.advertising.href).toBe('/brand/advertising')
+    expect(byId.social.href).toBe('/brand/social')
     expect(byId.events.href).toBe('/brand/events')
-    expect(byId.audiences.href).toBe('/app/strategy/audiences')
+    expect(byId.strategy.href).toBe('/brand/strategy')
+    expect(byId.audiences.href).toBe('/brand/strategy/audiences')
   })
 
   it('never links a workspace module to another workspace type', () => {
@@ -113,14 +115,20 @@ describe('canonical routes', () => {
 
 describe('Business plan-gated extensions', () => {
   it('shows no extensions on the starter plan', () => {
-    for (const gated of ['advertising', 'seo', 'partnerships', 'events', 'finance', 'automations'] as const) {
+    for (const gated of ['advertising', 'seo', 'partnerships', 'events', 'finance', 'automations', 'creators'] as const) {
       expect(businessModuleEntitled(gated, owner('business', 'starter'))).toBe(false)
     }
   })
 
   it('adds entitled extensions from the Team plan', () => {
     const items = labels({ context: 'business', entitlements: owner('business', 'team') })
-    expect(items).toEqual(expect.arrayContaining(['SEO & Discovery', 'Partnerships', 'Events', 'Finance', 'Automations']))
+    expect(items).toEqual(expect.arrayContaining(['Creators & UGC', 'SEO & Discovery', 'Partnerships', 'Events', 'Finance', 'Automations']))
+  })
+
+  it('routes Creators & UGC to the type-first route and keeps it out of Creator workspaces', () => {
+    const business = flatNavItems(getNavigationForContext({ context: 'business', entitlements: owner('business', 'team') }))
+    expect(business.find(item => item.id === 'creators')?.href).toBe('/business/creators')
+    expect(labels({ context: 'creator', entitlements: owner('creator', 'enterprise') })).not.toContain('Creators & UGC')
   })
 
   it('keeps Advertising absent because its resolver does not grant Business', () => {
@@ -151,11 +159,13 @@ describe('active navigation resolution', () => {
 
   it.each([
     [brand, '/brand/campaigns/abc123/content', 'campaigns'],
-    [brand, '/app/campaigns/abc123', 'campaigns'],
-    [brand, '/app/strategy/audiences', 'audiences'],
-    [brand, '/app/strategy/objectives', 'strategy'],
+    [brand, '/brand/strategy/audiences', 'audiences'],
+    [brand, '/brand/strategy/objectives', 'strategy'],
+    [brand, '/brand/strategy/plans/abc123', 'strategy'],
     [brand, '/brand/calendar/agenda?view=week', 'calendar'],
     [brand, '/app/listening', 'social'],
+    [brand, '/brand/social/engagement?view=flagged', 'social'],
+    [agency, '/agency/social/posts/abc123', 'social'],
     [agency, '/agency/clients/123/reports', 'clients'],
     [supplier, '/supplier', 'dashboard'],
     [supplier, '/supplier/orders/ABC/deliveries/new', 'orders'],

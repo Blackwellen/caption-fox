@@ -166,6 +166,123 @@ export async function addKeywords(input: AddKeywordsInput): Promise<ActionResult
   }
 }
 
+
+// ── Keyword bulk edits ──────────────────────────────────────────────────────
+
+export type KeywordBulkOperation =
+  | { type: 'status'; status: string }
+  | { type: 'cluster'; clusterId: string | null }
+  | { type: 'favourite'; favourite: boolean }
+  | { type: 'archive' }
+  | { type: 'restore' }
+
+const KEYWORD_STATUSES = ['winning', 'rising', 'stable', 'declining', 'not_ranking']
+
+/**
+ * Applies one edit to a set of tracked keywords. Every id is re-scoped to the
+ * caller's workspace and active site server-side, so a tampered payload can
+ * never reach another workspace's rows even though the ids come from the
+ * client. Archive/restore need the archive capability; everything else needs
+ * edit.
+ */
+export async function updateKeywordsBulk(
+  keywordIds: string[],
+  operation: KeywordBulkOperation,
+): Promise<ActionResult> {
+  const session = await getSeoSession()
+  const { ctx, site, supabase, userId } = session
+  if (!site) return fail('Connect an SEO site before editing keywords.')
+
+  const destructive = operation.type === 'archive' || operation.type === 'restore'
+  try {
+    assertSeoCapability(ctx, destructive ? 'keywords.archive' : 'keywords.edit')
+  } catch {
+    return fail(destructive
+      ? 'You do not have permission to archive keywords.'
+      : 'You do not have permission to edit keywords.')
+  }
+
+  const ids = [...new Set(keywordIds.filter(id => typeof id === 'string' && id.length > 0))].slice(0, 500)
+  if (ids.length === 0) return fail('Select at least one keyword.')
+
+  // Only ids that genuinely belong to this workspace + site may be touched.
+  const { data: owned, error: ownedError } = await supabase
+    .from('seo_keywords')
+    .select('id, keyword')
+    .eq('workspace_id', ctx.workspaceId)
+    .eq('site_id', site.id)
+    .in('id', ids)
+  if (ownedError) return fail('Could not load those keywords: ' + ownedError.message)
+
+  const ownedIds = (owned ?? []).map(row => row.id)
+  if (ownedIds.length === 0) return fail('Those keywords are not available in this workspace.')
+
+  let patch: Record<string, unknown>
+  let summary: string
+  switch (operation.type) {
+    case 'status':
+      if (!KEYWORD_STATUSES.includes(operation.status)) return fail('Choose a valid keyword status.')
+      patch = { status: operation.status }
+      summary = `${ownedIds.length} keyword${ownedIds.length === 1 ? '' : 's'} set to ${operation.status.replace(/_/g, ' ')}`
+      break
+    case 'cluster': {
+      if (operation.clusterId) {
+        const { data: cluster } = await supabase
+          .from('seo_keyword_clusters')
+          .select('id')
+          .eq('workspace_id', ctx.workspaceId)
+          .eq('site_id', site.id)
+          .eq('id', operation.clusterId)
+          .maybeSingle()
+        if (!cluster) return fail('That cluster is not available on this site.')
+      }
+      patch = { cluster_id: operation.clusterId }
+      summary = operation.clusterId
+        ? `${ownedIds.length} keyword${ownedIds.length === 1 ? '' : 's'} moved to a cluster`
+        : `${ownedIds.length} keyword${ownedIds.length === 1 ? '' : 's'} removed from their cluster`
+      break
+    }
+    case 'favourite':
+      patch = { is_favourite: operation.favourite }
+      summary = `${ownedIds.length} keyword${ownedIds.length === 1 ? '' : 's'} ${operation.favourite ? 'starred' : 'unstarred'}`
+      break
+    case 'archive':
+      patch = { archived_at: new Date().toISOString() }
+      summary = `${ownedIds.length} keyword${ownedIds.length === 1 ? '' : 's'} archived`
+      break
+    case 'restore':
+      patch = { archived_at: null }
+      summary = `${ownedIds.length} keyword${ownedIds.length === 1 ? '' : 's'} restored`
+      break
+    default:
+      return fail('Unsupported keyword action.')
+  }
+
+  const { error } = await supabase
+    .from('seo_keywords')
+    .update(patch)
+    .eq('workspace_id', ctx.workspaceId)
+    .eq('site_id', site.id)
+    .in('id', ownedIds)
+  if (error) return fail('Could not update those keywords: ' + error.message)
+
+  await logActivity(supabase, {
+    workspaceId: ctx.workspaceId, siteId: site.id, actorId: userId,
+    entityType: 'keyword', entityId: ownedIds.length === 1 ? ownedIds[0] : null,
+    action: operation.type, surface: 'keywords',
+    summary,
+    severity: operation.type === 'archive' ? 'warning' : 'info',
+    link: '/app/seo/keywords',
+  })
+  await logAudit(supabase, userId, {
+    workspaceId: ctx.workspaceId, action: `seo.keyword.${operation.type}`, entityType: 'seo_keyword',
+    metadata: { count: ownedIds.length, siteId: site.id, operation },
+  })
+
+  revalidateSeo('keywords', 'overview', 'rankings')
+  return { ok: true, message: summary + '.' }
+}
+
 // ── Briefs ──────────────────────────────────────────────────────────────────
 
 export interface CreateBriefInput {

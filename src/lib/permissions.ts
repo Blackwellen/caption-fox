@@ -373,6 +373,22 @@ export const PERMISSIONS = {
   AUTOMATIONS_VIEW_LOGS: 'automations.view_logs',
   AUTOMATIONS_MANAGE_WEBHOOKS: 'automations.manage_webhooks',
   AUTOMATIONS_EXPORT: 'automations.export',
+  // Link in Bio
+  LINKS_VIEW: 'links.view',
+  LINKS_CREATE: 'links.create',
+  LINKS_EDIT: 'links.edit',
+  LINKS_PUBLISH: 'links.publish',
+  LINKS_APPROVE: 'links.approve',
+  LINKS_ARCHIVE: 'links.archive',
+  LINKS_EXPORT: 'links.export',
+  LINKS_REUSABLE_MANAGE: 'links.reusable.manage',
+  LINKS_THEMES_MANAGE: 'links.themes.manage',
+  LINKS_THEMES_PUBLISH: 'links.themes.publish',
+  LINKS_ANALYTICS_VIEW: 'links.analytics.view',
+  LINKS_DOMAINS_MANAGE: 'links.domains.manage',
+  LINKS_PIXELS_MANAGE: 'links.pixels.manage',
+  LINKS_FORMS_MANAGE: 'links.forms.manage',
+  LINKS_VERSIONS_RESTORE: 'links.versions.restore',
 } as const
 
 export type Permission = typeof PERMISSIONS[keyof typeof PERMISSIONS]
@@ -1364,6 +1380,38 @@ for (const [role, grants] of Object.entries(STUDIO_ROLE_GRANTS)) {
   if (existing) existing.push(...grants.filter(permission => !existing.includes(permission)))
 }
 
+// ── Link in Bio module role grants ───────────────────────────────────────────
+// Pages, Link Library, Themes and Analytics all resolve through this table.
+// Declared before the database role aliases so `member`/`viewer` inherit it.
+// `owner` already receives every permission through Object.values(PERMISSIONS).
+const LINKS_ROLE_GRANTS: Record<string, Permission[]> = {
+  admin: [
+    P.LINKS_VIEW, P.LINKS_CREATE, P.LINKS_EDIT, P.LINKS_PUBLISH, P.LINKS_APPROVE, P.LINKS_ARCHIVE,
+    P.LINKS_EXPORT, P.LINKS_REUSABLE_MANAGE, P.LINKS_THEMES_MANAGE, P.LINKS_THEMES_PUBLISH,
+    P.LINKS_ANALYTICS_VIEW, P.LINKS_DOMAINS_MANAGE, P.LINKS_PIXELS_MANAGE, P.LINKS_FORMS_MANAGE,
+    P.LINKS_VERSIONS_RESTORE,
+  ],
+  manager: [
+    P.LINKS_VIEW, P.LINKS_CREATE, P.LINKS_EDIT, P.LINKS_PUBLISH, P.LINKS_APPROVE, P.LINKS_ARCHIVE,
+    P.LINKS_EXPORT, P.LINKS_REUSABLE_MANAGE, P.LINKS_THEMES_MANAGE, P.LINKS_THEMES_PUBLISH,
+    P.LINKS_ANALYTICS_VIEW, P.LINKS_PIXELS_MANAGE, P.LINKS_FORMS_MANAGE, P.LINKS_VERSIONS_RESTORE,
+  ],
+  // Creators build and submit for review; publishing stays with managers.
+  creator: [
+    P.LINKS_VIEW, P.LINKS_CREATE, P.LINKS_EDIT, P.LINKS_REUSABLE_MANAGE, P.LINKS_THEMES_MANAGE,
+    P.LINKS_ANALYTICS_VIEW,
+  ],
+  approver: [P.LINKS_VIEW, P.LINKS_APPROVE, P.LINKS_ANALYTICS_VIEW],
+  analyst: [P.LINKS_VIEW, P.LINKS_ANALYTICS_VIEW, P.LINKS_EXPORT],
+  client: [],
+  external_creator: [],
+}
+
+for (const [role, grants] of Object.entries(LINKS_ROLE_GRANTS)) {
+  const existing = ROLE_PERMISSIONS[role]
+  if (existing) existing.push(...grants.filter(permission => !existing.includes(permission)))
+}
+
 // ── Database role aliases ────────────────────────────────────────────────────
 // `workspace_members.role` stores owner | admin | manager | member | viewer |
 // ugc_creator, but ROLE_PERMISSIONS was written against the product vocabulary.
@@ -1419,4 +1467,28 @@ Object.assign(PERMISSION_LABELS, STUDIO_PERMISSION_LABELS)
 PERMISSION_GROUPS.push({
   label: 'Studio',
   permissions: Object.keys(STUDIO_PERMISSION_LABELS) as Permission[],
+})
+
+const LINKS_PERMISSION_LABELS: Record<string, string> = {
+  'links.view': 'View Link in Bio',
+  'links.create': 'Create Link Pages',
+  'links.edit': 'Edit Link Pages',
+  'links.publish': 'Publish Link Pages',
+  'links.approve': 'Approve Link Pages & Themes',
+  'links.archive': 'Archive & Restore Link Pages',
+  'links.export': 'Export Link in Bio Data',
+  'links.reusable.manage': 'Manage Reusable Links',
+  'links.themes.manage': 'Create & Edit Themes',
+  'links.themes.publish': 'Publish Themes',
+  'links.analytics.view': 'View Link Analytics',
+  'links.domains.manage': 'Manage Custom Domains',
+  'links.pixels.manage': 'Manage Tracking Pixels',
+  'links.forms.manage': 'Connect Forms to Link Pages',
+  'links.versions.restore': 'Restore Link Page Versions',
+}
+Object.assign(PERMISSION_LABELS, LINKS_PERMISSION_LABELS)
+
+PERMISSION_GROUPS.push({
+  label: 'Link in Bio',
+  permissions: Object.keys(LINKS_PERMISSION_LABELS) as Permission[],
 })

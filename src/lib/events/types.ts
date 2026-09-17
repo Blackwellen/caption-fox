@@ -339,7 +339,8 @@ export interface GalaDockLinkState {
 
 export interface TrendPoint {
   day: string
-  [series: string]: string | number
+  /** null where a metric is genuinely not measurable that day (e.g. no webinar ran). */
+  [series: string]: string | number | null
 }
 
 export interface KpiValue {
@@ -353,6 +354,8 @@ export interface KpiValue {
 
 export interface EventsFilters {
   q?: string
+  /** Explicit record selection (bulk export). Always applied on top of workspace scope. */
+  ids?: string[]
   type?: string
   status?: string
   dateFrom?: string

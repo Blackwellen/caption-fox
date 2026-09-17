@@ -1,11 +1,12 @@
 'use client'
 
 import { useState, useTransition } from 'react'
+import { useCreatorsBase } from './controls'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Archive, ArchiveRestore, ExternalLink, ListPlus, MoreHorizontal, Star } from 'lucide-react'
 import { useToast } from '@/components/campaigns/Toast'
-import { archiveCreator, addCreatorToList, toggleShortlist } from '@/app/app/creators/actions'
+import { archiveCreator, addCreatorToList, toggleShortlist } from '@/lib/creators/actions'
 import type { CreatorListRow, CreatorRow } from '@/lib/creators/types'
 
 /**
@@ -16,6 +17,7 @@ export default function CreatorRowActions({
   creator, lists, canManage, canManageLists,
 }: { creator: CreatorRow; lists: CreatorListRow[]; canManage: boolean; canManageLists: boolean }) {
   const router = useRouter()
+  const base = useCreatorsBase()
   const { notify } = useToast()
   const [open, setOpen] = useState(false)
   const [pending, startTransition] = useTransition()
@@ -44,7 +46,7 @@ export default function CreatorRowActions({
         <>
           <button type="button" className="fixed inset-0 z-20 cursor-default" aria-label="Close menu" onClick={() => setOpen(false)} />
           <div className="absolute right-0 top-full z-30 mt-1 w-52 rounded-xl border border-slate-200 bg-white p-1 shadow-lg">
-            <Link href={`/app/creators/creators/${creator.id}`} className="flex items-center gap-2 rounded-lg px-2.5 py-2 text-[13px] text-slate-700 hover:bg-slate-50" onClick={() => setOpen(false)}>
+            <Link href={`${base}/creators/${creator.id}`} className="flex items-center gap-2 rounded-lg px-2.5 py-2 text-[13px] text-slate-700 hover:bg-slate-50" onClick={() => setOpen(false)}>
               <ExternalLink size={13} />Open profile
             </Link>
             {canManage && (

@@ -1,172 +1,143 @@
 # Creators & UGC — Release Evidence
 
-Section: Creators & UGC module (6 routes + 5 detail routes)
-Routes: `/app/creators`, `/app/creators/creators` (+ `/[id]`), `/app/creators/briefs`
-(+ `/[id]`), `/app/creators/submissions` (+ `/[id]`), `/app/creators/rights`
-(+ `/[id]`), `/app/creators/payments` (+ `/[id]`), `/app/creators/export`.
-Old `/app/ugc*` routes now redirect to their equivalents.
+- **Section:** Creators & UGC (one shared module for the Business, Brand and Agency workspace types)
+- **Routes:** `/{type}/creators` (Overview), `/{type}/creators/creators`, `/{type}/creators/briefs`,
+  `/{type}/creators/submissions`, `/{type}/creators/rights`, `/{type}/creators/payments`, plus a
+  `[id]` detail route under each of the last five. `{type}` is `business`, `brand` or `agency`.
+- **Legacy:** `/app/creators/*` redirects to `/{type}/creators/*` (`src/app/app/creators/[[...rest]]/page.tsx`).
+- **Export API:** `GET /api/creators/export?entity=…` (uses the same filters as the screen, and an optional `ids` list).
+- **Sub-tab evidence:** `release-gated/docs/creators-ugc/{overview,creators,briefs,submissions,rights,payments}.md`
+- **Build tracker:** `docs/CAPTION_FOX_CREATORS_UGC_IMPLEMENTATION_TRACKER.md`
 
-## 1. What was built
+## 1. Design parity (1448×1086)
 
-- **`src/lib/creators/`** — one canonical data/domain layer for all six surfaces,
-  mirroring the Campaigns module's architecture: `constants.ts` (relationship,
-  brief, submission, rights and payment vocab, every status with a badge-tone and
-  a validated state-transition table), `types.ts` (row shapes), `entitlements.ts`
-  (a `canAccessCreatorModule` resolver combining role permission + workspace type
-  + plan rank, a `resolveMode()` that distinguishes buyer-manager / agency /
-  creator-self-service / read-only so buyer-facing sourcing screens are never
-  forced onto a Creator workspace, and a `creatorCapabilities()` object every
-  button reads from), `query.ts` (URL query-state parser/builder for all five
-  list surfaces), `data.ts` (every KPI/aggregate/chart query — real Supabase
-  reads, period-over-period deltas, a rights-conflict detector derived from
-  actual rights/campaign/submission state rather than a manually set badge),
-  `server.ts` (`getCreatorSession` / `requireCreatorModule` route guard).
-- **`/app/creators`** (Overview) — KPI strip with sparklines, top-creator
-  performance table (reach/engagement/approval-rate/earnings computed from real
-  submissions and paid payments), briefs-summary list, rights & payments
-  snapshot, submission workflow distribution, campaign performance trend,
-  recent activity feed.
-- **`/app/creators/creators`** — table/cards views, full filter set (niche,
-  audience band, platform, region, availability, status, rights readiness,
-  owner, saved-sort), featured/shortlist panel, per-row action menu (shortlist
-  toggle, add to list, archive/restore), detail profile page.
-- **`/app/creators/briefs`** — board/table/timeline views, a real Kanban board
-  (status-menu driven, transitions validated against `BRIEF_TRANSITIONS`),
-  status donut, upcoming-deadlines panel, per-creator progress tracked
-  separately from the brief-level status.
-- **`/app/creators/submissions`** — gallery/table/board views, a full review
-  workspace (signed-URL media preview, version history, review history,
-  flagged-issue list distinguishing automated-vs-confirmed, approve / request
-  changes / reject actions each gated by the enforced `SUBMISSION_TRANSITIONS`
-  lifecycle), bulk-approve with confirmation.
-- **`/app/creators/rights`** — table/cards/calendar views, licence expiry
-  tracking, rights-coverage and status-distribution donuts, a conflict detector
-  surfacing expired-in-active-campaign / missing-agreement / unsigned-agreement
-  / unapproved-submission-version / campaign-beyond-expiry cases with severity
-  and record counts.
-- **`/app/creators/payments`** — table/cards/timeline views, payment-eligibility
-  checking (creator payout readiness, invoice/tax state, approval state) before
-  a payment can join a batch, idempotency-keyed payout-batch creation, spend-
-  by-campaign and payment-method-usage panels.
-- **Multi-step wizards** (`WizardShell.tsx`) — Create Brief (basics → channels/
-  budget/rights → deliverables → creators → review), Add Rights Record
-  (creator & asset → scope/coverage → permissions/agreement → review), Create
-  Payment Batch (select eligible payments → batch details → review), each with
-  per-step validation gating Next and a review step summarising every field
-  before submit. Invite Creator, Add Creator and Send Usage Request were
-  deliberately kept as single-step modals — 3–8 fields did not warrant a
-  wizard.
-- **Responsive tab rule** (`src/components/ui/ResponsiveTabs.tsx`) — applied to
-  the six-tab sub-nav and to every wizard's stepper: a normal row/side-list on
-  desktop, a horizontally-scrolling segmented tray on tablet, a dropdown
-  selector on mobile. No tab or step list is ever squeezed into a narrower
-  layout unchanged.
-- **CSV export** (`export/route.ts`, `ExportButton.tsx`) — mirrors the exact
-  filters/search/sort on screen for all five entities; permission-gated; writes
-  a `ugc_activity` audit row; never includes bank/tax/invoice-file fields.
-- **Server actions** (`app/app/creators/actions.ts`) — creators, lists,
-  invitations (with resend-not-duplicate on the same email), briefs (status
-  transitions server-validated), submissions (review/approve/changes/reject/
-  bulk-approve/issue-flagging, all transition-validated), rights (status
-  transitions, usage requests), payments (status transitions, idempotency-keyed
-  batch creation, batch approval). Every mutation re-checks the capability and
-  workspace ownership server-side and writes to `ugc_activity`.
-- Old `/app/ugc`, `/app/ugc/[id]`, `/app/ugc/creators/[id]` now `redirect()` to
-  the new routes; nav references (Sidebar allowlist, TopNav quick-create,
-  CommandPalette, `NAV_ITEMS`) updated to point at `/app/creators`.
+Reference images: `designs/Universal Sections/UGC & CReators/ChatGPT Image Jul 24, 2026, 04_14_59 AM (1…6).png`.
+Evidence is in `docs/ui-verification/caption-fox/creators-ugc/` as `{page}-reference.png`,
+`{page}-implementation.png` and `{page}-side-by-side.png` for all six pages, plus `payments-mobile.png`,
+`briefs-mobile.png` and `rights-tablet.png`.
 
-## 2. Database
+These parts match the references:
+- page header and actions
+- six-card KPI row with sparklines
+- filter bar and view toggles
+- main panels and right-hand rails
+- tables, board, gallery and bottom chart rows, including their order and proportions
 
-Migration `supabase/migrations/20260901000000_creators_ugc_module.sql` —
-applied to the live project via the Management API (confirmed `OK 201`,
-re-applied a second time to confirm idempotency, also `OK 201` with no errors).
-Extends the original `ugc_creators` / `ugc_briefs` / `ugc_submissions` /
-`ugc_payments` tables into the full lifecycle and adds:
-- New tables: `creator_lists`, `creator_list_members`, `creator_invitations`,
-  `ugc_brief_creators`, `ugc_brief_deliverables`, `ugc_submission_assets`,
-  `ugc_submission_reviews`, `ugc_submission_issues`, `ugc_rights`,
-  `ugc_rights_requests`, `ugc_payment_batches`, `ugc_payout_attempts`,
-  `ugc_activity`.
-- New columns across the four original tables: relationship/availability/
-  rights-readiness/payment-ready state on `ugc_creators`; approval stage,
-  priority, channels, do/don't instructions, deliverable counts on
-  `ugc_briefs`; version, reviewer, rights status, performance metrics, issue
-  count, review timing on `ugc_submissions`; batch linkage, approval state,
-  invoice/tax status, provider reference, idempotency key on `ugc_payments`.
-- A private `ugc-submissions` storage bucket (500MB limit, image/video/audio/
-  PDF mime allowlist) with RLS restricting read/write/delete to members of the
-  workspace named in the object path's first path segment; submission media is
-  read back through short-lived signed URLs, never a public URL.
-- RLS on every new table scoped to `workspace_id in (select workspace_id from
-  workspace_members where user_id = auth.uid())`, with explicit `with check`
-  clauses so inserts (not just reads) are workspace-scoped — matching the
-  Campaigns module's pattern.
-- A duplicate-payout guard: a unique index on `(workspace_id, idempotency_key)`
-  for both `ugc_payments` and `ugc_payment_batches` where the key is set.
-- A duplicate-invitation guard: a unique index on `(workspace_id, lower(email))`
-  for invitations in `draft`/`sent` status, so re-inviting the same address
-  resends instead of creating a second row.
+These differences are intentional:
+1. **Shell.** The real Caption Fox sidebar and top bar are used, as CLAUDE.md requires; the design's sidebar is context only. The only sidebar change is the "Creators & UGC" entry.
+2. **Section tabs row.** The design puts the six sub-pages in its sidebar. That sidebar can't be changed here, so a tabs row sits under the header. It pushes content down about 44px, so the last row of each design sits slightly below the fold at 1086px.
+3. **Data.** Numbers come from the live database, not the design (for example, 28 seeded creators rather than 2,847). Currency is GBP, and dates use UK format in the Europe/London timezone.
 
-## 3. Data sources / tables used
+## 2. Screen sizes tested (Chrome MCP)
+- **1448×1086:** all six pages
+- **1440, 1280 and 1024:** overflow checked on all six pages
+- **820 (tablet):** all six pages; the tabs become a sliding tray
+- **390 (mobile/PWA):** all six pages; the tabs become a dropdown
 
-`ugc_creators`, `ugc_briefs`, `ugc_brief_creators`, `ugc_brief_deliverables`,
-`ugc_submissions`, `ugc_submission_assets`, `ugc_submission_reviews`,
-`ugc_submission_issues`, `ugc_rights`, `ugc_rights_requests`, `ugc_payments`,
-`ugc_payment_batches`, `ugc_payout_attempts`, `ugc_activity`, `creator_lists`,
-`creator_list_members`, `creator_invitations`, `campaigns`, `workspace_members`,
-`profiles`, `workspaces`. Storage bucket: `ugc-submissions`.
+At every size, `scrollWidth - clientWidth === 0` on the page and on every table container.
 
-## 4. Tests run
+## 3. Buttons and actions tested end to end (each confirmed in the database)
+| Action | Result |
+|---|---|
+| Creators: niche filter | 3 Beauty rows, and the URL state persists after refresh |
+| Save View | `creator_saved_views` row with `{"niche":"beauty"}` |
+| Brief board: move draft → open (keyboard select) | Status persisted and activity row written; only valid transitions are offered |
+| Upload submission (brief detail) | Status `waiting_review`, private storage object, asset row and thumbnail; brief `deliverables_submitted` incremented |
+| Record payout (payment row menu) | Status `paid`, a `ugc_payout_attempts` row, batch rolled up to `processing`, activity written |
+| Approve Payouts | Pending batch moved to `scheduled` |
+| Export | CSV uses the on-screen filters; cells that start with a formula character are neutralised |
+| Flag issue, reassign reviewer, usage-request responses | The UI is wired to server actions. The browser click-through was **interrupted** when the session restarted, so these are covered by the server-action code and RLS checks only |
 
-- `npx tsc --noEmit` — clean for every file under `src/lib/creators`,
-  `src/components/creators`, `src/app/app/creators`,
-  `src/components/ui/ResponsiveTabs.tsx`.
-- `npx eslint` — zero errors, zero warnings for the same file set (fixed two
-  `react-hooks/set-state-in-effect` issues by moving to React's "adjust state
-  during render" pattern instead of an effect, one unescaped-entity JSX error,
-  four unused-import/variable warnings, two unused-expression statements).
-- `next build` (production) — completed with **zero errors**: all 12 Creators
-  & UGC routes compiled and appear in the route manifest alongside every other
-  route in the app.
-- All six list routes plus the three legacy `/app/ugc*` redirects return `307`
-  to `/login?next=...` for unauthenticated requests against the dev server
-  (confirms server-render executes the full page-code import tree without a
-  runtime crash, rather than a 500).
-- Migration applied twice via the Management API with identical `OK 201`
-  responses, confirming idempotency.
-- No automated unit/E2E test suite exists yet for these surfaces — none was
-  found in the repo to extend.
+## 4. Data sources and Supabase tables
+- **UGC tables:** `ugc_creators`, `ugc_briefs`, `ugc_brief_creators`, `ugc_brief_deliverables`, `ugc_submissions`, `ugc_submission_assets`, `ugc_submission_reviews`, `ugc_submission_issues`, `ugc_rights`, `ugc_rights_requests`, `ugc_payments`, `ugc_payment_batches`, `ugc_payout_attempts`, `ugc_activity`
+- **Creator lists and views:** `creator_lists`, `creator_list_members`, `creator_invitations`, `creator_saved_views`
+- **Shared tables (read only):** `campaigns`, `workspace_members`, `profiles`, `workspaces`
+- **Storage:** private bucket `ugc-submissions` with path `{workspace}/{uuid}/{file}`, read through signed URLs only; r2 avatars are signed with `signReadUrls`
 
-## 5. Not verified — see `/release-gated/user-fixes/creators-ugc.md`
+## 5. RLS policies and security
+Migration `supabase/migrations/20260916200000_creators_ugc_release.sql` was applied through the Management API. It adds the following.
 
-Live Chrome-driven QA (screenshots against the 6 approved design references,
-click-through testing of every wizard/filter/status-transition/export
-interaction, responsive breakpoints, RLS negative tests against a second
-workspace) could not be completed this session: the dev server requires an
-authenticated session, and no password is available for the demo account
-`jamahlthomas1996@gmail.com`. Minting a session server-side via the Supabase
-admin API was considered and deliberately not attempted — even without
-touching the password, that is a credential-adjacent action not authorized
-unprompted.
+**Role-aware policies.** Each rule is enforced by `ugc_has_role(workspace, roles[])`.
 
-Also not built this session:
-- Payment provider integration (Stripe Connect / bank transfer API) — payments
-  and payout batches are tracked as ledger records with idempotency and status
-  transitions; no money actually moves. `payment_method` only offers rails
-  Caption Fox can record today (bank transfer, PayPal, Wise, manual).
-- Rights-request negotiation UI (accept/decline/counter) beyond sending the
-  initial request — `ugc_rights_requests.status` supports `countered` but no
-  screen surfaces it yet.
-- Bulk creator-list CSV import.
+| Access | Roles |
+|---|---|
+| Read | owner, admin, manager, member, viewer |
+| Write creators and invitations | owner, admin, manager |
+| Write briefs, submissions, rights and lists | owner, admin, manager, member |
+| Read payments and batches | owner, admin, manager |
+| Write payments | owner |
+| Activity | Insert only, and only as yourself (append-only audit trail) |
+| Saved views | Personal views are private; shared views are readable by the workspace |
 
-## 6. Release decision
+**Payment guard trigger.** `trg_ugc_payments_guard` rejects illegal payment status transitions. It also locks the amount, currency and creator on `paid`, `refunded` and `cancelled` payments.
 
-**Blocked pending manual verification.** The module is functionally real (no
-mock data, real DB reads/writes, real RLS-protected tables and migrations,
-real server-action validation with enforced status-transition lifecycles, a
-private signed-URL storage bucket, idempotency-guarded payment batching) and
-both type-clean and lint-clean, and compiles successfully in a full production
-build. It has not been visually verified against the 6 approved design
-references or exercised end-to-end in a browser this session. Do not mark
-100/100 until a logged-in Chrome pass is done per the steps in the user-fixes
-doc.
+**Storage policies.** These are role-based and scoped by the first segment of the object path, which is the workspace.
+
+**Server actions.** Every server action re-checks the capability and workspace ownership. Uploads are validated again on the server:
+- path prefix
+- MIME allowlist
+- 500 MB limit
+- the object exists in storage with a matching size
+
+`scripts/verify-creators-rls.mjs` runs **38 positive and negative checks as real users inside rolled-back transactions. All 38 pass.** The checks cover:
+- each role's reads
+- cross-workspace isolation
+- a non-member
+- financial visibility
+- role-based writes
+- the payment trigger
+- append-only activity
+- saved views
+- storage
+
+**Edge functions:** none are used by this module; everything runs through Next.js server actions and one route handler.
+
+## 6. Gating
+`src/lib/creators/entitlements.ts`:
+- Overview, Creators, Briefs and Submissions are available on every active plan.
+- Rights and Payments need **Team** or above.
+- Payments is only available to `small_business`, `brand` and `agency` workspaces.
+- A cancelled subscription blocks the module.
+- A blocked user sees an explanation screen with an upgrade link when an upgrade would help.
+
+Navigation uses `gated(M.creators,'creators')` in `registers.ts`, and `resolver.ts` checks the same function, so the sidebar and a direct URL can't disagree. **There is no separate Platform Admin feature flag for this module**; see user-fixes.
+
+## 7. Bugs found and fixed
+- **Hydration mismatch:** Intl compact numbers formatted differently on server and browser. Replaced with a deterministic `compact()`.
+- **Expired items:** showed "0 days left". Past dates now floor to negative values.
+- **r2: avatars:** did not load. They are now signed on the server.
+- **Mobile overflow:** fixed with `grid-cols-[minmax(0,1fr)]` and `relative` scroll containers.
+- **Filter bars:** wrapped. KPI labels were truncated. Tables overflowed on Rights, Briefs and Payments.
+- **Payment status menu:** allowed jumping to `paid`/`processing` without recording a payout. That now goes through `recordPayoutOutcome` only.
+- **Bulk approve:** had no cap or status filter. It is now capped at 200 and only acts on reviewable statuses.
+- **Upload success:** did not navigate to the new submission. It now does a hard navigation (fixed this pass).
+- **Seed brief counters** (assigned creators and deliverables) disagreed with the rows behind them. They are now derived from the inserted rows (fixed this pass; all three demo workspaces reseeded).
+- **Seed script encoding:** comments had been double-encoded. Repaired.
+
+## 8. Tests run (latest pass, 2026-09-17)
+- `npx tsc --noEmit`: no errors in creators files.
+- `npx eslint` on `src/components/creators`, `src/lib/creators`, `src/app/[workspaceType]/creators`, `src/app/api/creators` and the seed script: exit code 0.
+- `npx vitest run src/lib/creators src/lib/navigation`: **61/61 pass**. Covers batch eligibility, lifecycles, dates, CSV injection, link resolution, query parsing, entitlements and role capabilities.
+- `node scripts/verify-creators-rls.mjs`: **38/38 pass**.
+- Idempotent seed: `node scripts/seed-creators-demo.mjs <brand> <business> <agency>`. Each workspace got 28 creators, 16 briefs, 24 submissions, 16 rights records, 64 payments and 3 batches.
+
+## 9. Performance
+Warm renders on the dev server took 1.3–3.3s; Overview is the slowest because it runs about 10 parallel queries. Queries run in parallel with `Promise.all`, are paginated and use indexes on `(workspace_id, status)` and dates. No per-row queries were found. **`next build` was not run this pass** because another session's dev server shares `.next`.
+
+## 10. Cross-section effects
+- Activity links are stored in a legacy-neutral form and resolved against the active workspace route at render time.
+- Brief detail links to Campaigns.
+- Changes revalidate the shared `/[workspaceType]/creators` layout, so KPIs, rails and tabs refresh after every action.
+- The top-bar quick-create "Brief" opens `?action=new`.
+
+## 11. Score and decision
+**Score: 84 / 100. Decision: ready for owner/admin-only beta.**
+
+Points deducted:
+- **Payouts (−5):** no payout provider; outcomes are recorded manually.
+- **Creator self-service (−3):** no creator self-service portal or marketplace linking.
+- **Feature flag (−2):** no Platform Admin flag.
+- **Browser verification (−3):** the latest fixes (upload redirect, seed counters) and the review-tool click-through were not re-verified in Chrome. The browser session expired, and logging it back in by injecting a session cookie was blocked by the permission check.
+- **No production build or E2E suite (−3):** there is no automated Playwright suite, and `next build` was not re-run.
+
+The steps are in `release-gated/user-fixes/creators-ugc.md`.

@@ -1,103 +1,95 @@
 import {
-  AlertTriangle, Archive, ArrowDownRight, ArrowUpRight, Award, BarChart3, Blocks,
-  CalendarClock, CheckCircle2, Clock, Compass, DollarSign, FileText, Gauge, Globe,
-  Layers, Link2, Sparkles, Star, Target, TrendingUp, Users, Users2, Shield, Wallet,
+  AlertTriangle, ArrowDown, ArrowUp, Award, BadgeCheck, BarChart3, Blocks, CalendarClock, CheckCircle2, Clock,
+  CircleDollarSign, FileText, FlaskConical, Gauge, Globe, Link2, Minus, Network, ShieldCheck, Sparkles, Star, Target,
+  TrendingUp, Users, UserRound, Archive, ClipboardList, LineChart,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { CARD, CARD_SHADOW } from './primitives'
-import type { KpiValue } from '@/lib/strategy/types'
+import { CARD } from './primitives'
 
 const ICONS = {
-  sparkles: Sparkles, target: Target, users: Users, users2: Users2, flask: Compass,
-  star: Star, trend: TrendingUp, alert: AlertTriangle, check: CheckCircle2,
-  clock: Clock, calendar: CalendarClock, file: FileText, archive: Archive,
-  gauge: Gauge, globe: Globe, link: Link2, layers: Layers, blocks: Blocks,
-  money: DollarSign, wallet: Wallet, chart: BarChart3, award: Award, shield: Shield,
+  sparkles: Sparkles, target: Target, users: Users, user: UserRound, flask: FlaskConical, star: Star,
+  trend: TrendingUp, line: LineChart, alert: AlertTriangle, check: CheckCircle2, clock: Clock, calendar: CalendarClock,
+  file: FileText, archive: Archive, gauge: Gauge, globe: Globe, link: Link2, blocks: Blocks, network: Network,
+  money: CircleDollarSign, chart: BarChart3, award: Award, shield: ShieldCheck, badge: BadgeCheck, list: ClipboardList,
 } as const
 export type KpiIcon = keyof typeof ICONS
 
-const TONES: Record<KpiValue['tone'], string> = {
-  blue: 'bg-blue-50 text-blue-600',
-  green: 'bg-emerald-50 text-emerald-600',
-  amber: 'bg-amber-50 text-amber-600',
-  violet: 'bg-violet-50 text-violet-600',
-  red: 'bg-red-50 text-red-600',
+export type KpiTone = 'blue' | 'green' | 'amber' | 'violet' | 'red' | 'orange' | 'teal' | 'slate'
+
+const TILE: Record<KpiTone, string> = {
+  blue: 'bg-[#e6edff] text-sg-blue',
+  green: 'bg-[#dcf7e6] text-emerald-500',
+  amber: 'bg-amber-50 text-amber-500',
+  orange: 'bg-[#ffecd9] text-orange-500',
+  violet: 'bg-[#ece7ff] text-violet-600',
+  red: 'bg-red-50 text-red-500',
+  teal: 'bg-teal-50 text-teal-500',
   slate: 'bg-slate-100 text-slate-500',
 }
 
-const BAR_TONES: Record<KpiValue['tone'], string> = {
-  blue: 'bg-blue-500', green: 'bg-emerald-500', amber: 'bg-amber-500',
-  violet: 'bg-violet-500', red: 'bg-red-500', slate: 'bg-slate-400',
+export interface KpiItem {
+  id: string
+  label: string
+  value: React.ReactNode
+  icon: KpiIcon
+  tone: KpiTone
+  /** Signed change vs the prior period. `good` decides the colour, not the sign. */
+  delta?: { value: number; unit?: string; comparison: string; good?: 'up' | 'down' } | null
+  /** Plain secondary line when there is no delta (e.g. "Needs review"). */
+  note?: React.ReactNode
+  noteTone?: 'muted' | 'green' | 'amber' | 'red'
+  bar?: { pct: number; label: React.ReactNode }
 }
 
 /**
- * The KPI row shared by every Strategy surface. Values are always calculated
- * from workspace-scoped data by the page; this component only formats them.
- * Cards are separate tiles (not a divided strip) to match the Strategy design.
+ * KPI row shared by every Strategy surface. Values are computed server-side
+ * from workspace-scoped data; this only lays them out. Deltas always pair the
+ * arrow with text so direction is never conveyed by colour alone.
  */
-export default function KpiStrip({ items, className }: { items: KpiValue[]; className?: string }) {
+export default function KpiStrip({ items, className, itemClassName }: { items: KpiItem[]; className?: string; itemClassName?: string }) {
   return (
-    <div className={cn('grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6', className)}>
+    <ul className={cn('grid grid-cols-1 gap-3 min-[420px]:grid-cols-2 md:grid-cols-3 xl:grid-cols-6 xl:gap-[18px]', className)} aria-label="Key metrics">
       {items.map(item => {
-        const Icon = ICONS[(item.icon as KpiIcon)] ?? Target
+        const Icon = ICONS[item.icon]
+        const d = item.delta
+        const good = d ? (d.good ?? 'up') : 'up'
+        const positive = d ? (d.value === 0 ? null : (d.value > 0) === (good === 'up')) : null
         return (
-          <div key={item.id} className={cn(CARD, CARD_SHADOW, 'flex items-start gap-3 px-3.5 py-3')}>
-            <span className={cn('flex h-9 w-9 shrink-0 items-center justify-center rounded-lg', TONES[item.tone])}>
-              <Icon size={17} />
+          <li key={item.id} className={cn(CARD, 'flex min-h-[92px] items-start gap-3 px-3.5 py-3.5 lg:h-[88px] lg:min-h-0 lg:gap-[11px] lg:overflow-hidden lg:px-3 lg:py-[13px]', itemClassName)}>
+            <span className={cn('flex h-11 w-11 shrink-0 items-center justify-center rounded-[10px] lg:h-10 lg:w-10', TILE[item.tone])}>
+              <Icon aria-hidden className="h-5 w-5 lg:h-[19px] lg:w-[19px]" strokeWidth={2.4} />
             </span>
             <div className="min-w-0 flex-1">
-              <p className="truncate text-[11px] font-medium text-slate-500">{item.label}</p>
-              <p className="truncate text-[22px] font-bold leading-tight tracking-tight text-slate-900">
-                {item.value}
-              </p>
-              {item.bar
-                ? (
-                  <div className="mt-1.5">
-                    <span
-                      className="block h-1 overflow-hidden rounded-full bg-slate-100"
-                      role="progressbar" aria-valuenow={Math.round(item.bar.pct)}
-                      aria-valuemin={0} aria-valuemax={100} aria-label={item.bar.label}
-                    >
-                      <span
-                        className={cn('block h-full rounded-full', BAR_TONES[item.tone])}
-                        style={{ width: `${Math.max(0, Math.min(100, item.bar.pct))}%` }}
-                      />
-                    </span>
-                    <p className="mt-1 truncate text-[10px] font-medium text-emerald-600">{item.bar.label}</p>
-                  </div>
-                )
-                : item.hint && (
-                  <p className={cn(
-                    'mt-0.5 flex items-center gap-0.5 truncate text-[11px]',
-                    item.trend === 'up' ? 'text-emerald-600' : item.trend === 'down' ? 'text-red-500' : 'text-slate-400',
-                  )}>
-                    {item.trend === 'up' && <ArrowUpRight size={11} className="shrink-0" />}
-                    {item.trend === 'down' && <ArrowDownRight size={11} className="shrink-0" />}
-                    <span className="truncate">{item.hint}</span>
-                  </p>
-                )}
+              <p className="truncate text-[13px] font-medium leading-tight tracking-[-0.005em] text-sg-body lg:text-[10.5px]">{item.label}</p>
+              <p className="mt-0.5 truncate text-[22px] font-semibold leading-tight tracking-[-0.01em] text-sg-ink lg:mt-[3px] lg:text-[19.5px]">{item.value}</p>
+              {item.bar ? (
+                <div className="mt-1 lg:mt-[2px]">
+                  <p className="truncate text-[12px] leading-tight text-sg-muted lg:text-[10px]">{item.bar.label}</p>
+                  <span className="mt-1 block h-1 w-full max-w-[110px] overflow-hidden rounded-full bg-slate-100" role="progressbar"
+                    aria-valuenow={Math.round(item.bar.pct)} aria-valuemin={0} aria-valuemax={100}>
+                    <span className="block h-full rounded-full bg-emerald-500" style={{ width: `${Math.max(0, Math.min(100, item.bar.pct))}%` }} />
+                  </span>
+                </div>
+              ) : d ? (
+                <p className="mt-1 flex items-center gap-1 truncate text-[12px] leading-tight text-sg-muted lg:mt-[5px] lg:text-[9.5px]">
+                  {d.value > 0 ? <ArrowUp aria-hidden className={cn('h-3 w-3 shrink-0', positive ? 'text-emerald-500' : 'text-red-500')} />
+                    : d.value < 0 ? <ArrowDown aria-hidden className={cn('h-3 w-3 shrink-0', positive ? 'text-emerald-500' : 'text-red-500')} />
+                      : <Minus aria-hidden className="h-3 w-3 shrink-0 text-slate-400" />}
+                  <span className={cn('font-semibold', positive === null ? 'text-slate-500' : positive ? 'text-emerald-600' : 'text-red-500')}>
+                    <span className="sr-only">{d.value > 0 ? 'up ' : d.value < 0 ? 'down ' : 'no change '}</span>
+                    {Math.abs(d.value).toLocaleString('en-GB')}{d.unit ?? ''}
+                  </span>
+                  <span className="truncate">{d.comparison}</span>
+                </p>
+              ) : item.note ? (
+                <p className={cn('mt-1 truncate text-[12px] lg:mt-[5px] lg:text-[9.5px]', {
+                  muted: 'text-sg-muted', green: 'font-medium text-emerald-600', amber: 'font-medium text-amber-600', red: 'font-medium text-red-500',
+                }[item.noteTone ?? 'muted'])}>{item.note}</p>
+              ) : null}
             </div>
-          </div>
+          </li>
         )
       })}
-    </div>
-  )
-}
-
-/** Matches the final layout exactly, so the strip never causes a layout shift. */
-export function KpiStripSkeleton({ count = 6 }: { count?: number }) {
-  return (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
-      {Array.from({ length: count }).map((_, index) => (
-        <div key={index} className={cn(CARD, CARD_SHADOW, 'flex items-start gap-3 px-3.5 py-3')}>
-          <span className="h-9 w-9 shrink-0 animate-pulse rounded-lg bg-slate-100" />
-          <div className="min-w-0 flex-1 space-y-1.5">
-            <span className="block h-2.5 w-20 animate-pulse rounded bg-slate-100" />
-            <span className="block h-5 w-12 animate-pulse rounded bg-slate-100" />
-            <span className="block h-2 w-16 animate-pulse rounded bg-slate-100" />
-          </div>
-        </div>
-      ))}
-    </div>
+    </ul>
   )
 }

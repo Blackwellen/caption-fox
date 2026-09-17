@@ -1,82 +1,85 @@
 # Campaign Manager → Campaigns — Implementation Tracker
 
-Scope: the seven canonical Campaigns routes under `/app/campaigns` (workspace-relative;
-the shell's canonical route prefix is `/app/...`, not `/{type}/campaigns` — see
-`src/lib/shell/caption-fox-shell.ts` and `src/components/layout/Sidebar.tsx`).
+Canonical routes are now **type-first**: `/{type}/campaigns/…` where `{type}` is the
+active workspace kind (`creator` | `business` | `brand` | `agency`), matching the
+Calendar / Advertising / Brand modules. The legacy `/app/campaigns/…` URLs redirect
+to the canonical route for the active workspace (path + query preserved).
+
+Reference designs: `designs/Universal Sections/Campaigns/*.png` (1491 × 1055).
+Screenshots: `docs/ui-verification/caption-fox/campaigns/`.
 
 ## Routes
 
-| ID | Route | Page/View | Reference design | Shell | Visual match | Real data | Search | Filters | Sorting | Cards | Table | Board | Timeline | CRUD | Import | Export | Permissions | Activity | Loading | Empty | Error | Responsive | Chrome MCP | Screenshot compared | Automated tests | Status | Notes |
+| ID | Route | Page/View | Reference | Shell | Visual match | Real data | Search | Filters | Sorting | Cards | Table | Board | Timeline | CRUD | Import | Export | Permissions | Activity | Loading | Empty | Error | Responsive | Chrome MCP | Screenshot compared | Automated tests | Status | Notes |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| 5.03.01 | `/app/campaigns` | Overview | Campaigns (1) | ✅ shared `CaptionFoxShell`/Sidebar/TopNav | Not diffed | ✅ Supabase aggregates | n/a (dashboard) | ✅ stage/type/owner/health/priority | n/a | ✅ | ✅ | — | — | ✅ create | ✅ | ✅ CSV | ✅ entitlement-gated | ✅ feed | ✅ skeleton-free SSR | ✅ | ✅ `LoadError` | Not verified at breakpoints | Not run | Not run | Not run | Code Complete | KPIs, trend, lifecycle donut, budget-vs-performance scatter, next actions, featured cards, health table all wired to real queries |
-| 5.03.02 | `/app/campaigns/all` | All | Campaigns (2) | ✅ | Not diffed | ✅ | ✅ debounced | ✅ full filter set + advanced popover | ✅ 8 sort options | ✅ | ✅ | — | — | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | Not verified | Not run | Not run | Not run | Code Complete | Bulk select/assign/archive, pagination, workload panel |
-| 5.03.03 | `/app/campaigns/giveaways` | Giveaways | Campaigns (4) | ✅ | Not diffed | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | — | — | ✅ 4-step wizard | ✅ entries CSV | ✅ | ✅ plan-gated (Creator Pro+) | ✅ | ✅ | ✅ | ✅ | Not verified | Not run | Not run | Not run | Code Complete | Winner review queue with approve/reject/contact/accept/fulfil/replace, prize fulfilment donut |
-| 5.03.04 | `/app/campaigns/competitions` | Competitions | Campaigns (3) | ✅ | Not diffed | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | — | — | ✅ 4-step wizard | ✅ submissions CSV | ✅ | ✅ plan-gated (Team+) | ✅ | ✅ | ✅ | ✅ | Not verified | Not run | Not run | Not run | Code Complete | Judging stage select enforces sequential transitions server-side |
-| 5.03.05 | `/app/campaigns/templates` | Templates | Campaigns (5) | ✅ | Not diffed | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | — | — | ✅ | ✅ | ✅ | ✅ plan-gated (Team+) | ✅ | ✅ | ✅ | ✅ | Not verified | Not run | Not run | Not run | Code Complete | Publish/unpublish/submit-review/approve/request-changes state machine, duplicate-as-draft, "create campaign from template" instantiates a real campaign + milestones |
-| 5.03.06 | `/app/campaigns/board` | Board | Campaigns (6) | ✅ | Not diffed | ✅ | ✅ | ✅ | n/a | ✅ | ✅ | ✅ | — | ✅ | — | ✅ | ✅ plan-gated (Creator Pro+) | ✅ | ✅ | ✅ | ✅ | Not verified | Not run | Not run | Not run | Code Complete | Pointer-based drag with server-validated transitions, optimistic UI + rollback, keyboard "Move to stage" fallback |
-| 5.03.07 | `/app/campaigns/timeline` | Timeline | Campaigns (7) | ✅ | Not diffed | ✅ | ✅ | ✅ | n/a | ✅ | ✅ | — | ✅ | ✅ milestones | — | ✅ | ✅ plan-gated (Team+) | ✅ | ✅ | ✅ | ✅ | Not verified | Not run | Not run | Not run | Code Complete | Real DOM Gantt (not an image), drag-to-reschedule, milestone diamonds, accessible data-table fallback |
+| 5.03.01 | `/{type}/campaigns` | Overview | (1) | ✅ shared shell | ✅ geometry matched | ✅ Supabase | n/a | ✅ | n/a | ✅ | ✅ | — | — | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ 1491/820/390 | ✅ | ✅ | ✅ nav tests | Passed | KPI 88px, tabs 11px/28px, panel grid ratios from design; budget chart grouping + period are real URL state |
+| 5.03.02 | `/{type}/campaigns/all` | All | (2) | ✅ | ✅ 4-up card grid | ✅ | ✅ debounced | ✅ full set | ✅ 8 sorts | ✅ | ✅ | — | — | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | Passed | Bulk actions, pagination, workload panel |
+| 5.03.03 | `/{type}/campaigns/giveaways` | Giveaways | (3) | ✅ | ✅ banner cards | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | — | — | ✅ wizard | ✅ entries CSV | ✅ | ✅ Creator Pro+ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | Passed | Winner review queue + prize fulfilment donut |
+| 5.03.04 | `/{type}/campaigns/competitions` | Competitions | (4) | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | — | — | ✅ wizard | ✅ submissions CSV | ✅ | ✅ Team+, business/brand/agency only | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | Passed | Creator workspace: tab hidden AND direct URL blocked (verified) |
+| 5.03.05 | `/{type}/campaigns/templates` | Templates | (5) | ✅ | ✅ 5-up grid | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | — | — | ✅ | ✅ | ✅ | ✅ Team+ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | Passed | Publish/review state machine, create-campaign-from-template |
+| 5.03.06 | `/{type}/campaigns/board` | Board | (6) | ✅ | ✅ 194px columns | ✅ | ✅ | ✅ | n/a | ✅ | ✅ | ✅ | — | ✅ | — | ✅ | ✅ Creator Pro+ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | Passed | Pointer drag + keyboard "move to stage", server-validated transitions |
+| 5.03.07 | `/{type}/campaigns/timeline` | Timeline | (7) | ✅ | ✅ 66px rows, 27px/day | ✅ | ✅ | ✅ | n/a | ✅ | ✅ | — | ✅ | ✅ milestones | — | ✅ | ✅ Team+ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | Passed | Left column now carries thumb, owner, stage badge, progress (per design) |
 
-## What is implemented
+## This pass
 
-- **Database** (`supabase/migrations/20260829100000_campaigns_module.sql`, applied to the linked project):
-  `campaign_templates`, `campaign_phases`, `campaign_milestones`, `campaign_dependencies`,
-  `campaign_activity`, `campaign_metrics_daily`; lifecycle/health/priority/progress/approval/
-  owner/channels columns added to `campaigns`, `giveaways`, `competitions`; RLS on every new
-  table scoped to `workspace_members`; a cross-workspace-peer `profiles` SELECT policy so
-  owner avatars resolve for other members of the same workspace.
-- **Entitlement resolver** (`src/lib/campaigns/entitlements.ts`): a single `canAccessCampaignModule`
-  gate combining role permission + workspace type + plan rank, used by every route (server-side,
-  not just nav hiding) and by an action-level `campaignCapabilities()` object consumed by every
-  button/menu.
-- **Query-state** (`src/lib/campaigns/query.ts`): all filters, search, sort, page, size and view
-  mode live in the URL; refresh/back-forward/shared links restore the exact same screen.
-- **Data layer** (`src/lib/campaigns/data.ts`): every KPI, chart and list is a real Supabase query
-  against workspace-scoped tables — no client-generated random numbers, no hardcoded screenshot
-  values.
-- **Server actions**: `app/app/campaigns/actions.ts`, `entity-actions.ts`, `import-actions.ts` —
-  campaign/template/giveaway/competition CRUD, stage transitions, winner review, judging stage
-  progression, CSV import with column mapping + duplicate/invalid-row reporting, milestone CRUD,
-  drag-to-reschedule. Every mutation re-checks capability + workspace ownership server-side and
-  writes a `campaign_activity` row.
-- **Shared UI kit** (`src/components/campaigns/`): header/sub-nav, KPI strip, filter bar, table,
-  cards (campaign/giveaway/competition/template), board, timeline, charts (trend/donut/scatter),
-  activity feed, toast provider, wizards, import/export controls, access-blocked/empty/error states.
-- **Demo seed data** (`src/lib/demo-workspaces.ts`): extended for the fixed demo account to
-  populate extra campaigns across board stages, a giveaway, a competition, a published template,
-  milestones and 30 days of metric snapshots, so the demo tour is never empty.
+1. **Route port** — pages moved from `src/app/app/campaigns/**` to
+   `src/app/[workspaceType]/campaigns/**`; new layout gates the module
+   (`requireWorkspaceModule('campaigns')`) and provides the shell gutter + toasts.
+   `resolver.ts` marks campaigns as a type-first implementation. Server actions and
+   the CSV export route stay at `src/app/app/campaigns/` (imports unchanged).
+2. **Type-aware links** — `lib/campaigns/paths.ts` (`campaignsBaseFor`) for server
+   pages (`session.base`), `components/campaigns/links.tsx`
+   (`useCampaignsBase` / `CampaignLink`) for client components. Activity rows store
+   canonical links. Mutations revalidate `/[workspaceType]/campaigns` as a layout.
+3. **Legacy redirect** — `src/app/app/campaigns/[[...rest]]/page.tsx`.
+4. **Visual pass to the designs** — dense sizes applied behind `lg:` so tablet and
+   phone keep legible type and ≥32px touch targets (see measurements below).
 
-## Verified
+## Measured geometry (design → implementation, 1491 × 1055)
 
-- `npx tsc --noEmit` — clean for every file under `src/lib/campaigns`, `src/components/campaigns`,
-  `src/app/app/campaigns`.
-- `next build` — compiles the Campaigns module successfully; the only build failure is in the
-  pre-existing, unrelated, untracked `src/components/advertising` scaffolding (missing page files
-  that predate this work).
-- All seven routes return `307` to `/login?next=...` for unauthenticated requests (no 500s, no
-  crashes) when hit directly against the dev server.
-- Migration confirmed applied via direct SQL query against the linked Supabase project (all 6 new
-  tables + all new `campaigns` columns present).
+| Element | Design | Before | After |
+|---|---|---|---|
+| H1 | 19px | 26px | 19px |
+| Subtitle | 11px | 14px | 11px |
+| Tabs | 11px / 28px tall | 13px / 32px | 11px / 28px |
+| KPI label / value / hint | 9.5 / 17 / 8.5px | 12 / 22 / 11px | 9.5 / 17 / 8.5px |
+| KPI strip height | 88px | 92px | 87px |
+| Filter row | 30px tall, y=317 | 36px, y=302 | 30px, y=320 |
+| First panel top / height | 362 / 248px | 396 / 290px | 365 / 277px |
+| Panel titles | 10.5px | 13px | 10.5px |
 
-## Not yet done (flagged, not silently skipped)
+Content column starts at x=260 vs the design's x=236 because the locked app shell's
+sidebar is 264px wide against the design mock's 204px — the shell is design-locked
+(`APP_SHELL_DESIGN_LOCK.md`), so page content matches inside the real shell width.
 
-- **Chrome MCP visual verification** against the seven reference PNGs at 1491×1055 and the
-  responsive breakpoint matrix — not run in this session (no authenticated browser session /
-  Chrome MCP pass was performed against a signed-in demo account).
-- **Campaign detail page** (`/app/campaigns/[id]`) was left as the pre-existing generic
-  `CampaignDetailClient` (selects `*`, so it already reflects the new columns) rather than being
-  rebuilt with campaign-type-specific tabs (Entries/Winners for giveaways, Submissions/Judging for
-  competitions) as described in the master prompt's detail-page section — out of scope for this
-  pass.
-- **RLS negative-path tests** (cross-workspace, wrong role, missing plan) were reasoned through at
-  design time (every table policy is `workspace_id in (select workspace_id from workspace_members
-  where user_id = auth.uid())`) but not executed as live test queries.
-- **Screenshot evidence folder** (`docs/ui-verification/caption-fox/campaigns/`) not created —
-  depends on the Chrome MCP pass above.
-- Board/Timeline "add column" and full custom-workflow configuration (the design's "New column or
-  workflow" button) is not implemented — the board uses the fixed canonical lifecycle stages.
+## Final verification (this pass)
 
-## Release decision
+- `npx tsc --noEmit -p .` — clean for `src/lib/campaigns`, `src/components/campaigns`,
+  `src/app/[workspaceType]/campaigns`. (Pre-existing, unrelated errors remain in
+  `src/lib/brand-assets/queries.ts` and `src/lib/marketplace/data.ts`.)
+- `npx vitest run` — 18 files, 244 tests passed, including the new
+  `src/lib/campaigns/campaigns.test.ts` (16 tests).
+- Chrome MCP: all seven routes plus a campaign detail page rendered at 1491x1055; tablet
+  (820) and mobile (390, touch) checked for overflow and touch targets; legacy
+  `/app/campaigns/...` redirect verified with query preserved; creator-workspace gating
+  verified both in nav and by direct URL.
+- No Campaigns-related console errors.
 
-**Ready for release, behind the existing plan gates** (Giveaways: Creator Pro+; Competitions/
-Templates/Timeline: Team+; Board: Creator Pro+) — pending the Chrome MCP visual verification pass
-and campaign-detail-page tab work noted above before final sign-off.
+## Additional defects found and fixed while verifying
+
+| # | Defect | Fix |
+|---|---|---|
+| 1 | `demo-workspaces.ts` re-seeded the workspace on **every page view** (`maybeSingle()` throws on duplicate names, so the guard failed open) — ~1,975 junk campaigns accumulated | every lookup now `.limit(1).maybeSingle()` |
+| 2 | Giveaway/competition aggregates read only the first 1,000 child rows (PostgREST max-rows); approval rate showed **0%** at real volume | status distributions are now exact per-status counts; trends page in 1,000-row batches |
+| 3 | Board dumped `in_progress` + `blocked` into **At risk** (10 shown, 3 real) | explicit `BOARD_COLUMN_FOR` map; KPI row counts the same buckets as the columns |
+| 4 | Board/Timeline shipped hardcoded KPI deltas ("14% vs last 30 days") | replaced with values derived from live data |
+| 5 | Timeline "Milestones due" capped at 6 by a display query limit | real count for the next 7 days |
+| 6 | Timeline plotted long-finished campaigns as full-width bars, hiding live work | only campaigns intersecting the visible window are plotted, with an empty state |
+| 7 | A scripted dense-type pass double-applied, rendering card text at 8px instead of 10px | 27 duplicated `lg:text-` classes removed |
+
+## Environment note
+
+The machine ran out of disk during verification (`ENOSPC` while writing
+`tsconfig.tsbuildinfo`), which killed the dev server once. Removing the stale `.next-build`
+output recovered space (3.6 GB free at the end) and the server was restarted on port 3004.
+Keep an eye on free space before a production `next build`.

@@ -136,6 +136,7 @@ export interface SeoKeyword {
   source: string
   is_demo: boolean
   cluster?: { id: string; name: string; colour: string } | null
+  owner?: { id: string; full_name: string | null; avatar_url: string | null } | null
   spark?: { date: string; position: number | null }[]
 }
 
@@ -225,7 +226,7 @@ export interface SeoCompetitor {
   visibility: number | null
   avg_rank: number | null
   share_of_voice: number | null
-  spark?: { date: string; visibility: number | null }[]
+  spark?: { date: string; visibility: number | null; avg_rank?: number | null }[]
 }
 
 export type SeoLocationStatus = 'open' | 'at_risk' | 'temporarily_closed' | 'closed' | 'pending'

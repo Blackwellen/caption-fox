@@ -58,6 +58,17 @@ export interface MessageContentInput {
   body: string
   headline?: string
   deepLink?: string
+  /** Channel-specific rich fields from the design composers (preheader, CTAs, cards...). Whitelisted server-side. */
+  extras?: Record<string, unknown>
+}
+
+const EXTRA_KEYS = new Set(['preheader', 'replyTo', 'templateName', 'templateId', 'image', 'cta', 'secondaryCta', 'quickReplies', 'cards', 'layout', 'trackLinks', 'personalisation', 'imageKey', 'fallback', 'blocks', 'title', 'schedule', 'timezone', 'sendMode'])
+
+/** Keeps only known rich-content keys and caps the payload so clients cannot store arbitrary blobs. */
+function cleanExtras(extras: Record<string, unknown> | undefined): Record<string, unknown> {
+  if (!extras) return {}
+  const clean = Object.fromEntries(Object.entries(extras).filter(([key, value]) => EXTRA_KEYS.has(key) && value !== undefined && value !== ''))
+  return JSON.stringify(clean).length <= 20_000 ? clean : {}
 }
 
 export interface MessageInput {
@@ -79,10 +90,11 @@ function validateMessage(input: MessageInput): string | null {
 }
 
 function contentToJsonb(channel: MessagingChannel, content: MessageContentInput): Record<string, unknown> {
-  if (channel === 'email') return { subject: content.subject?.trim(), body: content.body.trim() }
-  if (channel === 'push') return { title: content.headline?.trim() || content.subject?.trim(), body: content.body.trim(), deepLink: content.deepLink?.trim() || null }
-  if (channel === 'rcs') return { headline: content.headline?.trim(), body: content.body.trim() }
-  return { body: content.body.trim() }
+  const extras = cleanExtras(content.extras)
+  if (channel === 'email') return { ...extras, subject: content.subject?.trim(), body: content.body.trim() }
+  if (channel === 'push') return { ...extras, title: content.headline?.trim() || content.subject?.trim(), body: content.body.trim(), deepLink: content.deepLink?.trim() || null }
+  if (channel === 'rcs') return { ...extras, headline: content.headline?.trim(), body: content.body.trim() }
+  return { ...extras, body: content.body.trim() }
 }
 
 export async function createMessage(input: MessageInput): Promise<ActionResult> {

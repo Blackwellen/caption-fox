@@ -4,7 +4,7 @@ import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { ChevronDown } from 'lucide-react'
 import { useToast } from '@/components/campaigns/Toast'
-import { updateRightsStatus } from '@/app/app/creators/actions'
+import { updateRightsStatus } from '@/lib/creators/actions'
 import { RIGHTS_STATUS_BADGE, RIGHTS_STATUS_LABELS, type RightsStatus } from '@/lib/creators/constants'
 import { Badge } from '@/components/ui/Badge'
 

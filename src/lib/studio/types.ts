@@ -51,6 +51,7 @@ export interface ContentRow {
   campaign_id: string | null
   brand_id: string | null
   engagement: Record<string, number> | null
+  metadata: Record<string, unknown> | null
   archived_at: string | null
   created_at: string
   updated_at: string
@@ -75,6 +76,8 @@ export interface ContentCounts {
   archived: number
   scheduledThisWeek: number
   linkedAssets: number
+  /** Figure now vs 30 days ago, keyed by status, `total` and `linked`. */
+  trends: Record<string, { current: number; previous: number }>
   error: string | null
 }
 
@@ -116,6 +119,7 @@ export interface IdeaRow {
   ai_generated: boolean | null
   collection_id: string | null
   converted_to_post_id: string | null
+  metadata?: Record<string, unknown> | null
   archived_at: string | null
   created_at: string
   updated_at: string
@@ -143,6 +147,9 @@ export interface IdeaCounts {
   newLast7: number
   savedInspirations: number
   converted: number
+  trendSignals: number
+  /** Last 7 days vs the 7 before, per KPI and per pipeline stage. */
+  trends: Record<string, { current: number; previous: number }>
   error: string | null
 }
 
@@ -186,6 +193,7 @@ export interface TemplateCounts {
   brandApproved: number
   needsReview: number
   savedThisMonth: number
+  savedLastMonth: number
   mostUsed: { id: string; name: string; usage_count: number } | null
   error: string | null
 }
@@ -255,6 +263,8 @@ export interface KeywordCounts {
   savedGroups: number
   blockedTerms: number
   avgGrowth: number | null
+  /** Total now vs total 30 days ago, per KPI. */
+  trends: Record<string, { current: number; previous: number }>
   error: string | null
 }
 
@@ -265,6 +275,7 @@ export interface MediaRow {
   file_name: string
   file_path: string
   file_url: string
+  thumbnail_path: string | null
   file_type: string
   mime_type: string | null
   file_size: number | null
@@ -279,6 +290,8 @@ export interface MediaRow {
   usage_count: number
   version: number
   collection_id: string | null
+  is_favourite?: boolean | null
+  review_note?: string | null
   archived_at: string | null
   created_at: string
   updated_at: string
@@ -307,6 +320,10 @@ export interface MediaCounts {
   needsReview: number
   storageBytes: number
   linked: number
+  /** Comparison points for "vs last month": totals at month start and last month's uploads. */
+  totalPrev: number
+  newUploadsPrev: number
+  linkedPrev: number
   error: string | null
 }
 
@@ -375,6 +392,12 @@ export interface AiCounts {
   acceptedRate: number
   creditsUsed: number
   creditsLimit: number
+  /** Yesterday's comparable figures for the KPI deltas. */
+  savedYesterday: number
+  savedToday: number
+  regenerationRateYesterday: number
+  promptsCreatedToday: number
+  acceptedRateYesterday: number
   error: string | null
 }
 

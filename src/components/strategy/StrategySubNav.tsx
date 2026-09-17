@@ -2,100 +2,94 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { useState } from 'react'
+import { useEffect, useRef } from 'react'
 import { ChevronDown } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { STRATEGY_MODULE_META, type StrategyModule } from '@/lib/strategy/constants'
+import { STRATEGY_MODULE_META, strategyPath, type StrategyModule } from '@/lib/strategy/constants'
+import { Menu } from './client/menu'
 
 /**
  * The single Strategy tab strip shared by all seven surfaces.
  *
- * Active state derives from the route, so deep links, refreshes and browser
- * back/forward all select the right tab without any local state. Modules the
- * workspace is not entitled to are not rendered at all — never as disabled or
- * dead links. On mobile the strip collapses into a dropdown selector; on tablet
- * it becomes a horizontally scrollable segmented strip.
+ * Active state derives from the URL, so deep links, refreshes and browser
+ * back/forward always select the right tab. Only entitled modules are passed
+ * in — hidden modules are never rendered as disabled or dead tabs.
+ *
+ *  - Desktop (lg+): underline tab row matching the approved design.
+ *  - Tablet (sm–lg): sliding segmented tray that scrolls the active tab into view.
+ *  - Phone / PWA (<sm): dropdown selector.
  */
-export default function StrategySubNav({ modules }: { modules: StrategyModule[] }) {
+export default function StrategySubNav({ kind, modules }: { kind: string; modules: StrategyModule[] }) {
   const pathname = usePathname()
-  const [open, setOpen] = useState(false)
+  const trayRef = useRef<HTMLDivElement>(null)
 
-  function isActive(module: StrategyModule): boolean {
-    const href = STRATEGY_MODULE_META[module].href
-    return module === 'overview' ? pathname === href : pathname.startsWith(href)
+  const hrefFor = (module: StrategyModule) => strategyPath(kind, module)
+  const isActive = (module: StrategyModule) => {
+    const href = hrefFor(module)
+    return module === 'overview' ? pathname === href : pathname === href || pathname.startsWith(`${href}/`)
   }
-
   const active = modules.find(isActive) ?? modules[0]
+
+  useEffect(() => {
+    const node = trayRef.current?.querySelector<HTMLElement>('[aria-current="page"]')
+    node?.scrollIntoView({ block: 'nearest', inline: 'center' })
+  }, [pathname])
+
   if (!active) return null
 
   return (
-    <>
-      {/* Mobile / PWA: dropdown selector so many tabs never clip. */}
-      <div className="relative sm:hidden">
-        <button
-          type="button"
-          onClick={() => setOpen(value => !value)}
-          aria-expanded={open}
-          aria-haspopup="menu"
-          className="flex h-9 w-full items-center justify-between rounded-lg border border-slate-200 bg-white px-3 text-[13px] font-medium text-slate-700"
-        >
-          {STRATEGY_MODULE_META[active].label}
-          <ChevronDown size={14} className={cn('text-slate-400 transition-transform', open && 'rotate-180')} />
-        </button>
-        {open && (
-          <>
-            <button
-              type="button" aria-label="Close sections menu"
-              className="fixed inset-0 z-10 cursor-default" onClick={() => setOpen(false)}
-            />
-            <ul role="menu" className="absolute inset-x-0 z-20 mt-1 overflow-hidden rounded-lg border border-slate-200 bg-white py-1 shadow-lg">
-              {modules.map(module => {
-                const meta = STRATEGY_MODULE_META[module]
-                return (
-                  <li key={module} role="none">
-                    <Link
-                      role="menuitem" href={meta.href} onClick={() => setOpen(false)}
-                      aria-current={isActive(module) ? 'page' : undefined}
-                      className={cn(
-                        'block px-3 py-2 text-[13px]',
-                        isActive(module) ? 'bg-blue-50 font-medium text-blue-600' : 'text-slate-600 hover:bg-slate-50',
-                      )}
-                    >
-                      {meta.label}
-                    </Link>
-                  </li>
-                )
-              })}
-            </ul>
-          </>
-        )}
+    <nav aria-label="Strategy sections">
+      {/* Phone / PWA */}
+      <div className="sm:hidden">
+        <Menu
+          label="Strategy sections"
+          align="start"
+          className="w-full"
+          panelClassName="w-full"
+          items={modules.map(module => ({
+            id: module, label: STRATEGY_MODULE_META[module].label, href: hrefFor(module), selected: module === active,
+          }))}
+          trigger={({ ref, toggle, open, ...aria }) => (
+            <button ref={ref} type="button" onClick={toggle} {...aria}
+              className="flex h-11 w-full items-center justify-between rounded-xl border border-sg-line bg-white px-3.5 text-[14px] font-medium text-sg-ink shadow-sg-card">
+              <span><span className="sr-only">Section: </span>{STRATEGY_MODULE_META[active].label}</span>
+              <ChevronDown aria-hidden className={cn('h-4 w-4 text-slate-400 transition-transform', open && 'rotate-180')} />
+            </button>
+          )}
+        />
       </div>
 
-      {/* Tablet and desktop: sliding segmented strip. */}
-      <nav aria-label="Strategy sections" className="-mx-1 hidden overflow-x-auto sm:block">
-        <ul className="flex min-w-max items-center gap-1 border-b border-slate-200 px-1">
-          {modules.map(module => {
-            const meta = STRATEGY_MODULE_META[module]
-            const current = isActive(module)
-            return (
-              <li key={module}>
-                <Link
-                  href={meta.href}
-                  aria-current={current ? 'page' : undefined}
-                  className={cn(
-                    'inline-flex h-9 items-center border-b-2 px-3 text-[13px] font-medium transition-colors',
-                    current
-                      ? 'border-blue-600 text-blue-600'
-                      : 'border-transparent text-slate-500 hover:text-slate-800',
-                  )}
-                >
-                  {meta.label}
-                </Link>
-              </li>
-            )
-          })}
+      {/* Tablet: sliding segmented tray */}
+      <div ref={trayRef} className="hidden overflow-x-auto overscroll-x-contain [scrollbar-width:none] sm:block lg:hidden">
+        <ul className="flex w-max gap-1 rounded-xl border border-sg-line bg-white p-1 shadow-sg-card">
+          {modules.map(module => (
+            <li key={module}>
+              <Link href={hrefFor(module)} aria-current={isActive(module) ? 'page' : undefined}
+                className={cn(
+                  'inline-flex h-10 items-center whitespace-nowrap rounded-lg px-4 text-[14px] font-medium transition-colors',
+                  isActive(module) ? 'bg-sg-blue text-white' : 'text-sg-muted hover:bg-slate-50 hover:text-sg-ink',
+                )}>
+                {STRATEGY_MODULE_META[module].label}
+              </Link>
+            </li>
+          ))}
         </ul>
-      </nav>
-    </>
+      </div>
+
+      {/* Desktop: underline row */}
+      <ul className="hidden items-end gap-[9px] border-b border-sg-line lg:flex">
+        {modules.map(module => (
+          <li key={module}>
+            <Link href={hrefFor(module)} aria-current={isActive(module) ? 'page' : undefined}
+              className={cn(
+                '-mb-px inline-flex h-[38px] items-center border-b-2 px-3 text-[12.5px] transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-sg-blue',
+                isActive(module) ? 'border-sg-blue font-medium text-sg-blue' : 'border-transparent text-sg-muted hover:text-sg-ink',
+              )}>
+              {STRATEGY_MODULE_META[module].label}
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </nav>
   )
 }

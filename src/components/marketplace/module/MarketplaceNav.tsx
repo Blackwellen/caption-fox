@@ -32,18 +32,21 @@ const MODE_ICONS: Partial<Record<MarketplaceModule, typeof LayoutGrid>> = {
  * from the route, so deep links and browser back/forward stay correct.
  */
 export function MarketplaceTabs({
-  active, modules, counts,
+  active, modules, counts, trailing,
 }: {
   active: MarketplaceModule
   modules: MarketplaceModule[]
   counts?: Partial<Record<MarketplaceModule, number>>
+  /** Desktop-only controls aligned to the right end of the tab row. */
+  trailing?: React.ReactNode
 }) {
   const visible = MARKETPLACE_TABS.filter(tab => modules.includes(tab.id))
   const activeTop: MarketplaceModule =
     active === 'influencers' || active === 'services' || active === 'ugc-creators' ? 'discover' : active
 
   return (
-    <nav className="-mx-1 overflow-x-auto border-b border-slate-200" aria-label="Marketplace sections">
+    <div className="flex items-center border-b border-slate-200">
+    <nav className="-mx-1 min-w-0 flex-1 overflow-x-auto" aria-label="Marketplace sections">
       <ul className="flex min-w-max items-center gap-1 px-1">
         {visible.map(tab => {
           const Icon = TAB_ICONS[tab.id] ?? LayoutGrid
@@ -54,13 +57,13 @@ export function MarketplaceTabs({
                 href={MODULE_ROUTES[tab.id]}
                 aria-current={isActive ? 'page' : undefined}
                 className={cn(
-                  'inline-flex items-center gap-2 border-b-2 px-3 py-3 text-sm font-medium transition-colors',
+                  'inline-flex items-center gap-2 border-b-2 px-3 py-3 text-sm font-medium transition-colors lg:gap-1.5 lg:py-2 lg:text-[11px]',
                   isActive
                     ? 'border-blue-600 text-blue-600'
                     : 'border-transparent text-slate-500 hover:text-slate-900',
                 )}
               >
-                <Icon size={15} />
+                <Icon size={14} className="lg:h-[13px] lg:w-[13px]" />
                 {tab.label}
                 {counts?.[tab.id] !== undefined && (
                   <span className={cn(
@@ -76,18 +79,30 @@ export function MarketplaceTabs({
         })}
       </ul>
     </nav>
+    {trailing && <div className="hidden shrink-0 lg:block">{trailing}</div>}
+    </div>
   )
 }
 
-/** Discover secondary navigation — the specialist search modes. */
-export function DiscoverModeNav({ active, modules }: { active: MarketplaceModule; modules: MarketplaceModule[] }) {
+/**
+ * Discover secondary navigation — the specialist search modes. The reference
+ * has no separate row for these, so on desktop they sit at the right end of
+ * the tab strip (`inline`); tablet and mobile keep a scrollable row beneath it.
+ */
+export function DiscoverModeNav({
+  active, modules, inline = false,
+}: {
+  active: MarketplaceModule
+  modules: MarketplaceModule[]
+  inline?: boolean
+}) {
   const pathname = usePathname()
   const visible = DISCOVER_MODES.filter(mode => modules.includes(mode.id))
   if (visible.length < 2) return null
 
   return (
-    <nav className="-mx-1 overflow-x-auto" aria-label="Discovery modes">
-      <ul className="flex min-w-max items-center gap-1 px-1 py-2">
+    <nav className={cn('overflow-x-auto', inline ? '' : '-mx-1 lg:hidden')} aria-label="Discovery modes">
+      <ul className={cn('flex min-w-max items-center gap-1 px-1', inline ? 'py-0' : 'py-2')}>
         {visible.map(mode => {
           const Icon = MODE_ICONS[mode.id] ?? PlayCircle
           const isActive = mode.id === active || MODULE_ROUTES[mode.id] === pathname
@@ -97,7 +112,7 @@ export function DiscoverModeNav({ active, modules }: { active: MarketplaceModule
                 href={MODULE_ROUTES[mode.id]}
                 aria-current={isActive ? 'page' : undefined}
                 className={cn(
-                  'inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors',
+                  'inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors lg:gap-1.5 lg:px-2.5 lg:py-[3px] lg:text-[10px] [&>svg]:lg:h-3 [&>svg]:lg:w-3',
                   isActive ? 'bg-blue-50 text-blue-700' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-900',
                 )}
               >

@@ -12,39 +12,50 @@ export type StrategyModule = typeof STRATEGY_MODULES[number]
 
 export const STRATEGY_MODULE_META: Record<StrategyModule, {
   label: string
-  href: string
+  /** Path segment below `/{type}/strategy` ('' for the Overview). */
+  segment: string
   title: string
   description: string
   breadcrumb: string
 }> = {
   overview: {
-    label: 'Overview', href: '/app/strategy', title: 'Strategy', breadcrumb: 'Overview',
+    label: 'Overview', segment: '', title: 'Strategy', breadcrumb: 'Overview',
     description: 'Strategic planning and governance for sustained growth.',
   },
   objectives: {
-    label: 'Objectives', href: '/app/strategy/objectives', title: 'Objectives', breadcrumb: 'Objectives',
+    label: 'Objectives', segment: 'objectives', title: 'Objectives', breadcrumb: 'Objectives',
     description: 'Manage and track strategic objectives that drive growth.',
   },
   audiences: {
-    label: 'Audiences', href: '/app/strategy/audiences', title: 'Audiences', breadcrumb: 'Audiences',
+    label: 'Audiences', segment: 'audiences', title: 'Audiences', breadcrumb: 'Audiences',
     description: 'Understand, segment, and activate the right audiences for higher impact and ROI.',
   },
   research: {
-    label: 'Research', href: '/app/strategy/research', title: 'Research', breadcrumb: 'Research',
+    label: 'Research', segment: 'research', title: 'Research', breadcrumb: 'Research',
     description: 'Discover, collect, and manage the insights that drive better strategy.',
   },
   positioning: {
-    label: 'Positioning', href: '/app/strategy/positioning', title: 'Positioning', breadcrumb: 'Positioning',
+    label: 'Positioning', segment: 'positioning', title: 'Positioning', breadcrumb: 'Positioning',
     description: 'Define, differentiate, and validate how we win in the market.',
   },
   plans: {
-    label: 'Plans', href: '/app/strategy/plans', title: 'Plans', breadcrumb: 'Plans',
+    label: 'Plans', segment: 'plans', title: 'Plans', breadcrumb: 'Plans',
     description: 'Execute strategic priorities through clear plans, milestones, and accountable ownership.',
   },
   forecasts: {
-    label: 'Forecasts', href: '/app/strategy/forecasts', title: 'Forecasts', breadcrumb: 'Forecasts',
+    label: 'Forecasts', segment: 'forecasts', title: 'Forecasts', breadcrumb: 'Forecasts',
     description: 'Model future performance, compare scenarios, and track progress toward strategic targets.',
   },
+}
+
+/** Canonical workspace-type route segments that serve Strategy. */
+export const STRATEGY_ROUTE_KINDS = ['business', 'brand', 'agency'] as const
+export type StrategyRouteKind = typeof STRATEGY_ROUTE_KINDS[number]
+
+/** `/brand/strategy`, `/brand/strategy/plans`, `/brand/strategy/plans/{id}` … */
+export function strategyPath(kind: string, module: StrategyModule = 'overview', ...rest: string[]): string {
+  const segment = STRATEGY_MODULE_META[module].segment
+  return ['', kind, 'strategy', segment, ...rest].filter((part, index) => index === 0 || part).join('/')
 }
 
 // ── Objectives ───────────────────────────────────────────────────────────────
@@ -194,6 +205,18 @@ export const RESEARCH_SOURCE_COLOUR: Record<ResearchSource, string> = {
   market_research: '#3b82f6', consumer_research: '#10b981', brand_research: '#f59e0b',
   competitive_intel: '#8b5cf6', customer_insights: '#06b6d4', qualitative: '#ec4899',
   social_listening: '#84cc16', other: '#cbd5e1',
+}
+
+/** How the evidence was gathered — drives the "Research source mix" chart. */
+export const RESEARCH_METHODS = ['survey', 'interview', 'report', 'market_data', 'social_listening', 'other'] as const
+export type ResearchMethod = typeof RESEARCH_METHODS[number]
+export const RESEARCH_METHOD_LABELS: Record<ResearchMethod, string> = {
+  survey: 'Surveys', interview: 'Interviews', report: 'Reports', market_data: 'Market Data',
+  social_listening: 'Social Listening', other: 'Other',
+}
+export const RESEARCH_METHOD_COLOUR: Record<ResearchMethod, string> = {
+  survey: '#3f6ff8', interview: '#22c55e', report: '#f59e0b', market_data: '#8b5cf6',
+  social_listening: '#5bc0de', other: '#94a3b8',
 }
 
 export const RESEARCH_STATUSES = ['draft', 'in_review', 'approved', 'needs_revision', 'archived'] as const
@@ -409,16 +432,12 @@ export const ACTIVITY_ENTITIES = [
 ] as const
 export type ActivityEntity = typeof ACTIVITY_ENTITIES[number]
 
-/** Route each activity entity links back to, so a feed row is never a dead link. */
-export const ACTIVITY_ENTITY_HREF: Record<ActivityEntity, string> = {
-  strategy: '/app/strategy', objective: '/app/strategy/objectives',
-  audience: '/app/strategy/audiences', research: '/app/strategy/research',
-  framework: '/app/strategy/positioning', proof_point: '/app/strategy/positioning',
-  claim: '/app/strategy/positioning', competitor: '/app/strategy/positioning',
-  plan: '/app/strategy/plans', plan_item: '/app/strategy/plans',
-  forecast: '/app/strategy/forecasts', scenario: '/app/strategy/forecasts',
-  assumption: '/app/strategy/forecasts', approval: '/app/strategy/positioning',
-  system: '/app/strategy',
+/** Module each activity entity links back to, so a feed row is never a dead link. */
+export const ACTIVITY_ENTITY_MODULE: Record<ActivityEntity, StrategyModule> = {
+  strategy: 'overview', objective: 'objectives', audience: 'audiences', research: 'research',
+  framework: 'positioning', proof_point: 'positioning', claim: 'positioning', competitor: 'positioning',
+  plan: 'plans', plan_item: 'plans', forecast: 'forecasts', scenario: 'forecasts',
+  assumption: 'forecasts', approval: 'positioning', system: 'overview',
 }
 
 // ── Uploads ──────────────────────────────────────────────────────────────────

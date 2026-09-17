@@ -1,17 +1,19 @@
 'use client'
 
 import { useState, useTransition } from 'react'
+import { useCreatorsBase } from './controls'
 import { useRouter } from 'next/navigation'
 import { Plus } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Modal } from '@/components/ui/Modal'
 import { Input, Select, Textarea } from '@/components/ui/Input'
 import { useToast } from '@/components/campaigns/Toast'
-import { createCreator } from '@/app/app/creators/actions'
+import { createCreator } from '@/lib/creators/actions'
 import { CREATOR_NICHES, CREATOR_REGIONS, NICHE_LABELS } from '@/lib/creators/constants'
 
 export default function CreateCreatorButton({ label = 'Add Creator', className }: { label?: string; className?: string }) {
   const router = useRouter()
+  const base = useCreatorsBase()
   const { notify } = useToast()
   const [open, setOpen] = useState(false)
   const [pending, startTransition] = useTransition()
@@ -31,7 +33,7 @@ export default function CreateCreatorButton({ label = 'Add Creator', className }
       if (!result.ok) { setError(result.error ?? 'Could not add the creator.'); return }
       notify('success', result.message ?? 'Creator added.')
       setOpen(false); reset(); router.refresh()
-      if (result.id) router.push(`/app/creators/creators/${result.id}`)
+      if (result.id) router.push(`${base}/creators/${result.id}`)
     })
   }
 

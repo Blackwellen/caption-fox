@@ -4,7 +4,47 @@ import type {
   ActivityRow, CampaignRow, CompetitionRow, DependencyRow, GiveawayRow,
   MetricPoint, MilestoneRow, PersonLite, PhaseRow, TemplateRow,
 } from './types'
-import { PRIORITY_RANK, type CampaignPriority } from './constants'
+import { PRIORITY_RANK, SUBMISSION_STATUSES, type CampaignPriority } from './constants'
+
+/**
+ * PostgREST caps a single select at the server's max-rows (1,000 here), so any
+ * query that feeds an aggregate or a daily series pages until it is exhausted.
+ * Without this, KPIs silently go wrong once a workspace passes 1,000 child rows.
+ */
+const PAGE = 1000
+async function fetchAll<T>(
+  build: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: { message: string } | null }>,
+  cap = 50_000,
+): Promise<T[]> {
+  const out: T[] = []
+  for (let from = 0; from < cap; from += PAGE) {
+    const { data, error } = await build(from, from + PAGE - 1)
+    if (error || !data) break
+    out.push(...data)
+    if (data.length < PAGE) break
+  }
+  return out
+}
+
+/**
+ * Counts rows per status without transferring them. A status distribution over
+ * 17k entries is a handful of HEAD requests here, where paging the rows would
+ * be ~18 full round-trips per aggregate.
+ */
+async function countByStatus(
+  supabase: SupabaseClient,
+  table: string,
+  column: string,
+  statuses: readonly string[],
+  workspaceId: string,
+): Promise<Record<string, number>> {
+  const results = await Promise.all(statuses.map(async status => {
+    const { count } = await supabase.from(table).select('id', { count: 'exact', head: true })
+      .eq('workspace_id', workspaceId).eq(column, status)
+    return [status, count ?? 0] as const
+  }))
+  return Object.fromEntries(results.filter(([, count]) => count > 0))
+}
 
 const OWNER_SELECT = 'owner:profiles!campaigns_owner_id_fkey(id, full_name, email, avatar_url)'
 
@@ -158,8 +198,7 @@ export async function campaignAggregates(
     .is('archived_at', null)
   if (opts.types?.length) builder = builder.in('campaign_type', opts.types)
 
-  const { data } = await builder
-  const rows = data ?? []
+  const rows = await fetchAll<Record<string, unknown>>((from, to) => builder.range(from, to))
 
   const now = new Date()
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
@@ -498,12 +537,12 @@ export async function giveawayAggregates(
   supabase: SupabaseClient,
   workspaceId: string,
 ): Promise<GiveawayAggregates> {
-  const [{ data: giveaways }, { data: entries }] = await Promise.all([
+  const [{ data: giveaways }, winnerCounts] = await Promise.all([
     supabase.from('giveaways')
       .select('id, status, prize_fulfilment, prize_value, total_entries, total_unique_participants, end_date')
       .eq('workspace_id', workspaceId).neq('status', 'archived'),
-    supabase.from('giveaway_entries')
-      .select('winner_status').eq('workspace_id', workspaceId),
+    countByStatus(supabase, 'giveaway_entries', 'winner_status',
+      ['candidate', 'approved', 'contacted', 'accepted', 'fulfilled', 'rejected', 'replaced'], workspaceId),
   ])
 
   const rows = giveaways ?? []
@@ -529,9 +568,9 @@ export async function giveawayAggregates(
     if (end && end >= now && end <= inSeven) endingSoon += 1
   }
 
-  const winnerStates = entries ?? []
-  const reviewed = winnerStates.filter(e => ['approved', 'contacted', 'accepted', 'fulfilled', 'rejected'].includes(e.winner_status as string))
-  const approved = reviewed.filter(e => e.winner_status !== 'rejected')
+  const reviewedCount = ['approved', 'contacted', 'accepted', 'fulfilled', 'rejected']
+    .reduce((sum, state) => sum + (winnerCounts[state] ?? 0), 0)
+  const approvedCount = reviewedCount - (winnerCounts.rejected ?? 0)
 
   return {
     active: rows.filter(r => r.status === 'active').length,
@@ -541,9 +580,9 @@ export async function giveawayAggregates(
     fulfilmentRate: rows.length ? Math.round(((fulfilment.fulfilled ?? 0) / rows.length) * 100) : 0,
     prizeValueFulfilled,
     prizeValueTotal,
-    approvalRate: reviewed.length ? Math.round((approved.length / reviewed.length) * 100) : 0,
+    approvalRate: reviewedCount ? Math.round((approvedCount / reviewedCount) * 100) : 0,
     endingSoon,
-    pendingWinnerReviews: winnerStates.filter(e => e.winner_status === 'candidate').length,
+    pendingWinnerReviews: winnerCounts.candidate ?? 0,
   }
 }
 
@@ -587,16 +626,18 @@ export async function giveawayEntriesTrend(
   const spanDays = Math.max(1, Math.round((Date.parse(to) - Date.parse(from)) / 86_400_000) + 1)
   const prevFrom = new Date(Date.parse(from) - spanDays * 86_400_000).toISOString().slice(0, 10)
 
-  const { data } = await supabase
+  const data = await fetchAll<{ entered_at: string }>((start, end) => supabase
     .from('giveaway_entries')
     .select('entered_at')
     .eq('workspace_id', workspaceId)
     .gte('entered_at', `${prevFrom}T00:00:00Z`)
     .lte('entered_at', `${to}T23:59:59Z`)
+    .order('entered_at', { ascending: true })
+    .range(start, end))
 
   const current = new Map<string, number>()
   const previous = new Map<string, number>()
-  for (const row of data ?? []) {
+  for (const row of data) {
     const date = (row.entered_at as string).slice(0, 10)
     if (date >= from) current.set(date, (current.get(date) ?? 0) + 1)
     else previous.set(date, (previous.get(date) ?? 0) + 1)
@@ -673,25 +714,19 @@ export async function competitionAggregates(
   supabase: SupabaseClient,
   workspaceId: string,
 ): Promise<CompetitionAggregates> {
-  const [{ data: competitions }, { data: submissions }] = await Promise.all([
+  const [{ data: competitions }, distribution] = await Promise.all([
     supabase.from('competitions')
       .select('id, title, cover_url, status, submission_count, vote_count, engagement_rate, end_date')
       .eq('workspace_id', workspaceId).neq('status', 'archived'),
-    supabase.from('competition_submissions')
-      .select('judging_status').eq('workspace_id', workspaceId),
+    countByStatus(supabase, 'competition_submissions', 'judging_status',
+      SUBMISSION_STATUSES, workspaceId),
   ])
 
   const rows = competitions ?? []
   const now = Date.now()
   const inSeven = now + 7 * 86_400_000
 
-  const distribution: Record<string, number> = {}
-  for (const row of submissions ?? []) {
-    const state = row.judging_status as string
-    distribution[state] = (distribution[state] ?? 0) + 1
-  }
-
-  const totalSubmissions = (submissions ?? []).length
+  const totalSubmissions = Object.values(distribution).reduce((sum, count) => sum + count, 0)
   const decided = totalSubmissions - (distribution.pending ?? 0) - (distribution.in_progress ?? 0)
   const approved = totalSubmissions - (distribution.rejected ?? 0) - (distribution.disqualified ?? 0) - (distribution.pending ?? 0) - (distribution.in_progress ?? 0)
   const totalVotes = rows.reduce((sum, r) => sum + Number(r.vote_count ?? 0), 0)
@@ -725,15 +760,17 @@ export async function submissionsTrend(
   from: string,
   to: string,
 ): Promise<{ date: string; submissions: number; participants: number }[]> {
-  const { data } = await supabase
+  const data = await fetchAll<{ submitted_at: string; participant_handle: string | null }>((start, end) => supabase
     .from('competition_submissions')
     .select('submitted_at, participant_handle')
     .eq('workspace_id', workspaceId)
     .gte('submitted_at', `${from}T00:00:00Z`)
     .lte('submitted_at', `${to}T23:59:59Z`)
+    .order('submitted_at', { ascending: true })
+    .range(start, end))
 
   const counts = new Map<string, { submissions: number; participants: Set<string> }>()
-  for (const row of data ?? []) {
+  for (const row of data) {
     const date = (row.submitted_at as string).slice(0, 10)
     const bucket = counts.get(date) ?? { submissions: 0, participants: new Set<string>() }
     bucket.submissions += 1

@@ -8,6 +8,7 @@ import {
   type CampaignCapabilities, type CampaignContext,
 } from './entitlements'
 import type { CampaignModule } from './constants'
+import { campaignsBaseFor } from './paths'
 
 export interface CampaignSession {
   supabase: SupabaseClient
@@ -16,6 +17,8 @@ export interface CampaignSession {
   workspace: WorkspaceLite & { plan?: string | null; plan_status?: string | null }
   capabilities: CampaignCapabilities
   modules: CampaignModule[]
+  /** Canonical route prefix for this workspace, e.g. `/brand/campaigns`. */
+  base: string
 }
 
 /**
@@ -52,6 +55,7 @@ export async function getCampaignSession(): Promise<CampaignSession> {
     workspace: { ...active, plan: workspace?.plan, plan_status: workspace?.plan_status },
     capabilities: campaignCapabilities(ctx),
     modules: visibleCampaignModules(ctx),
+    base: campaignsBaseFor(ctx.workspaceType),
   }
 }
 

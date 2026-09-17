@@ -33,6 +33,8 @@ export interface StrategyContext {
 interface ModuleRule {
   /** Minimum plan required. Omitted = available on every plan. */
   minPlan?: keyof typeof PLAN_RANK
+  /** Per-workspace-type plan floor, overriding `minPlan` for that type. */
+  minPlanByType?: Partial<Record<WorkspaceKind, keyof typeof PLAN_RANK>>
   /** Workspace types the module is designed for. Omitted = the Strategy set. */
   types?: WorkspaceKind[]
   /** Permission required to even see the module. */
@@ -57,9 +59,12 @@ const MODULE_RULES: Record<StrategyModule, ModuleRule> = {
     upgradeReason: 'Strategic plans, milestones and dependency tracking are available from Team.',
   },
   forecasts: {
-    permission: PERMISSIONS.STRATEGY_FORECASTS_VIEW, minPlan: 'brand',
+    permission: PERMISSIONS.STRATEGY_FORECASTS_VIEW, minPlan: 'team',
+    // Brand and Agency workspaces run campaign portfolios, so forecasting is
+    // part of their Team plan; Business workspaces unlock it on the Brand plan.
+    minPlanByType: { small_business: 'brand' },
     flag: 'strategy_forecasts',
-    upgradeReason: 'Forecast modelling and scenario comparison are available from Brand.',
+    upgradeReason: 'Forecast modelling and scenario comparison are available on a higher plan.',
   },
 }
 
@@ -115,9 +120,10 @@ export function canAccessStrategyModule(ctx: StrategyContext, module: StrategyMo
     }
   }
 
-  if (rule.minPlan) {
+  const minPlan = rule.minPlanByType?.[(ctx.workspaceType ?? '') as WorkspaceKind] ?? rule.minPlan
+  if (minPlan) {
     const current = PLAN_RANK[ctx.plan ?? 'starter'] ?? 0
-    if (current < PLAN_RANK[rule.minPlan]) {
+    if (current < PLAN_RANK[minPlan]) {
       return {
         allowed: false, reason: 'plan', upgrade: true,
         message: rule.upgradeReason ?? 'Upgrade your plan to unlock this area.',

@@ -58,7 +58,7 @@ export const BUSINESS_NAV: NavGroupDef[] = [
   { id: 'plan', label: 'Plan', items: [M.strategy, M.campaigns, M.calendar] },
   { id: 'create', label: 'Create', items: [M.studio, M.brand, M.links] },
   { id: 'channels', label: 'Channels', items: [M.social, gated(M.advertising, 'advertising'), M.messaging, M.web, gated(M.seo, 'seo')] },
-  { id: 'grow', label: 'Grow', items: [M.marketplace, gated(M.partnerships, 'partnerships'), gated(M.events, 'events')] },
+  { id: 'grow', label: 'Grow', items: [gated(M.creators, 'creators'), M.marketplace, gated(M.partnerships, 'partnerships'), gated(M.events, 'events')] },
   { id: 'engage', label: 'Engage', items: [M.inbox, M.audiences] },
   { id: 'measure', label: 'Measure', items: [M.analytics, gated(M.finance, 'finance')] },
   { id: 'automate', label: 'Automate', items: [gated(M.automations, 'automations')] },

@@ -23,11 +23,15 @@ export interface TabItem {
  * - Mobile (<sm): a dropdown showing the active tab, opening a list to jump
  *   to another one. A tab row never survives mobile width intact.
  */
-export default function ResponsiveTabs({ items, isActive, ariaLabel, className }: {
+export default function ResponsiveTabs({ items, isActive, ariaLabel, className, desktop = 'pill', desktopClassName, desktopItemClassName }: {
   items: TabItem[]
   isActive: (item: TabItem) => boolean
   ariaLabel: string
   className?: string
+  /** Desktop row style: rounded pills (default) or an underlined tab strip. */
+  desktop?: 'pill' | 'underline'
+  desktopClassName?: string
+  desktopItemClassName?: string
 }) {
   const [open, setOpen] = useState(false)
   const active = items.find(isActive) ?? items[0]
@@ -86,6 +90,29 @@ export default function ResponsiveTabs({ items, isActive, ariaLabel, className }
       </nav>
 
       {/* Desktop: standard tab row */}
+      {desktop === 'underline' ? (
+        <nav aria-label={ariaLabel} className={cn('hidden lg:block', desktopClassName)}>
+          <ul className="flex min-w-max items-stretch">
+            {items.map(item => (
+              <li key={item.id} className="flex">
+                <Link
+                  href={item.href} aria-current={isActive(item) ? 'page' : undefined}
+                  className={cn(
+                    'relative inline-flex items-center gap-1.5 whitespace-nowrap font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/40',
+                    isActive(item)
+                      ? 'text-[#1a5cff] after:absolute after:inset-x-0 after:-bottom-px after:h-[2px] after:rounded-full after:bg-[#1a5cff]'
+                      : 'text-slate-600 hover:text-slate-900',
+                    desktopItemClassName,
+                  )}
+                >
+                  {item.label}
+                  {item.badge !== undefined && <span className="text-[11px] opacity-60">{item.badge}</span>}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </nav>
+      ) : (
       <nav aria-label={ariaLabel} className="hidden lg:block">
         <ul className="flex min-w-max items-center gap-1">
           {items.map(item => (
@@ -104,6 +131,7 @@ export default function ResponsiveTabs({ items, isActive, ariaLabel, className }
           ))}
         </ul>
       </nav>
+      )}
     </div>
   )
 }

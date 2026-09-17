@@ -4,6 +4,8 @@ import { createClient } from '@/lib/supabase/server'
 import { getActiveWorkspace } from '@/lib/workspace'
 import type { WorkspaceLite } from '@/lib/workspace-shared'
 import { PERMISSIONS, type Permission } from '@/lib/permissions'
+import { workspaceKindFromType } from '@/lib/navigation/resolver'
+import type { WorkspaceKind } from '@/lib/navigation/types'
 import {
   canAccessSocialCapability, canAccessSocialSurface, hasSocialPermission,
   visibleSocialSurfaces, type AccessResult, type SocialContextInput, type SocialSurface,
@@ -15,6 +17,10 @@ export interface SocialSession {
   ctx: SocialContextInput
   workspace: WorkspaceLite & { plan?: string | null; plan_status?: string | null }
   surfaces: SocialSurface[]
+  /** Route segment of the active workspace (creator, business, brand, agency). */
+  kind: WorkspaceKind
+  /** Canonical base URL of the Social module, e.g. `/brand/social`. */
+  basePath: string
   can: (permission: Permission) => boolean
 }
 
@@ -26,7 +32,7 @@ export interface SocialSession {
 export async function getSocialSession(): Promise<SocialSession> {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/login?next=/app/social')
+  if (!user) redirect('/login')
 
   const { active } = await getActiveWorkspace(supabase, user.id)
   if (!active) redirect('/onboarding')
@@ -51,9 +57,13 @@ export async function getSocialSession(): Promise<SocialSession> {
     connectedChannels: channelCount ?? 0,
   }
 
+  const kind = workspaceKindFromType(workspace?.type ?? active.type)
+
   return {
     supabase,
     userId: user.id,
+    kind,
+    basePath: `/${kind}/social`,
     ctx,
     workspace: { ...active, plan: workspace?.plan, plan_status: workspace?.plan_status },
     surfaces: visibleSocialSurfaces(ctx),
@@ -139,6 +149,30 @@ export async function logSocialActivity(
       metadata: { summary: input.summary, ...(input.metadata ?? {}) },
     }),
   ])
+}
+
+/**
+ * Server-side throttle for expensive Social actions (exports, manual syncs,
+ * report runs). Counts this member's own activity rows for the action inside
+ * the window, so it needs no extra infrastructure and cannot be bypassed from
+ * the client. Returns a user-safe message when the limit is reached.
+ */
+export async function checkSocialRateLimit(
+  session: SocialSession,
+  action: string,
+  limit: number,
+  windowMs: number,
+): Promise<string | null> {
+  const { count } = await session.supabase
+    .from('social_activity')
+    .select('id', { count: 'exact', head: true })
+    .eq('workspace_id', session.ctx.workspaceId)
+    .eq('actor_id', session.userId)
+    .eq('action', action)
+    .gte('created_at', new Date(Date.now() - windowMs).toISOString())
+  if ((count ?? 0) < limit) return null
+  const minutes = Math.max(1, Math.round(windowMs / 60000))
+  return `You can do this ${limit} times every ${minutes} minutes. Please wait a moment and try again.`
 }
 
 export { PERMISSIONS }

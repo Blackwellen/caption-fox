@@ -69,7 +69,10 @@ export async function POST(request: NextRequest, context: { params: Promise<{ pr
     redirect_uri: redirectUri,
     requested_scopes: scopes,
     channel_id: body.channelId ?? null,
-    return_to: body.returnTo ?? '/app/social/connections',
+    // Only a path inside this workspace's Social module is accepted as a return target.
+    return_to: typeof body.returnTo === 'string' && body.returnTo.startsWith(`${session.basePath}/`) && !body.returnTo.includes('//')
+      ? body.returnTo
+      : `${session.basePath}/connections`,
   })
 
   return NextResponse.json({

@@ -15,6 +15,7 @@ import {
   type LifecycleStage,
 } from '@/lib/campaigns/constants'
 import type { CampaignCapabilities } from '@/lib/campaigns/entitlements'
+import { useCampaignsBase } from './links'
 
 const ITEM = 'flex w-full items-center gap-2 px-3 py-1.5 text-left text-[13px] text-slate-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40'
 
@@ -30,6 +31,7 @@ export default function CampaignActionsMenu({
   trigger?: React.ReactNode
 }) {
   const router = useRouter()
+  const campaignsBase = useCampaignsBase()
   const { notify } = useToast()
   const [open, setOpen] = useState(false)
   const [submenu, setSubmenu] = useState<'stage' | 'priority' | null>(null)
@@ -75,7 +77,7 @@ export default function CampaignActionsMenu({
             )}
           >
             <button type="button" role="menuitem" className={ITEM}
-              onClick={() => { setOpen(false); router.push(`/app/campaigns/${campaignId}`) }}>
+              onClick={() => { setOpen(false); router.push(`${campaignsBase}/${campaignId}`) }}>
               <ArrowUpRight size={14} className="text-slate-400" />
               Open campaign
             </button>

@@ -97,3 +97,23 @@ export async function deleteObject(storedPath: string): Promise<void> {
   const { client: s3, bucket } = r2()
   await s3.send(new DeleteObjectCommand({ Bucket: bucket, Key: storedPath.slice(R2_PREFIX.length) })).catch(() => undefined)
 }
+
+/** Reads a whole stored object into memory. Callers must cap the size first. */
+export async function readObject(storedPath: string): Promise<Buffer | null> {
+  const { client: s3, bucket } = r2()
+  try {
+    const res = await s3.send(new GetObjectCommand({ Bucket: bucket, Key: storedPath.slice(R2_PREFIX.length) }))
+    const bytes = await res.Body?.transformToByteArray()
+    return bytes ? Buffer.from(bytes) : null
+  } catch {
+    return null
+  }
+}
+
+/** Writes a server-generated object under `{area}/{workspaceId}/` and returns its stored path. */
+export async function putObject(input: { area: string; workspaceId: string; fileName: string; contentType: string; body: Buffer }): Promise<string> {
+  const { client: s3, bucket } = r2()
+  const key = `${input.area}/${input.workspaceId}/${randomUUID()}/${safeFileName(input.fileName)}`
+  await s3.send(new PutObjectCommand({ Bucket: bucket, Key: key, ContentType: input.contentType, Body: input.body }))
+  return `${R2_PREFIX}${key}`
+}

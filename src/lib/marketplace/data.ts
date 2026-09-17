@@ -448,12 +448,13 @@ export interface OrderInsights {
 export async function getOrderInsights(session: MarketplaceSession): Promise<OrderInsights> {
   const { data } = await session.supabase
     .from('marketplace_orders')
-    .select('id, supplier_id, amount_cents, released_cents, status, escrow_status, delivery_status, due_date, created_at')
+    .select('id, supplier_id, amount_cents, released_cents, status, escrow_status, delivery_status, due_date, completed_at, created_at')
     .eq('workspace_id', session.ctx.workspaceId)
 
   type Row = {
     id: string; supplier_id: string; amount_cents: number; released_cents: number
-    status: string; escrow_status: string; delivery_status: string; due_date: string | null; created_at: string
+    status: string; escrow_status: string; delivery_status: string; due_date: string | null
+    completed_at: string | null; created_at: string
   }
   const rows = (data ?? []) as Row[]
   const total = rows.length
@@ -506,7 +507,15 @@ export async function getOrderInsights(session: MarketplaceSession): Promise<Ord
       : 0
   }
 
-  const onTime = rows.filter(row => row.delivery_status === 'delivered' && (!row.due_date || row.due_date >= today)).length
+  // On-time means "delivered on or before the deadline", judged against the
+  // delivery timestamp. Comparing the deadline with *today* instead (the
+  // previous behaviour) quietly reclassified every correctly delivered order as
+  // late the day after its due date, so the figure fell towards zero over time.
+  const onTime = delivered.filter(row => {
+    if (!row.due_date) return true
+    if (!row.completed_at) return false
+    return row.completed_at.slice(0, 10) <= row.due_date
+  }).length
 
   return {
     totalOrders: total,
@@ -578,14 +587,56 @@ export async function getDisputes(session: MarketplaceSession, limit = 10): Prom
 
 // ── Activity ─────────────────────────────────────────────────────────────────
 
-export async function getActivity(session: MarketplaceSession, limit = 8): Promise<ActivityEntry[]> {
-  const { data } = await session.supabase
+export async function getActivity(
+  session: MarketplaceSession,
+  limit = 8,
+  options: { entityTypes?: string[] } = {},
+): Promise<ActivityEntry[]> {
+  let request = session.supabase
     .from('marketplace_activity')
     .select('id, event, summary, entity_type, entity_id, href, created_at')
     .eq('workspace_id', session.ctx.workspaceId)
+  // Section feeds (e.g. "Recent order activity") only show their own events.
+  if (options.entityTypes?.length) request = request.in('entity_type', options.entityTypes)
+  const { data } = await request
     .order('created_at', { ascending: false })
     .limit(limit)
   return (data ?? []) as unknown as ActivityEntry[]
+}
+
+
+export interface PortfolioItem {
+  supplier_id: string
+  position: number
+  title: string | null
+  media_url: string
+  media_type: string
+}
+
+/**
+ * Portfolio thumbnails for a page of profiles, fetched in one query and grouped
+ * in memory — a per-card lookup here would be a textbook N+1 on every search.
+ */
+export async function getPortfolioBySupplier(
+  supabase: MarketplaceSession['supabase'],
+  supplierIds: string[],
+  perSupplier = 4,
+): Promise<Map<string, PortfolioItem[]>> {
+  const grouped = new Map<string, PortfolioItem[]>()
+  if (supplierIds.length === 0) return grouped
+
+  const { data } = await supabase
+    .from('marketplace_portfolio_items')
+    .select('supplier_id, position, title, media_url, media_type')
+    .in('supplier_id', supplierIds)
+    .order('position', { ascending: true })
+
+  for (const row of (data ?? []) as PortfolioItem[]) {
+    const list = grouped.get(row.supplier_id) ?? []
+    if (list.length < perSupplier) list.push(row)
+    grouped.set(row.supplier_id, list)
+  }
+  return grouped
 }
 
 // ── Overview composite ───────────────────────────────────────────────────────
@@ -597,16 +648,62 @@ export interface OverviewKpis {
   escrowValueCents: number
   savedPartners: number
   disputes: number
+  /** Real 30-day-over-30-day change per metric; null when there is no prior period to compare. */
+  deltas: Partial<Record<'activeSuppliers' | 'openRequests' | 'ordersInProgress' | 'savedPartners', number | null>>
 }
 
 export async function getOverviewKpis(session: MarketplaceSession, insights: OrderInsights): Promise<OverviewKpis> {
-  const [{ count: suppliers }, { count: openRequests }, { count: saved }] = await Promise.all([
+  // Deltas compare the last 30 days with the 30 days before them, counted from
+  // the same rows the headline numbers come from. A metric with no prior-period
+  // baseline reports null rather than a flattering "+100%".
+  const now = Date.now()
+  const day = 86_400_000
+  const windowStart = new Date(now - 30 * day).toISOString()
+  const priorStart = new Date(now - 60 * day).toISOString()
+
+  const [
+    { count: suppliers }, { count: openRequests }, { count: saved },
+    { count: suppliersNew }, { count: suppliersPrior },
+    { count: requestsNew }, { count: requestsPrior },
+    { count: savedNew }, { count: savedPrior },
+    { count: ordersNew }, { count: ordersPrior },
+  ] = await Promise.all([
     session.supabase.from('marketplace_suppliers').select('id', { count: 'exact', head: true }).eq('status', 'active'),
     session.supabase.from('marketplace_requests').select('id', { count: 'exact', head: true })
       .eq('workspace_id', session.ctx.workspaceId).in('status', ['open', 'awaiting_proposals', 'shortlisted']),
     session.supabase.from('marketplace_saved_items').select('id', { count: 'exact', head: true })
       .eq('workspace_id', session.ctx.workspaceId).eq('user_id', session.userId),
+
+    session.supabase.from('marketplace_suppliers').select('id', { count: 'exact', head: true })
+      .eq('status', 'active').gte('created_at', windowStart),
+    session.supabase.from('marketplace_suppliers').select('id', { count: 'exact', head: true })
+      .eq('status', 'active').gte('created_at', priorStart).lt('created_at', windowStart),
+
+    session.supabase.from('marketplace_requests').select('id', { count: 'exact', head: true })
+      .eq('workspace_id', session.ctx.workspaceId).gte('created_at', windowStart),
+    session.supabase.from('marketplace_requests').select('id', { count: 'exact', head: true })
+      .eq('workspace_id', session.ctx.workspaceId).gte('created_at', priorStart).lt('created_at', windowStart),
+
+    session.supabase.from('marketplace_saved_items').select('id', { count: 'exact', head: true })
+      .eq('workspace_id', session.ctx.workspaceId).eq('user_id', session.userId).gte('created_at', windowStart),
+    session.supabase.from('marketplace_saved_items').select('id', { count: 'exact', head: true })
+      .eq('workspace_id', session.ctx.workspaceId).eq('user_id', session.userId)
+      .gte('created_at', priorStart).lt('created_at', windowStart),
+
+    session.supabase.from('marketplace_orders').select('id', { count: 'exact', head: true })
+      .eq('workspace_id', session.ctx.workspaceId).gte('created_at', windowStart),
+    session.supabase.from('marketplace_orders').select('id', { count: 'exact', head: true })
+      .eq('workspace_id', session.ctx.workspaceId).gte('created_at', priorStart).lt('created_at', windowStart),
   ])
+
+  // A percentage against a tiny baseline (a workspace two weeks old, a directory
+  // that has just been seeded) is noise dressed as insight, so a delta is only
+  // reported once the prior period holds a meaningful number of records.
+  const MIN_BASELINE = 5
+  const change = (current: number | null, prior: number | null): number | null => {
+    if (!prior || prior < MIN_BASELINE) return null
+    return ((current ?? 0) - prior) / prior * 100
+  }
 
   return {
     activeSuppliers: suppliers ?? 0,
@@ -615,5 +712,11 @@ export async function getOverviewKpis(session: MarketplaceSession, insights: Ord
     escrowValueCents: insights.escrow.fundsCents,
     savedPartners: saved ?? 0,
     disputes: insights.kpis.disputes,
+    deltas: {
+      activeSuppliers: change(suppliersNew, suppliersPrior),
+      openRequests: change(requestsNew, requestsPrior),
+      ordersInProgress: change(ordersNew, ordersPrior),
+      savedPartners: change(savedNew, savedPrior),
+    },
   }
 }

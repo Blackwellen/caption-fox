@@ -72,7 +72,7 @@ export function compactNumber(value: number): string {
 
 function trim(value: number): string {
   const rounded = Math.round(value * 100) / 100
-  return rounded.toFixed(Math.abs(rounded) >= 100 ? 0 : rounded % 1 === 0 ? 0 : 2).replace(/\.?0+$/, '')
+  return rounded.toFixed(Math.abs(rounded) >= 100 ? 0 : rounded % 1 === 0 ? 0 : 2).replace(/(\.\d*?)0+$/, '$1').replace(/\.$/, '')
 }
 
 export function percent(value: number | null, digits = 2): string {
@@ -246,6 +246,35 @@ export function mentionPriority(input: {
   if (score >= 5) return 'high'
   if (score >= 3) return 'medium'
   return 'low'
+}
+
+// ── Content performance tiers ────────────────────────────────────────────────
+
+export type PerformanceTier = 'top' | 'good' | 'average' | 'low'
+
+export const PERFORMANCE_TIER_RULE =
+  'Engagement rate against this workspace’s mean for the same period: 1.2× or more Top Performer, 0.5× or more Good, 0.25× or more Average, otherwise Low.'
+
+/** Tier for one post's engagement rate relative to the period mean. Null when either is unknown. */
+export function performanceTier(rate: number | null, meanRate: number | null): PerformanceTier | null {
+  if (rate === null || meanRate === null || meanRate <= 0) return null
+  const ratio = rate / meanRate
+  if (ratio >= 1.2) return 'top'
+  if (ratio >= 0.5) return 'good'
+  if (ratio >= 0.25) return 'average'
+  return 'low'
+}
+
+/** Rolls daily points up into weeks starting Monday, for the weekly granularity. */
+export function toWeekly<T extends { date: string }>(points: T[], merge: (items: T[]) => Omit<T, 'date'>): T[] {
+  const groups = new Map<string, T[]>()
+  for (const point of points) {
+    const day = new Date(`${point.date}T12:00:00Z`)
+    day.setUTCDate(day.getUTCDate() - ((day.getUTCDay() + 6) % 7))
+    const key = day.toISOString().slice(0, 10)
+    groups.set(key, [...(groups.get(key) ?? []), point])
+  }
+  return [...groups.entries()].map(([date, items]) => ({ ...merge(items), date }) as T)
 }
 
 // ── SLA ──────────────────────────────────────────────────────────────────────

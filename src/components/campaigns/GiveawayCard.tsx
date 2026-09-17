@@ -1,4 +1,3 @@
-import Link from 'next/link'
 import { Badge } from '@/components/ui/Badge'
 import { cn } from '@/lib/utils'
 import {
@@ -6,6 +5,7 @@ import {
 } from './primitives'
 import { HEALTH_BADGE, HEALTH_LABELS, type CampaignHealth } from '@/lib/campaigns/constants'
 import type { GiveawayRow } from '@/lib/campaigns/types'
+import { CampaignLink } from './links'
 
 const COVER_TINTS = [
   'from-emerald-100 via-emerald-50 to-teal-100',
@@ -49,17 +49,17 @@ export default function GiveawayCard({ giveaway }: { giveaway: GiveawayRow }) {
       </div>
 
       <div className="flex flex-1 flex-col p-3">
-        <Link
-          href={`/app/campaigns/giveaways/${giveaway.id}`}
-          className="line-clamp-1 text-[13px] font-semibold text-slate-900 hover:text-blue-600"
+        <CampaignLink
+          to={`/giveaways/${giveaway.id}`}
+          className="line-clamp-1 text-[13px] lg:text-[10px] font-semibold text-slate-900 hover:text-blue-600"
         >
           {giveaway.title}
-        </Link>
-        <p className="mt-px line-clamp-1 text-[11px] text-slate-400">{giveaway.prize_title}</p>
+        </CampaignLink>
+        <p className="mt-px line-clamp-1 text-[11px] lg:text-[8.5px] text-slate-400">{giveaway.prize_title}</p>
 
         <div className="mt-1.5 flex items-center gap-1.5">
           <Avatar person={giveaway.owner} size={16} />
-          <span className="truncate text-[11px] text-slate-500">
+          <span className="truncate text-[11px] lg:text-[8.5px] text-slate-500">
             {giveaway.owner?.full_name ?? giveaway.owner?.email ?? 'Unassigned'}
           </span>
         </div>
@@ -67,11 +67,11 @@ export default function GiveawayCard({ giveaway }: { giveaway: GiveawayRow }) {
         <dl className="mt-2.5 flex items-end gap-4">
           <div>
             <dd className="text-[15px] font-bold leading-none text-slate-900">{formatNumber(giveaway.total_entries)}</dd>
-            <dt className="mt-0.5 text-[10px] text-slate-400">Entries</dt>
+            <dt className="mt-0.5 text-[10px] lg:text-[8px] text-slate-400">Entries</dt>
           </div>
           <div>
             <dd className="text-[15px] font-bold leading-none text-slate-900">{(giveaway.conversion_rate ?? 0).toFixed(2)}%</dd>
-            <dt className="mt-0.5 text-[10px] text-slate-400">Conversion</dt>
+            <dt className="mt-0.5 text-[10px] lg:text-[8px] text-slate-400">Conversion</dt>
           </div>
           <span className="ml-auto">
             <Badge status={giveaway.status} variant={STATUS_BADGE[giveaway.status]}>
@@ -81,11 +81,11 @@ export default function GiveawayCard({ giveaway }: { giveaway: GiveawayRow }) {
         </dl>
 
         <div className="mt-2.5 flex items-center gap-2">
-          <span className="shrink-0 whitespace-nowrap text-[11px] text-slate-500">
+          <span className="shrink-0 whitespace-nowrap text-[11px] lg:text-[8.5px] text-slate-500">
             Due: {formatShortDate(giveaway.end_date)}
           </span>
           <ProgressBar value={giveaway.progress} health={giveaway.health} label={`${giveaway.title} progress`} />
-          <span className="w-8 shrink-0 text-right text-[11px] font-semibold text-slate-700">{giveaway.progress}%</span>
+          <span className="w-8 shrink-0 text-right text-[11px] lg:text-[8.5px] font-semibold text-slate-700">{giveaway.progress}%</span>
         </div>
 
         <div className="mt-2.5 border-t border-slate-100 pt-2.5">

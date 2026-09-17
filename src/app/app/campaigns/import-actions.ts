@@ -1,6 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
+import { CAMPAIGNS_ROUTE_PATTERN } from '@/lib/campaigns/paths'
 import { getCampaignSession } from '@/lib/campaigns/server'
 import { LIFECYCLE_STAGES, PRIORITIES } from '@/lib/campaigns/constants'
 import { CAMPAIGN_TYPES } from '@/lib/constants'
@@ -8,13 +9,9 @@ import type { ImportResult } from './actions'
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/
 
-const CAMPAIGN_PATHS = [
-  '/app/campaigns', '/app/campaigns/all', '/app/campaigns/templates',
-  '/app/campaigns/board', '/app/campaigns/timeline',
-]
 
 function revalidateCampaigns() {
-  for (const path of CAMPAIGN_PATHS) revalidatePath(path)
+  revalidatePath(CAMPAIGNS_ROUTE_PATTERN, 'layout')
 }
 
 export interface ImportedCampaign {
@@ -138,7 +135,7 @@ export async function importCampaigns(rows: ImportedCampaign[]): Promise<ImportR
     workspace_id: ctx.workspaceId, actor_id: userId, entity_type: 'campaign',
     action: 'campaigns_imported',
     summary: `imported ${payload.length} campaign${payload.length === 1 ? '' : 's'}`,
-    link: '/app/campaigns/all', surface: 'campaigns',
+    link: `${session.base}/all`, surface: 'campaigns',
     metadata: { imported: payload.length, duplicates, invalid },
   })
 
@@ -212,7 +209,7 @@ export async function importTemplates(rows: ImportedTemplate[]): Promise<ImportR
     workspace_id: ctx.workspaceId, actor_id: userId, entity_type: 'template',
     action: 'templates_imported',
     summary: `imported ${payload.length} template${payload.length === 1 ? '' : 's'} as drafts`,
-    link: '/app/campaigns/templates', surface: 'templates',
+    link: `${session.base}/templates`, surface: 'templates',
     metadata: { imported: payload.length, duplicates, invalid },
   })
 

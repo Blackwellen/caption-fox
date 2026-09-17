@@ -128,6 +128,17 @@ export function requestFilters(categories: MarketplaceCategory[]): HeroFilter[] 
     { key: 'category', label: 'Category', icon: <Boxes size={ICON} />, options: categoryOptions(categories) },
     { key: 'budget', label: 'Budget range', icon: <Wallet size={ICON} />, options: budgetOptions },
     {
+      // Writes the existing `to` bound, which getRequests applies to deadline.
+      key: 'to', label: 'Deadline', icon: <CalendarCheck size={ICON} />,
+      options: [
+        { value: '', label: 'Anytime' },
+        ...[7, 14, 30, 90].map(days => ({
+          value: new Date(Date.now() + days * 86_400_000).toISOString().slice(0, 10),
+          label: `Within ${days} days`,
+        })),
+      ],
+    },
+    {
       key: 'status', label: 'Status', icon: <ShieldCheck size={ICON} />,
       options: options(
         (Object.entries(REQUEST_STATUS_META) as [string, { label: string }][])
@@ -138,13 +149,28 @@ export function requestFilters(categories: MarketplaceCategory[]): HeroFilter[] 
   ]
 }
 
-/** Orders: date range, order status, escrow status, delivery status, category. */
-export function orderFilters(categories: MarketplaceCategory[]): HeroFilter[] {
+/** Orders: date range, order status, escrow status, delivery status, category, supplier. */
+export function orderFilters(
+  categories: MarketplaceCategory[],
+  suppliers: { id: string; display_name: string }[] = [],
+): HeroFilter[] {
   const orderStatuses: [string, string][] = [
     ['escrow_held', 'Escrow held'], ['in_progress', 'In progress'], ['delivered', 'Delivered'],
     ['completed', 'Completed'], ['disputed', 'Disputed'], ['refunded', 'Refunded'], ['cancelled', 'Cancelled'],
   ]
   return [
+    {
+      // Writes the existing `from` bound rather than a new key, so the control
+      // filters real rows through the query the list already runs.
+      key: 'from', label: 'Date range', icon: <CalendarCheck size={ICON} />,
+      options: [
+        { value: '', label: 'Any time' },
+        ...[7, 30, 90, 365].map(days => ({
+          value: new Date(Date.now() - days * 86_400_000).toISOString().slice(0, 10),
+          label: days === 365 ? 'Last 12 months' : `Last ${days} days`,
+        })),
+      ],
+    },
     {
       key: 'status', label: 'Order status', icon: <Receipt size={ICON} />,
       options: options(orderStatuses, 'All statuses'),
@@ -164,5 +190,9 @@ export function orderFilters(categories: MarketplaceCategory[]): HeroFilter[] {
       ),
     },
     { key: 'category', label: 'Category', icon: <Boxes size={ICON} />, options: categoryOptions(categories) },
+    {
+      key: 'supplier', label: 'Supplier', icon: <Users size={ICON} />,
+      options: options(suppliers.map(s => [s.id, s.display_name] as [string, string]), 'All suppliers'),
+    },
   ]
 }

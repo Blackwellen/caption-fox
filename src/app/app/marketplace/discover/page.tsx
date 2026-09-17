@@ -10,7 +10,7 @@ import {
   getShortlistIds, getProfilesByIds, getActivity, getSavedSearches,
 } from '@/lib/marketplace/data'
 import { MarketplacePage, AccessBlocked, NoResults } from '@/components/marketplace/module/Layout'
-import SearchHero from '@/components/marketplace/module/SearchHero'
+import SearchHero, { SaveSearchControl } from '@/components/marketplace/module/SearchHero'
 import FilterSidebar from '@/components/marketplace/module/FilterSidebar'
 import { discoverFilters } from '@/components/marketplace/module/filters'
 import { SupplierCard, SupplierRow, type CardContext } from '@/components/marketplace/module/ProfileCards'
@@ -72,7 +72,6 @@ export default async function MarketplaceDiscoverPage({ searchParams }: { search
       module="discover" modules={session.modules} showDiscoverNav
       title="Marketplace Discover"
       subtitle="Discover and connect with verified suppliers and creators for your next project."
-      breadcrumb={[{ label: 'Marketplace', href: MODULE_ROUTES.overview }, { label: 'Discover' }]}
     >
       <SearchHero
         title="Find the perfect partner for your next project"
@@ -82,16 +81,19 @@ export default async function MarketplaceDiscoverPage({ searchParams }: { search
         filters={discoverFilters(categories)}
         popular={POPULAR_SEARCHES.discover}
         canSaveSearch={session.capabilities.search}
+        saveInHero={false}
+        searchInside
+        iconMoreFilters
       />
 
-      <div className="grid gap-5 xl:grid-cols-[240px_minmax(0,1fr)_280px]">
+      <div className="grid gap-5 lg:gap-4 xl:grid-cols-[176px_minmax(0,1fr)_236px]">
         <div className="hidden xl:block">
           <FilterSidebar query={query} pathname={PATH} categories={categories} />
         </div>
 
         <div className="min-w-0">
           <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-            <p className="text-sm text-slate-600" role="status" aria-live="polite">
+            <p className="text-sm text-slate-600 lg:text-[11px]" role="status" aria-live="polite">
               {total > 0
                 ? <>Showing <span className="font-semibold text-slate-900">{first}–{last}</span> of {total.toLocaleString('en-GB')} results</>
                 : 'No results'}
@@ -99,6 +101,9 @@ export default async function MarketplaceDiscoverPage({ searchParams }: { search
             <div className="flex items-center gap-2">
               <SortSelect query={query} pathname={PATH} />
               <ViewSwitcher query={query} pathname={PATH} views={['cards', 'list']} />
+              {session.capabilities.search && (
+                <SaveSearchControl mode="discover" query={query} resultCount={total} variant="outline" />
+              )}
             </div>
           </div>
 
@@ -117,7 +122,7 @@ export default async function MarketplaceDiscoverPage({ searchParams }: { search
           {rows.length === 0 ? (
             <NoResults
               action={
-                <Link href={PATH} className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700">
+                <Link href={PATH} className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 lg:text-[11px] lg:px-3">
                   Reset discovery
                 </Link>
               }
@@ -127,7 +132,7 @@ export default async function MarketplaceDiscoverPage({ searchParams }: { search
               {rows.map(profile => <SupplierRow key={profile.id} profile={profile} ctx={ctx} />)}
             </div>
           ) : (
-            <div className="grid gap-4 sm:grid-cols-2 2xl:grid-cols-3">
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 lg:gap-3 xl:grid-cols-4">
               {rows.map(profile => <SupplierCard key={profile.id} profile={profile} ctx={ctx} />)}
             </div>
           )}
@@ -144,17 +149,17 @@ export default async function MarketplaceDiscoverPage({ searchParams }: { search
             padded={false}
           >
             {activity.length === 0 ? (
-              <p className="p-5 text-xs text-slate-500">Saving, shortlisting and comparing suppliers will show here.</p>
+              <p className="p-5 text-xs text-slate-500 lg:text-[10px] lg:p-3">Saving, shortlisting and comparing suppliers will show here.</p>
             ) : (
               <ul className="divide-y divide-slate-100">
                 {activity.map(entry => (
-                  <li key={entry.id} className="flex items-start gap-2.5 px-4 py-3">
+                  <li key={entry.id} className="flex items-start gap-2.5 px-4 py-3 lg:gap-2 lg:px-3 lg:py-2">
                     <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-blue-50 text-blue-600">
                       <Activity size={12} />
                     </span>
                     <div className="min-w-0 flex-1">
-                      <p className="text-xs font-medium text-slate-800">{entry.summary}</p>
-                      <p className="mt-0.5 text-[11px] text-slate-400">{formatRelative(entry.created_at)}</p>
+                      <p className="text-xs font-medium text-slate-800 lg:text-[10px] lg:leading-snug">{entry.summary}</p>
+                      <p className="mt-0.5 text-[11px] text-slate-400 lg:text-[9px]">{formatRelative(entry.created_at)}</p>
                     </div>
                   </li>
                 ))}
@@ -168,20 +173,20 @@ export default async function MarketplaceDiscoverPage({ searchParams }: { search
             padded={false}
           >
             {savedSearches.length === 0 ? (
-              <p className="p-5 text-xs text-slate-500">Save a search from the search bar above to reuse it later.</p>
+              <p className="p-5 text-xs text-slate-500 lg:text-[10px] lg:p-3">Save a search from the search bar above to reuse it later.</p>
             ) : (
               <ul className="divide-y divide-slate-100">
                 {savedSearches.slice(0, 5).map(search => (
                   <li key={search.id}>
                     <Link
                       href={`${MODULE_ROUTES[(search.mode as keyof typeof MODULE_ROUTES)] ?? PATH}?${new URLSearchParams(search.params).toString()}`}
-                      className="flex items-center justify-between gap-2 px-4 py-2.5 hover:bg-slate-50"
+                      className="flex items-center justify-between gap-2 px-4 py-2.5 hover:bg-slate-50 lg:px-3 lg:py-1.5"
                     >
-                      <span className="inline-flex min-w-0 items-center gap-1.5 text-xs text-slate-700">
+                      <span className="inline-flex min-w-0 items-center gap-1.5 text-xs text-slate-700 lg:text-[10px]">
                         <Clock3 size={12} className="shrink-0 text-slate-400" />
                         <span className="truncate">{search.name}</span>
                       </span>
-                      <span className="shrink-0 text-[11px] text-slate-400">{formatRelative(search.updated_at)}</span>
+                      <span className="shrink-0 text-[11px] text-slate-400 lg:text-[9px]">{formatRelative(search.updated_at)}</span>
                     </Link>
                   </li>
                 ))}
@@ -198,18 +203,18 @@ export default async function MarketplaceDiscoverPage({ searchParams }: { search
             padded={false}
           >
             {compareProfiles.length === 0 ? (
-              <p className="p-5 text-xs text-slate-500">
+              <p className="p-5 text-xs text-slate-500 lg:text-[10px] lg:p-3">
                 Add up to {session.capabilities.compareLimit} suppliers to compare rating, price, turnaround and delivery side by side.
               </p>
             ) : (
               <>
                 <ul className="divide-y divide-slate-100">
                   {compareProfiles.map(profile => (
-                    <li key={profile.id} className="flex items-center gap-2.5 px-4 py-2.5">
+                    <li key={profile.id} className="flex items-center gap-2.5 px-4 py-2.5 lg:py-1.5 lg:px-3">
                       <ProfileAvatar profile={profile} size={28} />
                       <div className="min-w-0 flex-1">
-                        <p className="truncate text-xs font-medium text-slate-800">{profile.display_name}</p>
-                        <p className="truncate text-[11px] text-slate-400">{profile.headline}</p>
+                        <p className="truncate text-xs font-medium text-slate-800 lg:text-[10px]">{profile.display_name}</p>
+                        <p className="truncate text-[11px] text-slate-400 lg:text-[9px]">{profile.headline}</p>
                       </div>
                     </li>
                   ))}
@@ -217,7 +222,7 @@ export default async function MarketplaceDiscoverPage({ searchParams }: { search
                 <div className="p-3">
                   <Link
                     href={`/app/marketplace/compare?ids=${query.compare.join(',')}`}
-                    className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700"
+                    className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700 lg:text-[11px]"
                   >
                     <GitCompareArrows size={14} />Compare now
                   </Link>
@@ -227,12 +232,12 @@ export default async function MarketplaceDiscoverPage({ searchParams }: { search
           </Panel>
 
           <Panel title="Need a shortlist built for you?" padded>
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-slate-500 lg:text-[10px]">
               Post a request and invited suppliers respond with scoped proposals you can compare in one place.
             </p>
             <Link
               href={MODULE_ROUTES.requests}
-              className="mt-3 inline-flex w-full items-center justify-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+              className="mt-3 inline-flex w-full items-center justify-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 lg:text-[11px]"
             >
               <Users size={14} />Create a request
             </Link>
@@ -240,7 +245,7 @@ export default async function MarketplaceDiscoverPage({ searchParams }: { search
         </div>
       </div>
 
-      <CompareTray
+      <CompareTray railWidth={236}
         profiles={compareProfiles} query={query} pathname={PATH}
         limit={session.capabilities.compareLimit}
       />

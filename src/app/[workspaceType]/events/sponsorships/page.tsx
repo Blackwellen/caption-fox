@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { cn } from '@/lib/utils'
 import {
   Clock, DollarSign, FileText, RefreshCw, Star, TrendingUp, Users,
 } from 'lucide-react'
@@ -103,20 +104,20 @@ export default async function SponsorshipsPage({
       />
 
       <KpiStrip>
-        <KpiCard label="Active Sponsors" tone="blue" icon={<Users size={17} />}
+        <KpiCard label="Active Sponsors" tone="blue" icon={<Users size={18} />}
           value={formatNumber(kpis.activeSponsors.value)} comparison="Contracted or active" />
-        <KpiCard label="Pipeline Value" tone="violet" icon={<TrendingUp size={17} />}
-          value={showMoney ? formatCurrency(kpis.pipelineValue.value, workspace.currency, true) : 'Hidden'}
+        <KpiCard label="Pipeline Value" tone="violet" icon={<TrendingUp size={18} />}
+          value={showMoney ? formatCurrency(kpis.pipelineValue.value, workspace.currency) : 'Hidden'}
           comparison={showMoney ? 'Open opportunities' : 'Restricted for your role'} />
-        <KpiCard label="Sponsorship Revenue" tone="amber" icon={<DollarSign size={17} />}
-          value={showMoney ? formatCurrency(kpis.revenue.value, workspace.currency, true) : 'Hidden'}
+        <KpiCard label="Sponsorship Revenue" tone="amber" icon={<DollarSign size={18} />}
+          value={showMoney ? formatCurrency(kpis.revenue.value, workspace.currency) : 'Hidden'}
           kpi={showMoney ? kpis.revenue : undefined}
           comparison={showMoney ? `vs last ${filters.range} days` : 'Restricted for your role'} />
-        <KpiCard label="Deliverables Due" tone="rose" icon={<FileText size={17} />}
+        <KpiCard label="Deliverables Due" tone="rose" icon={<FileText size={18} />}
           value={formatNumber(kpis.deliverablesDue.value)} comparison="Next 30 days" />
-        <KpiCard label="Renewal Opportunities" tone="emerald" icon={<RefreshCw size={17} />}
+        <KpiCard label="Renewal Opportunities" tone="emerald" icon={<RefreshCw size={18} />}
           value={formatNumber(kpis.renewalOpportunities.value)} comparison="Renewal due soon" />
-        <KpiCard label="Follow-up Tasks" tone="sky" icon={<Clock size={17} />}
+        <KpiCard label="Follow-up Tasks" tone="sky" icon={<Clock size={18} />}
           value={formatNumber(kpis.followUpTasks.value)}
           href={page.visibleTabs.includes('follow-up') ? `${page.basePath}/follow-up` : undefined}
           comparison="Open tasks" />
@@ -131,12 +132,13 @@ export default async function SponsorshipsPage({
         dismissed={gala.dismissedPlacements.includes('sponsorships-banner')}
         title="Power your events with Gala Dock"
         body="One powerful platform to manage venues, sponsors, schedules and logistics — seamlessly."
-        className="mb-5"
+        className="mb-3.5"
       />
 
-      <div className="mb-4 flex flex-wrap items-center gap-3">
-        <div className="min-w-[280px] flex-1">
+      <div className="mb-3.5 flex flex-col gap-3 xl:flex-row xl:items-center">
+        <div className="min-w-0 flex-1">
           <EventsFilterBar
+            variant="toolbar"
             searchPlaceholder="Search sponsors, companies, events..."
             dateRangeLabel="Date Range"
             filters={[
@@ -153,14 +155,16 @@ export default async function SponsorshipsPage({
             ]}
           />
         </div>
-        <ViewSwitcher views={allowedViews} active={filters.view} />
+        <div className="w-full shrink-0 rounded-xl border border-slate-200 bg-white px-1.5 py-1 xl:w-[346px]">
+          <ViewSwitcher views={allowedViews} active={filters.view} fill />
+        </div>
       </div>
 
-      <div className="mb-4 grid gap-4 xl:grid-cols-[1.62fr_1fr]">
+      <div className="mb-3.5 grid grid-cols-1 gap-3.5 xl:grid-cols-[781fr_382fr]">
         <Panel
           title="Sponsor Portfolio"
           action={<PanelLink href={`${page.basePath}/sponsorships?view=table`}>View all sponsors →</PanelLink>}
-          contentClassName={filters.view === 'cards' ? 'p-4' : 'p-0'}
+          contentClassName={filters.view === 'cards' ? 'px-3 pb-3 pt-3' : 'p-0'}
         >
           {list.total === 0 ? (
             <EventsEmptyState
@@ -173,7 +177,7 @@ export default async function SponsorshipsPage({
               icon={<Star size={26} />}
             />
           ) : filters.view === 'cards' ? (
-            <div className="grid gap-3.5 sm:grid-cols-2 xl:grid-cols-4">
+            <div className="grid gap-2.5 sm:grid-cols-2 xl:grid-cols-4">
               {list.sponsorships.slice(0, 4).map(sponsorship => (
                 <SponsorCard
                   key={sponsorship.id}
@@ -217,14 +221,14 @@ export default async function SponsorshipsPage({
         />
       </div>
 
-      <div className="grid gap-4 xl:grid-cols-3">
+      <div className="grid grid-cols-1 gap-3.5 xl:grid-cols-3">
         <Panel title="Sponsorship Revenue">
           {showMoney ? (
             <>
               <p className="text-[22px] font-bold text-slate-900">
                 {formatCurrency(kpis.revenue.value, workspace.currency)}
               </p>
-              <p className="mb-2 text-[11.5px] text-slate-500">Contracted, active and completed sponsorships</p>
+              <p className="mb-2 text-[10.5px] text-slate-500">Contracted, active and completed sponsorships</p>
               <RevenueChart data={revenue} currency={workspace.currency} />
             </>
           ) : (
@@ -254,8 +258,8 @@ export default async function SponsorshipsPage({
                 <li key={item.id} className="flex items-center gap-3 px-4 py-2.5">
                   <DateChip iso={item.due_at} timezone={workspace.timezone} />
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate text-[12.5px] font-semibold text-slate-900">{item.title}</span>
-                    <span className="block truncate text-[11px] text-slate-500">{titleCase(item.deliverable_type)}</span>
+                    <span className="block truncate text-[11.5px] font-semibold text-slate-900">{item.title}</span>
+                    <span className="block truncate text-[10px] text-slate-500">{titleCase(item.deliverable_type)}</span>
                   </span>
                   <StatusBadge status={item.status} />
                 </li>
@@ -285,14 +289,14 @@ export default async function SponsorshipsPage({
                     <li key={item.type} className="flex items-center gap-3 px-4 py-2.5">
                       <ProgressRing value={rate} tone={rate >= 0.8 ? 'emerald' : rate >= 0.6 ? 'blue' : 'amber'} />
                       <span className="min-w-0 flex-1">
-                        <span className="block truncate text-[12.5px] font-semibold text-slate-900">
+                        <span className="block truncate text-[11.5px] font-semibold text-slate-900">
                           {titleCase(item.type)}
                         </span>
-                        <span className="block text-[11px] text-slate-500">
+                        <span className="block text-[10px] text-slate-500">
                           {item.completed} / {item.total} completed
                         </span>
                       </span>
-                      <span className="shrink-0 text-[12.5px] font-bold text-slate-700">{formatRate(rate, 0)}</span>
+                      <span className="shrink-0 text-[11.5px] font-bold text-slate-700">{formatRate(rate, 0)}</span>
                     </li>
                   )
                 })}
@@ -330,26 +334,34 @@ function SponsorCard({
   showMoney: boolean
 }) {
   return (
-    <article className="rounded-xl border border-slate-200 bg-white p-3.5 transition-shadow hover:shadow-[0_6px_20px_rgba(15,23,42,0.06)]">
-      <div className="flex items-start gap-2">
+    <article className="rounded-[10px] border border-slate-200 bg-white p-3 transition-shadow hover:shadow-[0_6px_20px_rgba(15,23,42,0.06)]">
+      <div className="flex min-h-[44px] items-center gap-2">
         {sponsorship.sponsor?.logo_url ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={sponsorship.sponsor.logo_url} alt="" className="h-7 w-7 shrink-0 rounded-md object-contain" loading="lazy" />
         ) : (
           <Avatar name={sponsorship.sponsor?.name ?? 'Sponsor'} size={28} />
         )}
-        <h3 className="min-w-0 flex-1 text-[13px] font-semibold leading-snug text-slate-900">
-          <Link href={href} className="hover:text-blue-700">{sponsorship.sponsor?.name ?? 'Unnamed sponsor'}</Link>
-        </h3>
-        <span className="shrink-0">
-          <StatusBadge status={sponsorship.tier} label={titleCase(sponsorship.tier)} />
-        </span>
+        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1">
+          <h3 className="min-w-0 truncate text-[10.5px] font-semibold leading-snug text-slate-900" title={sponsorship.sponsor?.name ?? undefined}>
+            <Link href={href} className="hover:text-blue-700">{sponsorship.sponsor?.name ?? 'Unnamed sponsor'}</Link>
+          </h3>
+          <StatusBadge status={sponsorship.tier} label={titleCase(sponsorship.tier)} className="px-1.5 py-[1px] text-[10px]" />
+        </div>
       </div>
 
-      <dl className="mt-3 space-y-1.5 border-t border-slate-100 pt-3 text-[11.5px]">
+      <dl className="mt-3 space-y-[5px] text-[10px]">
         <Row label="Event" value={sponsorship.eventName ?? '—'} />
         {showMoney && <Row label="Value" value={formatCurrency(sponsorship.value, sponsorship.currency || currency)} />}
-        <Row label="Status" value={<StatusBadge status={sponsorship.stage === 'active' ? 'active' : 'in_progress'} label={titleCase(sponsorship.stage)} />} />
+        <Row
+          label="Status"
+          value={
+            <span className={cn('inline-flex items-center gap-1', ['active', 'contracted', 'completed'].includes(sponsorship.stage) ? 'text-emerald-600' : 'text-blue-600')}>
+              <span className="h-1.5 w-1.5 rounded-full bg-current" aria-hidden />
+              {titleCase(sponsorship.stage)}
+            </span>
+          }
+        />
         <Row label="Package" value={sponsorship.packageName ?? '—'} />
         <Row
           label="Deliverables"
@@ -358,9 +370,9 @@ function SponsorCard({
       </dl>
 
       {sponsorship.ownerName && (
-        <p className="mt-3 flex items-center gap-2 border-t border-slate-100 pt-3">
-          <Avatar name={sponsorship.ownerName} src={sponsorship.ownerAvatarUrl} size={24} />
-          <span className="truncate text-[11.5px] text-slate-600">{sponsorship.ownerName}</span>
+        <p className="mt-3 flex items-center gap-2">
+          <Avatar name={sponsorship.ownerName} src={sponsorship.ownerAvatarUrl} size={22} />
+          <span className="truncate text-[10px] text-slate-600">{sponsorship.ownerName}</span>
         </p>
       )}
     </article>
@@ -369,9 +381,9 @@ function SponsorCard({
 
 function Row({ label, value }: { label: string; value: React.ReactNode }) {
   return (
-    <div className="flex items-center justify-between gap-3">
-      <dt className="shrink-0 text-slate-500">{label}</dt>
-      <dd className="min-w-0 truncate text-right font-medium text-slate-800">{value}</dd>
+    <div className="grid grid-cols-[62px_minmax(0,1fr)] items-center gap-2">
+      <dt className="text-slate-500">{label}</dt>
+      <dd className="min-w-0 truncate text-slate-800">{value}</dd>
     </div>
   )
 }
@@ -390,7 +402,7 @@ function PipelineView({
     sponsorships.some(item => item.stage === stage) || ['prospect', 'proposal', 'negotiation', 'contracted', 'active'].includes(stage))
 
   return (
-    <div className="overflow-x-auto p-4">
+    <div className="relative overflow-x-auto p-4">
       <div className="flex min-w-max gap-3">
         {stages.map(stage => {
           const inStage = sponsorships.filter(item => item.stage === stage)
@@ -398,11 +410,11 @@ function PipelineView({
           return (
             <section key={stage} className="w-[220px] shrink-0 rounded-xl bg-slate-50 p-2.5">
               <header className="mb-2 flex items-center justify-between px-1">
-                <h3 className="text-[12px] font-semibold text-slate-700">{titleCase(stage)}</h3>
-                <span className="text-[11px] font-semibold text-slate-500">{inStage.length}</span>
+                <h3 className="text-[11px] font-semibold text-slate-700">{titleCase(stage)}</h3>
+                <span className="text-[10px] font-semibold text-slate-500">{inStage.length}</span>
               </header>
               {showMoney && (
-                <p className="mb-2 px-1 text-[11px] text-slate-500">{formatCurrency(value, currency, true)}</p>
+                <p className="mb-2 px-1 text-[10px] text-slate-500">{formatCurrency(value, currency, true)}</p>
               )}
               <ul className="space-y-2">
                 {inStage.map(item => (
@@ -411,12 +423,12 @@ function PipelineView({
                       href={`${basePath}/sponsorships/${item.id}`}
                       className="block rounded-lg border border-slate-200 bg-white p-2.5 hover:border-slate-300"
                     >
-                      <span className="block truncate text-[12.5px] font-semibold text-slate-900">
+                      <span className="block truncate text-[11.5px] font-semibold text-slate-900">
                         {item.sponsor?.name ?? 'Unnamed sponsor'}
                       </span>
-                      <span className="mt-0.5 block truncate text-[11px] text-slate-500">{item.eventName ?? '—'}</span>
+                      <span className="mt-0.5 block truncate text-[10px] text-slate-500">{item.eventName ?? '—'}</span>
                       {showMoney && (
-                        <span className="mt-1.5 block text-[12px] font-bold text-slate-800">
+                        <span className="mt-1.5 block text-[11px] font-bold text-slate-800">
                           {formatCurrency(item.value, item.currency || currency)}
                         </span>
                       )}
@@ -424,7 +436,7 @@ function PipelineView({
                   </li>
                 ))}
                 {inStage.length === 0 && (
-                  <li className="rounded-lg border border-dashed border-slate-200 px-2.5 py-3 text-center text-[11px] text-slate-400">
+                  <li className="rounded-lg border border-dashed border-slate-200 px-2.5 py-3 text-center text-[10px] text-slate-400">
                     Nothing here
                   </li>
                 )}
@@ -472,7 +484,7 @@ function SponsorshipTimeline({
             >
               {entry.item.sponsor?.name ?? 'Sponsor'} — {entry.item.eventName ?? 'Unassigned event'}
             </Link>
-            <span className="block text-[11.5px] text-slate-500">
+            <span className="block text-[10.5px] text-slate-500">
               {entry.label} · {formatEventDate(entry.at!, timezone)}
             </span>
           </span>
@@ -494,11 +506,11 @@ function SponsorshipTable({
   showMoney: boolean
 }) {
   return (
-    <div className="overflow-x-auto">
+    <div className="relative overflow-x-auto">
       <table className="w-full min-w-[820px] border-collapse text-left">
         <caption className="sr-only">Sponsorships</caption>
         <thead>
-          <tr className="border-b border-slate-100 text-[11.5px] font-semibold uppercase tracking-wide text-slate-500">
+          <tr className="border-b border-slate-100 text-[10.5px] font-semibold uppercase tracking-wide text-slate-500">
             <th scope="col" className="px-4 py-3">Sponsor</th>
             <th scope="col" className="px-3 py-3">Event</th>
             <th scope="col" className="px-3 py-3">Package</th>

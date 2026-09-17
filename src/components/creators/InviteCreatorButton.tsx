@@ -7,7 +7,8 @@ import { Button } from '@/components/ui/Button'
 import { Modal } from '@/components/ui/Modal'
 import { Input, Textarea } from '@/components/ui/Input'
 import { useToast } from '@/components/campaigns/Toast'
-import { inviteCreator } from '@/app/app/creators/actions'
+import { inviteCreator } from '@/lib/creators/actions'
+import { BUTTON_SECONDARY } from './design'
 
 /**
  * The "Invite Creator" workflow used from the Overview and Creators surfaces.
@@ -42,9 +43,9 @@ export default function InviteCreatorButton({ label = 'Invite Creator', classNam
 
   return (
     <>
-      <Button size="sm" icon={<UserPlus size={15} />} onClick={() => setOpen(true)} className={className}>
-        {label}
-      </Button>
+      <button type="button" onClick={() => setOpen(true)} className={className ?? BUTTON_SECONDARY}>
+        <UserPlus size={16} aria-hidden />{label}
+      </button>
       <Modal
         open={open} onClose={() => { setOpen(false); reset() }}
         title="Invite a creator" description="Send an invitation to join this workspace's creator roster."

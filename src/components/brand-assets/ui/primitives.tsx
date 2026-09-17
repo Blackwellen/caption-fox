@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { ArrowDownRight, ArrowUpRight, ChevronRight, MoreVertical } from 'lucide-react'
+import { ArrowDownRight, ArrowUpRight, ChevronRight, Download, MoreVertical } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { formatCount, kpiTone, toneFor, humanise } from '../tokens'
 
@@ -11,7 +11,7 @@ export function PageHeading({
   title, subtitle, actions,
 }: { title: string; subtitle: string; actions?: React.ReactNode }) {
   return (
-    <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between lg:mb-[18px]">
+    <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between lg:mb-[13px]">
       <div className="min-w-0">
         <h1 className="text-[23px] font-bold leading-tight tracking-tight text-slate-900 lg:text-[19px]">{title}</h1>
         <p className="mt-1 text-[13px] text-slate-500 lg:text-[10px]">{subtitle}</p>
@@ -88,7 +88,7 @@ function KpiCard(kpi: Omit<KpiSpec, 'key'> & { kpiKey: string }) {
   // 9px label / 17px value / 8.5px delta — each on one line, never wrapping.
   // Phone/tablet keep larger type for legibility.
   const body = (
-    <div className="relative flex h-[84px] items-center gap-3 rounded-xl border border-slate-200 bg-white pl-3.5 pr-6 shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition-shadow hover:shadow-sm lg:h-[77px] lg:gap-5 lg:pl-3">
+    <div className="relative flex h-[84px] items-center gap-3 rounded-xl border border-slate-200 bg-white pl-3.5 pr-6 shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition-shadow hover:shadow-sm lg:h-[74px] lg:gap-5 lg:pl-3">
       {kpi.ring !== undefined
         ? <ProgressRing value={kpi.ring} className={tone.ring} size={38} stroke={4} />
         : (
@@ -344,4 +344,19 @@ function PageBtn({ href, disabled, label, children }: { href: string; disabled: 
       {children}
     </Link>
   )
+}
+
+/**
+ * CSV export control for a module toolbar. A plain link: the route streams the
+ * file, so the browser downloads it. Disabled (with the reason) when the role,
+ * plan or flag does not allow exporting.
+ */
+export function ExportCsvLink({ href, allowed, label = 'Export', blockedReason }: {
+  href: string; allowed: boolean; label?: string; blockedReason?: string
+}) {
+  const cls = 'inline-flex h-9 shrink-0 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 text-[11.5px] font-medium text-slate-600 transition-colors hover:bg-slate-50 lg:h-6 lg:rounded-md lg:px-2.5 lg:text-[9px]'
+  if (!allowed) {
+    return <span className={cn(cls, 'pointer-events-none opacity-50')} aria-disabled="true" title={blockedReason ?? 'Your role does not permit exporting.'}><Download size={12} aria-hidden="true" />{label}</span>
+  }
+  return <a href={href} download className={cls} title="Export the rows matching the current filters"><Download size={12} aria-hidden="true" />{label}</a>
 }

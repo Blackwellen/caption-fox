@@ -430,7 +430,7 @@ export function QueueTable({
                   onChange={e => setParam({ pageSize: e.target.value, page: null })}
                   className={cn(T.control, T.focus, 'h-8')}
                 >
-                  {[10, 25, 50, 100].map(size => <option key={size} value={size}>{size} / page</option>)}
+                  {[7, 10, 25, 50, 100].map(size => <option key={size} value={size}>{size} / page</option>)}
                 </select>
               </div>
             </div>

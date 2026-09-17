@@ -51,7 +51,7 @@ export default function WinnerReviewQueue({
 
   if (grouped.size === 0) {
     return (
-      <p className="py-6 text-center text-[13px] text-slate-400">
+      <p className="py-6 text-center text-[13px] lg:text-[10px] text-slate-400">
         No winners are waiting for review.
       </p>
     )
@@ -72,18 +72,18 @@ export default function WinnerReviewQueue({
       <ul className="space-y-1.5">
         {[...grouped.entries()].map(([giveawayId, list]) => (
           <li key={giveawayId} className="flex items-center gap-2.5">
-            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-violet-50 text-[11px] font-bold text-violet-600">
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-violet-50 text-[11px] lg:text-[8.5px] font-bold text-violet-600">
               {list.length}
             </span>
             <span className="min-w-0 flex-1">
-              <span className="block truncate text-[12px] font-medium text-slate-900">{list[0].giveawayTitle}</span>
-              <span className="block text-[11px] text-slate-400">
+              <span className="block truncate text-[12px] lg:text-[9.5px] font-medium text-slate-900">{list[0].giveawayTitle}</span>
+              <span className="block text-[11px] lg:text-[8.5px] text-slate-400">
                 {list.length} winner{list.length === 1 ? '' : 's'} awaiting review
               </span>
             </span>
             <button
               type="button" onClick={() => setOpenGiveaway(giveawayId)}
-              className="shrink-0 rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-1 text-[11px] font-medium text-amber-700 transition-colors hover:bg-amber-100"
+              className="shrink-0 rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-1 text-[11px] lg:text-[8.5px] font-medium text-amber-700 transition-colors hover:bg-amber-100"
             >
               Review
             </button>
@@ -103,7 +103,7 @@ export default function WinnerReviewQueue({
                 <h2 id="winner-review-title" className="text-[15px] font-semibold text-slate-900">
                   Winner review — {openList[0]?.giveawayTitle}
                 </h2>
-                <p className="text-xs text-slate-500">
+                <p className="text-[13px] lg:text-[10px]s text-slate-500">
                   Check eligibility before approving. Every decision is recorded in the activity log.
                 </p>
               </div>
@@ -117,20 +117,20 @@ export default function WinnerReviewQueue({
 
             <div className="max-h-[60vh] overflow-y-auto px-5 py-4">
               {!canReview && (
-                <p className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[13px] text-amber-800">
+                <p className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[13px] lg:text-[10px] text-amber-800">
                   Your role can view winner candidates but cannot approve or reject them.
                 </p>
               )}
 
               {canReview && (
                 <label className="mb-3 block">
-                  <span className="mb-1 block text-[11px] font-medium text-slate-600">
+                  <span className="mb-1 block text-[11px] lg:text-[8.5px] font-medium text-slate-600">
                     Review note <span className="text-slate-400">(optional, stored with the decision)</span>
                   </span>
                   <input
                     value={note} onChange={e => setNote(e.target.value)} maxLength={500}
                     placeholder="e.g. Eligibility confirmed against entry rules"
-                    className="h-9 w-full rounded-lg border border-slate-200 px-2.5 text-[13px] text-slate-700 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                    className="h-9 w-full rounded-lg border border-slate-200 px-2.5 text-[13px] lg:text-[10px] text-slate-700 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
                   />
                 </label>
               )}
@@ -139,10 +139,10 @@ export default function WinnerReviewQueue({
                 {openList.map(candidate => (
                   <li key={candidate.id} className="flex flex-wrap items-center gap-2 py-2.5">
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate text-[13px] font-medium text-slate-900">
+                      <span className="block truncate text-[13px] lg:text-[10px] font-medium text-slate-900">
                         {candidate.handle ?? candidate.email ?? 'Anonymous entrant'}
                       </span>
-                      <span className="block truncate text-[11px] text-slate-400">
+                      <span className="block truncate text-[11px] lg:text-[8.5px] text-slate-400">
                         {candidate.email ?? 'No email on record'} · entered{' '}
                         {new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(candidate.enteredAt))}
                       </span>
@@ -157,7 +157,7 @@ export default function WinnerReviewQueue({
                             key={action.intent} type="button" disabled={pending}
                             onClick={() => act(candidate.id, action.intent)}
                             className={cn(
-                              'rounded-md border px-2 py-1 text-[11px] font-medium transition-colors disabled:opacity-50',
+                              'rounded-md border px-2 py-1 text-[11px] lg:text-[8.5px] font-medium transition-colors disabled:opacity-50',
                               action.intent === 'reject'
                                 ? 'border-red-200 text-red-600 hover:bg-red-50'
                                 : 'border-slate-200 text-slate-600 hover:bg-slate-50',
@@ -173,7 +173,7 @@ export default function WinnerReviewQueue({
               </ul>
 
               {pending && (
-                <p className="flex items-center gap-1.5 pt-2 text-[13px] text-slate-500">
+                <p className="flex items-center gap-1.5 pt-2 text-[13px] lg:text-[10px] text-slate-500">
                   <Loader2 size={13} className="animate-spin" /> Saving decision…
                 </p>
               )}

@@ -7,7 +7,7 @@ import type { PersonLite } from '@/lib/campaigns/types'
 // ── Shared layout tokens ─────────────────────────────────────────────────────
 // Every Campaigns surface aligns to these so the header, KPI strip, filter bar
 // and content grid share one width and one gutter.
-export const CAMPAIGN_PAGE = 'px-6 py-5 lg:px-8'
+export const CAMPAIGN_PAGE = ''
 export const CARD = 'rounded-xl border border-slate-200 bg-white'
 export const CARD_SHADOW = 'shadow-[0_1px_2px_0_rgb(15_23_42/0.04)]'
 
@@ -31,9 +31,9 @@ export function Panel({
   return (
     <section className={cn(CARD, CARD_SHADOW, 'flex flex-col overflow-hidden', className)}>
       {(title || action || viewAllHref) && (
-        <header className="flex items-center gap-2 px-4 pt-3.5 pb-2">
+        <header className="flex items-center gap-1.5 px-4 pt-3.5 pb-2 lg:px-3.5 lg:pt-3 lg:pb-1.5">
           {title && (
-            <h2 className="flex items-center gap-1.5 text-[13px] font-semibold text-slate-900">
+            <h2 className="flex items-center gap-1 whitespace-nowrap text-[13px] font-semibold text-slate-900 lg:text-[9.5px]">
               {title}
               {info && <Info size={12} className="text-slate-300" aria-label={info} />}
             </h2>
@@ -43,7 +43,7 @@ export function Panel({
             {viewAllHref && (
               <Link
                 href={viewAllHref}
-                className="inline-flex items-center gap-1 text-xs font-medium text-blue-600 hover:text-blue-700"
+                className="inline-flex items-center gap-1 text-xs font-medium text-blue-600 hover:text-blue-700 lg:text-[9.5px]"
               >
                 {viewAllLabel}
                 <ArrowRight size={12} />
@@ -52,7 +52,7 @@ export function Panel({
           </div>
         </header>
       )}
-      <div className={cn('flex-1 px-4 pb-4', bodyClassName)}>{children}</div>
+      <div className={cn('flex-1 px-4 pb-4 lg:px-3.5 lg:pb-3', bodyClassName)}>{children}</div>
     </section>
   )
 }

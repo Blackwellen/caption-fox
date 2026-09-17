@@ -1,346 +1,223 @@
-# Release Evidence — Events
+# Events — Release Evidence
 
-**Section name:** Events (shared Campaign Manager module)
-**Section route:** `/{workspaceType}/events` + five sub-tabs + four detail-record route families
-**Surfaces:** Business, Brand, Agency workspaces (full six-tab module); Creator workspace (Overview + Webinars + Podcasts + Follow-up only)
-**Date:** 2026-09-03
-**Supabase project:** `crazahobtmpipzxbkckf`
+**Section:** Events (shared module)
+**Routes:** `/{workspaceType}/events`, `/events/events`, `/events/webinars`,
+`/events/podcasts`, `/events/sponsorships`, `/events/follow-up`
+**Workspace types:** creator (reduced), business (plan-gated), brand, agency
+**Verified in:** Brand demo workspace `jamahl-thomas-campaign-manager-demo`
+(`d7b7c61e-7685-4b15-8a0c-d9fa85f25103`), signed in as owner
+**Date:** 2026-09-16
 
 ---
 
-## 1. Routes implemented
+## 1. Screen sizes tested
 
-| ID | Route | Page | Reference image |
-| --- | --- | --- | --- |
-| 5.18.01 | `/{type}/events` | Overview | `ChatGPT Image Jul 24, 2026, 04_38_39 AM (1).png` |
-| 5.18.02 | `/{type}/events/events` | Events directory | `… (2).png` |
-| 5.18.03 | `/{type}/events/webinars` | Webinars | `… (3).png` |
-| 5.18.04 | `/{type}/events/podcasts` | Podcasts | `… (4).png` |
-| 5.18.05 | `/{type}/events/sponsorships` | Sponsorships | `… (5).png` |
-| 5.18.06 | `/{type}/events/follow-up` | Follow-up | `… (6).png` |
-| — | `/{type}/events/events/{id}` | Event detail (7 tabs) | derived from list-page pattern |
-| — | `/{type}/events/webinars/{id}` | Webinar detail (5 tabs) | derived from list-page pattern |
-| — | `/{type}/events/podcasts/{id}` | Podcast episode detail (4 tabs) | derived from list-page pattern |
-| — | `/{type}/events/sponsorships/{id}` | Sponsorship detail (3 tabs) | derived from list-page pattern |
+Captured with Chrome MCP at **1448 × 1086** — the native size of the six
+approved reference images (the brief said 1491 × 1055; the supplied PNGs
+measure 1448 × 1086, so comparisons use the images' own size). The viewport is
+set with CDP device-metrics emulation, because the physical display cannot open
+a window that tall — earlier captures were silently 949px and cut the lower
+third of every page.
 
-Implemented as one canonical implementation under the existing catch-all
-`src/app/[workspaceType]/[[...path]]/page.tsx` shell, with the six module
-routes and four detail-record routes living under
-`src/app/[workspaceType]/events/`. **No per-workspace-type duplicate page
-components were created** — a single `EventsShell` renders for every
-eligible workspace type, and `src/lib/events/entitlements.ts` is the only
-place that ever branches on workspace type, plan, role or feature flag.
+Responsive behaviour was built against the standing Caption Fox rule of three
+layouts per tab row (desktop row / tablet sliding tray / mobile dropdown) via
+`EventsMobileNav` and the shared tab row.
 
-### Render verification (authenticated, live data, Chrome DevTools MCP)
+## 2. Screenshots / evidence
 
-All six list routes and one full interactive mutation were verified live
-against the seeded Brand demo workspace (`jamahl-thomas-campaign-manager-demo`,
-`d7b7c61e-7685-4b15-8a0c-d9fa85f25103`) at the reference viewport (1491×1055):
+| Route | Reference | Implementation |
+|---|---|---|
+| Overview | `docs/ui-verification/caption-fox/events/overview-reference.png` | `overview-implementation.png` |
+| Events | `events-reference.png` | `events-implementation.png` |
+| Webinars | `webinars-reference.png` | `webinars-implementation.png` |
+| Podcasts | `podcasts-reference.png` | `podcasts-implementation.png` |
+| Sponsorships | `sponsorships-reference.png` | `sponsorships-implementation.png` |
+| Follow-up | `follow-up-reference.png` | `follow-up-implementation.png` |
+
+Native-pixel comparison stacks (reference above implementation, 50px rulers):
+`overview-stack-top.png`, `overview-stack-head2.png`, produced with
+`scripts/ui-stack.py`.
+
+## 3. Routes tested
+
+All six render, are reachable from the module tab row, survive hard refresh and
+deep links, and 404 for a workspace whose entitlements exclude the tab
+(`getEventsPageContext` → `visibleEventsTabs`). Unauthenticated access
+redirects to `/login?next=…`.
+
+## 4. Buttons / actions tested
+
+Export (per-resource, carries the current query string), Create Event wizard
+(4 steps, conditional venue vs platform fields), Create Webinar, Create
+Episode, Create Sponsorship, Create Sequence, More-actions menus, KPI links,
+panel "View all" links, Gala Dock CTA + dismiss, pagination, page-size,
+view switcher, follow-up board drag-and-drop **and** its per-card status menu.
+
+## 5. Filters / search / sorting / views
+
+Search, filters, sort, page, pageSize and view are all URL state
+(`src/lib/events/filters.ts`), so they are shareable, refresh-safe and
+back/forward-safe, and the server re-queries rather than hiding downloaded
+rows. Invalid input is ignored rather than trusted — covered by unit tests.
+
+Views per route: Overview and Events (cards/table/calendar/timeline),
+Webinars and Podcasts (cards/table/calendar/timeline), Sponsorships
+(cards/table/pipeline/timeline), Follow-up (cards/table/board/timeline).
+
+## 6. Data sources
+
+Every figure is computed from workspace rows. No hard-coded metrics remain.
+Demo data is `is_demo = true` and workspace-scoped.
+
+| Surface | Reads |
+|---|---|
+| Overview | `events`, `event_registrations`, `event_sessions`, `sponsorships`, `event_followup_tasks`, `event_activity`, RPC `events_registration_trend` |
+| Events | as above + `gala_dock_event_links` |
+| Webinars | `events` (type=webinar), `webinar_details`, `webinar_questions`, `event_registration_stats`, RPC `webinar_attendance_trend` |
+| Podcasts | `podcast_shows`, `podcast_episodes`, `podcast_listener_daily`, RPC `podcast_listener_trend` |
+| Sponsorships | `sponsors`, `sponsorships`, `sponsorship_deliverables`, `sponsorship_packages` |
+| Follow-up | `event_followup_sequences`, `event_followup_steps`, `event_followup_tasks`, `event_outreach_events`, `event_registrations` |
+
+## 7. Bugs found and fixed
+
+| # | Severity | Bug | Fix |
+|---|---|---|---|
+| 1 | High | **Webinar KPIs capped at exactly 1,000.** Registrations and follow-up leads counted returned rows (`data.length`); PostgREST caps responses at 1,000, so any real workspace silently under-reported. | Switched to `select('id', { count: 'exact', head: true })` and read `count`. |
+| 2 | High | **Follow-up KPIs had the same cap.** Outreach rows were fetched and counted in JS. | Replaced with eight server-side counts per type/window. |
+| 3 | High | **Suspended workspaces were locked out of their own data.** The resolver returned `false` for *every* capability, so all tabs disappeared and the module 404'd — contradicting the suspended copy ("before event data can be **changed**"). | Suspension now blocks only mutating capabilities; reads remain. Blocker reasons aligned. Covered by tests. |
+| 4 | Medium | **Horizontal overflow** on Overview/Events/Webinars/Podcasts/Sponsorships/Follow-up: grid children defaulted to `min-width:auto`, so charts and tables pushed the right rail past the shell edge and the page scrolled sideways. | `min-w-0` on grid children and `Panel`. Verified `scrollWidth - clientWidth === 0`. |
+| 5 | Medium | **Attendance trend drew false spikes.** Days with no webinar were plotted as 0%. | Nulls are preserved and the line bridges them (`connectNulls`); `TrendPoint` now allows null. |
+| 6 | Medium | **Run of Show emptied the moment an event finished** — it only looked for a live or future event. | Falls back to the most recent event of that type. |
+| 7 | Medium | Activity feed printed the stored verb ("Created", "Completed"). | `activityTitle()` maps entity+action to product language ("New registration"). |
+| 8 | Low | Attendance rate for webinars counted registrations on *future* webinars as non-attendance. | Rate is computed over webinars that have happened. |
+| 9 | Low | Charts animated on load, so screenshots caught them mid-transition. | `isAnimationActive={false}` — also makes visual regression deterministic. |
+| 10 | Low | Y-axis labels clipped by a negative chart margin; event cards showed "0%" attendance for events that had not happened; KPI labels truncated ("Sponsorship Reven…"); run-of-show titles truncated. | Margins, `—` for unmeasurable rates, KPI card re-spec, two-line session titles. |
+| 11 | **High** | **Sponsorship Revenue compared a lifetime total against one month.** `revenue` summed every contracted/active/completed sponsorship with no date bound while `revenuePrev` was windowed, so the KPI read "+109.3%" against itself. | Revenue is now the value contracted *in the selected window*, matching `revenuePrev` and the Overview's own figure. |
+| 12 | Medium | **Follow-up board rendered all 136 tasks**, making the page 9,125px tall against the reference's single screen. | Four cards per column with a "+N more" link into the filtered table view; page is now 2,320px. |
+| 13 | Medium | View switcher sat inside the Event Summary panel header (Overview) and above the filter block (Directory); the reference places it at the top of the right rail. | Moved to the right rail on both. |
+| 14 | Medium | Content split was 1.6:1 where the reference is 2:1, which squeezed event cards and clipped their stat labels ("Registe…"). | `2fr_1fr` across the list pages; labels now fit. |
+| 15 | Medium | The reference table has a selection column, but there was no selection at all. | Added row selection with a real bulk action — "Export selected" posts the chosen ids to the permission-gated export, which applies them **on top of** workspace scope (verified: selecting 2 rows exports exactly 2). |
+| 16 | Low | Webinars inside the 30-day window had no registrations, so the attendance-rate trend drew one spike instead of a line. | Registrations spread across in-window webinars; the trend now has a point per webinar date. |
+| 17 | Low | Overview filter row offered "More Filters"; the reference shows "Clear Filters" there (More Filters belongs to the directory). Controls were also too wide and wrapped to two rows. | Matched the reference and sized the controls to one row. |
+| 18 | **High** | **Panel padding overrides silently failed.** `cn` is plain `clsx` (no tailwind-merge), so `Panel` applied its default `p-4` *and* the caller's `p-0`/`px-3`; CSS order decided which won. Every panel asking for custom padding was 32px taller than intended. | `Panel` applies either the caller's padding or the default, never both. |
+| 19 | **High** | **100 demo registrations were dated in the future** (seeded as "day + fixed hour"), so the follow-up list showed every registrant as "Registered just now". | Migration `…000700` moves future rows into the past on the same day (trend buckets unchanged); `formatRelative` now shows a date for any future timestamp instead of "just now". |
+| 20 | Medium | **"Meetings this week" could only ever be 0.** It counted `meeting_booked` events dated in the next 7 days, but those events record when a meeting was *booked*, which is always in the past. | Counts bookings made in the last 7 days and is labelled "meetings booked this week". |
+| 21 | Medium | **Sponsorship Revenue chart was a spike then a cliff.** All demo contracts were signed in the last 60 days, and the series plotted Oct–Dec of the current year as £0. | Future months are trimmed from the current year; migration `…000600` adds completed contracts across earlier months and last year (all outside the KPI windows, so KPIs are unchanged: £737,000, +9.3%). |
+| 22 | Medium | Adding that history pushed completed contracts (no event/package) to the front of Sponsor Portfolio, which sorted purely by value. | Portfolio orders by most recently worked relationship, then value. |
+| 23 | Medium | **Horizontal page scroll on phones and tablets** (Events directory 299px at 390, 5px at 768; Sponsorships 21px at 1024). Two causes: page grids had no explicit single-column track below `xl`, and `sr-only` labels inside table cells were absolutely positioned outside any positioned ancestor, escaping the table's `overflow-x-auto`. | `grid-cols-1` on every page grid; table scrollers are `relative`; the sponsorship toolbar wraps below `xl`. Verified 0px overflow on all six routes at 1448 / 1024 / 768 / 390. |
+| 24 | Low | "Run of Show (Today)" was shown for any run sheet, including past events. | "(Today)" only when the event's start date is today in the workspace timezone; otherwise the event name is shown. |
+
+### Visual fidelity pass (third round)
+
+Full-page side-by-side evidence (reference left, implementation right, tab row
+cropped out): `docs/ui-verification/caption-fox/events/*-side-by-side.png`.
+
+Decisions confirmed by the product owner on 2026-09-16: **keep the module tab
+row** (no sidebar sub-items) and **keep Geist** (no Plus Jakarta Sans). Those two
+are therefore accepted, permanent differences from the images.
+
+| # | Finding | Fix |
+|---|---|---|
+| 25 | Dense panel text rendered ~15–20% larger than the images (measured on identical strings: panel titles 0.88×, links 0.8×, list/table/run-of-show text 0.8–0.85×). | Panel titles 13px, links 11px, list/table/badge text 10–11px, chart axes 9.5px across the shared components and all six pages. KPI cards and the page header were already correct and were left alone. |
+| 26 | The attendees line fell to zero on the last days of every registration chart. Recent registrations are for events that have not happened, so attendance is unknown, not zero. | Trailing zero-attendee days are left as a gap; lines are smoothed as in the images. |
+| 27 | The Run of Show event-name subtitle added ~20px to every panel row, pushing the lower half of each page down. | Event name moves onto the title line ("Run of Show • Product Summit 2024"), the same pattern the Podcasts reference uses. |
+
+Remaining, and not fixable in code: demo names and cover photos differ from the
+images' sample content; the Webinars reference banner contains a Gala Dock
+product screenshot that has not been supplied (see user-fixes).
+
+### Visual fidelity pass (second round)
+
+The first round measured the references wrongly. The earlier screenshots were
+949px tall, not 1086px, so the lower third of every page was never compared.
+Re-measured at native pixels, then rebuilt shared components to the spec:
+
+| Element | Reference | Before | Now |
+|---|---|---|---|
+| H1 | ~23px | 30px | 23px |
+| KPI card | 185×104, 37px icon tile, ▲ delta | 180×92, 28px tile, ↗ arrow | 180×104, 35px tile, ▲ delta |
+| Wide Gala Dock banner | 107px, 66px bare mark, ~290px wordmark | 116px, tiled small mark | 107px, 66px mark + 46px wordmark |
+| Overview panel row | 409 / 352 / 376 | 1.15 / 1 / 1 | 409fr / 352fr / 376fr |
+| Overview bottom | one filter+summary panel, one switcher+upcoming panel | four separate blocks | combined as reference |
+| Run of Show | 42px rows, 12-hour clock, joined rail | 55px rows, 24-hour | as reference |
+| Badges | Upcoming lavender, Live blue + dot, solid on images | mixed | as reference |
+| Directory | two-row labelled filters, horizontal card strip, compact table with row ⋮ | one squashed row | as reference |
+| Webinars / Podcasts / Follow-up | filters + switcher share a row; charts share one panel | stacked | as reference |
+| Sponsorships | filter toolbar + switcher in one row, CTA at banner right | stacked, CTAs under text | as reference |
+
+## 8. Migrations applied
+
+| File | Purpose |
+|---|---|
+| `20260916000000_events_demo_seed_v2.sql` | 48 events, ~8.2k registrations across 30 days, sponsors, 124 follow-up tasks, episodes, covers |
+| `20260916000100_events_demo_prior_window.sql` | Prior 30-day window so period-on-period deltas are real |
+| `20260916000200_events_demo_webinar_depth.sql` | Webinars inside the trend window, agendas, 255 questions |
+| `20260916000300_events_demo_podcast_depth.sql` | 60-day listener series, run sheet, 18 podcast-read deliverables, unique titles |
+| `20260916000400_events_demo_sponsor_variety.sql` | Distinct fictional sponsors, tier-appropriate values, varied activity |
+| `20260916000600_events_demo_sponsor_history.sql` | Completed contracts over earlier months and last year, for the revenue trend |
+| `20260916000700_events_demo_registration_clock.sql` | Moves future-dated demo registrations into the past |
+
+All are idempotent (guarded on their own footprint) and no-ops on a workspace
+that has not been provisioned. **No third-party trademarks** — the v1 seed's
+Slack/AWS/HubSpot/Snowflake sponsors were renamed to fictional companies.
+
+## 9. Tests run
 
 ```
-PASS  overview       /brand/events              — 8 events, 84 regs (+366.7%), 53.6% attendance,
-                                                    £50K sponsorship revenue, Gala Dock banner, run of
-                                                    show, recent activity, event cards, upcoming events
-PASS  events          /brand/events/events        — KPI strip, cards + table view, Gala Dock sidebar,
-                                                     registration snapshot, run of show, filters correct
-PASS  webinars        /brand/events/webinars      — KPI strip, registrations/attendance charts, own
-                                                     agenda (post-fix), speakers, wide Gala Dock banner
-PASS  podcasts        /brand/events/podcasts      — KPI strip, listener trend, top episodes, own run
-                                                     of show with relative timestamps (post-fix)
-PASS  sponsorships    /brand/events/sponsorships  — KPI strip, sponsor cards (readable names post-fix),
-                                                     revenue chart, activation timeline, deliverables
-PASS  follow-up       /brand/events/follow-up     — KPI strip, outreach chart, task board (4 columns),
-                                                     playbook, reminders, top owners
-PASS  follow-up task mutation — status change verified end-to-end: task moved Not Started → Completed,
-                                 "6 tasks due today" recalculated to 5, owner completion rate 25% → 33%
+npx vitest run                 → 280 tests passed
+npx vitest run src/lib/events  → 14 tests passed
+npx tsc --noEmit               → 0 errors in Events (errors remain in other modules, see §13)
+Chrome MCP                     → 0 console errors on all six routes; 0px horizontal
+                                 overflow at 1448 / 1024 / 768 / 390
 ```
 
-Unauthenticated access to all ten routes redirects **307 → `/login?next=…`**
-(`getEventsPageContext` calls `redirect()` before any query runs).
+New: `src/lib/events/__tests__/events.test.ts` — entitlement resolution
+(workspace type, feature flag, plan vs permission, suspension), URL-state
+parsing (bounds, whitelists, repeated params), activity titles, rate/duration
+formatting, and location labelling.
 
-Four detail routes (`events/events/[id]`, `events/webinars/[id]`,
-`events/podcasts/[id]`, `events/sponsorships/[id]`) and the three new
-creation modals (Sponsorship, Podcast Episode, Follow-up Sequence) were
-built after an earlier browser-tool outage in this session, then, once the
-tool reconnected, **fully live-verified** against the same seeded Brand
-workspace:
+## 10. Performance / security findings
 
-```
-PASS  event detail        /brand/events/events/{id}       — all 7 tabs (Overview,
-                                                              Registration, Run of Show,
-                                                              Speakers, Sponsors, Follow-up,
-                                                              Activity); live mutation test:
-                                                              a registration's status was
-                                                              flipped no-show → attended via
-                                                              the Registration tab, Overview
-                                                              KPIs recalculated (Attended
-                                                              34→35, rate 70.8%→72.9%)
-PASS  webinar detail       /brand/events/webinars/{id}     — all 5 tabs (Overview,
-                                                              Registration [18-row table +
-                                                              pagination], Agenda, Speakers,
-                                                              Questions)
-PASS  podcast detail       /brand/events/podcasts/{id}     — all 4 tabs (Overview, Run of
-                                                              Show, Guests, Show Notes)
-PASS  sponsorship detail   /brand/events/sponsorships/{id} — all 3 tabs (Overview,
-                                                              Deliverables, Payments — real
-                                                              financial figures rendered for
-                                                              the Owner role tested)
-PASS  Create Episode modal — filled "Live QA Test Episode", submitted, confirmed it appeared
-                              in the episode list and the Planned Episodes KPI incremented
-                              2→3, then removed via SQL cleanup
-PASS  Create Sponsorship modal — opened with real sponsor (AWS/HubSpot/Slack/Snowflake) and
-                                  event dropdowns populated, cancelled cleanly
-PASS  Create Sequence modal — filled "Live QA Test Sequence", submitted, confirmed it
-                               appeared in the Follow-up page's Sequence filter dropdown,
-                               then removed via SQL cleanup
-```
+- Page queries run in parallel (`Promise.all`); no request waterfalls.
+- KPI aggregates are counted server-side (see bugs 1–2) rather than by
+  downloading rows.
+- Every query is workspace-scoped; `getEventsPageContext` resolves auth,
+  membership, plan, role, flags and tab entitlement before any record is read,
+  and 404s rather than revealing that a workspace exists.
+- Financial values are gated behind `sponsorships.viewFinancials` at the
+  resolver, not by hiding UI.
+- Gala Dock CTAs open externally with `noopener noreferrer` and never claim a
+  sync that has no link record.
 
-One real bug was found and fixed during this pass: the Event detail page's
-Speakers and Activity tabs rendered a duplicated "Speakers"/"Activity"
-heading with a dead self-referential "View All" link, because the tab
-content reused the Overview-preview `PeoplePanel`/`ActivityPanel`
-components (which render their own `Panel` chrome, including a "View All"
-action) nested inside an already-wrapping `Panel` on the dedicated tab.
-Fixed by inlining the list markup directly under the tab's own `Panel` in
-`src/app/[workspaceType]/events/events/[id]/page.tsx`, matching the pattern
-already used by that page's Sponsors and Follow-up tabs. Re-verified live —
-single heading, no dead link.
+## 11. Cross-section effects checked
 
-Remaining gap: the Payments tab's `sponsorships.viewFinancials`-gated
-locked state was reviewed in source but not exercised live, since this
-session only had an Owner-level test session (Owner has the permission by
-default). See `user-fixes/events.md` item 1.
+KPI cards deep-link to Sponsorships and Follow-up; run-of-show links to the
+event detail route; activity rows link to their record; Create wizards redirect
+into the directory; export routes through `/api/events/export` honouring the
+current filters.
 
----
+## 12. Pending user/manual actions
 
-## 2. Supabase tables checked
+See `release-gated/user-fixes/events.md`.
 
-**Created (22, migration `20260830000000_events_module.sql`):**
+## 13. Release score
 
-| Group | Tables |
-| --- | --- |
-| Events core | `events`, `event_sessions`, `event_speakers`, `event_registrations` |
-| Webinars | `webinar_details`, `webinar_questions` |
-| Podcasts | `podcast_shows`, `podcast_episodes`, `podcast_episode_guests`, `podcast_listener_daily` |
-| Sponsorships | `sponsors`, `sponsorship_packages`, `sponsorships`, `sponsorship_deliverables` |
-| Follow-up | `event_followup_sequences`, `event_followup_steps`, `event_followup_tasks`, `event_outreach_events` |
-| Shared | `event_activity` |
-| Gala Dock | `gala_dock_workspace_links`, `gala_dock_event_links`, `gala_dock_promotion_dismissals` |
+**95 / 100** — not yet 100.
 
-**Aggregate views + RPCs (migration `20260830000100_events_aggregates.sql`):**
-`event_registration_stats`, `event_sponsor_stats`, `sponsorship_deliverable_stats`
-(all `security_invoker = true`, so RLS on the base tables still applies through
-the view); `events_registration_trend`, `webinar_attendance_trend`,
-`events_outreach_trend`, `podcast_listener_trend`, `sponsorship_revenue_trend`,
-`events_followup_owner_stats` — one indexed query per chart instead of an
-N+1 per card.
+Held back by items that need either assets I do not have or a second test
+account, all listed in the user-fixes file:
 
-**Demo seed (migration `20260830000200_events_demo_seed.sql`):** guarded,
-idempotent, `is_demo = true` throughout. Confirmed live: 8 events, 102
-registrations, 18 sessions, 4 podcast episodes, 4 sponsorships, 12
-follow-up tasks, 327 outreach events.
+- Cross-workspace RLS negative tests need a second real user account.
+- Provider integrations (Zoom/Riverside/etc.) are modelled and gated but no
+  live provider is connected in this environment.
+- A full `tsc` run still fails in other modules being built in parallel
+  (SEO, Marketplace, Campaigns). None are in Events and none were touched.
+- One deliberate layout difference remains: the references show the six pages
+  as sidebar sub-items. The sidebar is design-locked, so Events keeps the
+  standard module tab row, which puts every page ~70px lower than its image.
 
-**Extended (not duplicated):** none required — Events referencing
-`campaigns`, `brands`, `profiles`, `workspaces`, `integrations` and
-`audit_logs` needed no new columns on those tables.
+## 14. Final release decision
 
----
-
-## 3. RLS policies checked
-
-Verified by query against the live database:
-
-```
-22 module tables | RLS enabled: 22/22 | policies: 1 per table (all commands)
-```
-
-Policy pattern (identical on every table, confirmed via `pg_policies`):
-
-```sql
-workspace_id IN (SELECT workspace_id FROM workspace_members WHERE user_id = auth.uid())
-```
-
-`gala_dock_promotion_dismissals` carries an additional `user_id = auth.uid()`
-clause so one member's dismissal of the Gala Dock banner never hides it for
-a teammate. Aggregate views inherit RLS from the underlying tables via
-`security_invoker`, so a view can never widen access.
-
-**Positive test:** every list/detail page query above returned only rows
-belonging to the seeded Brand workspace.
-**Negative test:** switching the active workspace in the UI to a different
-seeded workspace (Agency Hub, Creator Lab, Growth Co.) immediately zeroed
-every KPI and emptied every list — proven live during this session before
-the demo seed was applied to the Brand workspace specifically. No automated
-negative-RLS test suite (a second service-role client asserting a 0-row
-result for a foreign `workspace_id`) exists yet — see `user-fixes/events.md`.
-
----
-
-## 4. Entitlements checked
-
-Single resolver: `src/lib/events/entitlements.ts`.
-
-- **Workspace type:** Creator workspaces receive Overview + Webinars +
-  Podcasts + Follow-up only (`SURFACE_TABS`); Events directory and
-  Sponsorships are entirely absent from their sidebar and 404 on direct URL.
-- **Plan:** Webinars/Podcasts require `creator_pro`+, Sponsorships/imports/
-  saved views/pipeline view require `team`+ (`PLAN_FLOOR`).
-- **Role/permission:** 22 new `events.*` permission keys added to
-  `src/lib/permissions.ts` and granted per role (owner: all; manager: all
-  except delete + Gala Dock connect; creator/approver/analyst/client: scoped
-  read/write sets matching their existing advertising-permission pattern).
-- **Financial visibility:** `sponsorships.viewFinancials` gates sponsorship
-  value everywhere it appears (KPI cards, cards, table, pipeline, export,
-  detail page Payments tab) — verified the Overview and Sponsorships KPI
-  cards render "Hidden — restricted for your role" instead of a value or a
-  zero when this permission is absent.
-- **Feature flags:** `events`, `events.<tab>` and `capability.<name>` keys
-  checked in workspace `settings.feature_flags` before permission/plan.
-
-Hidden capabilities are never rendered as dead links or disabled buttons
-with no explanation — a tab a workspace can't see is omitted from
-`visibleEventsTabs()` entirely, and every disabled action carries a
-`title`/`disabledReason` explaining why (permission vs. plan vs. flag).
-
----
-
-## 5. Buttons / actions tested
-
-| Action | Mechanism | Verified |
-| --- | --- | --- |
-| Create Event (wizard) | `createEvent` server action | Code + type/lint clean; wizard validates name, type/format pairing, duplicate same-day name |
-| Create Sponsorship / Create Sponsor | `createSponsorship` / `createSponsor` | **Live-verified**: modal opens with real sponsor/event data; submit path code + type/lint clean, cancel-close verified live |
-| Create Podcast Episode | `createPodcastEpisode` (resolves or creates the show) | **Live-verified end-to-end**: submitted, appeared in list, KPI incremented, cleaned up |
-| Create Follow-up Sequence | `createFollowUpSequence` (seeds standard 5-step cadence) | **Live-verified end-to-end**: submitted, appeared in Sequence filter, cleaned up |
-| Follow-up task status change | `updateRegistrationStatus`-sibling `moveFollowUpTask` | **Live-verified**: task moved columns, KPIs recalculated |
-| Registration status change (detail page) | `updateRegistrationStatus` | **Live-verified**: status flipped no-show→attended, Overview KPIs recalculated (Attended 34→35, rate 70.8%→72.9%) |
-| Sponsorship stage change | `updateSponsorshipStage` | Code + type/lint clean |
-| Export (CSV) | `/api/events/export` route, respects current filters + financial-column gating | Code + type/lint clean; audit-logged |
-| Gala Dock dismiss / click | `dismissGalaDockPromotion` / `trackGalaDockPromotionClick` | **Live-verified** banner renders, dismiss button present; click telemetry code-reviewed |
-
-Every server action re-derives workspace, role, plan and feature flags from
-the session and re-checks the capability server-side — a disabled button
-cannot be bypassed by a direct call, because the guard doesn't trust
-anything the client sent.
-
----
-
-## 6. Bugs found and fixed during this release pass
-
-1. **Filter pluralisation** — "All Statuss" (should be "All Statuses") on
-   every list page's Status filter. Fixed by adding an explicit `allLabel`
-   to `FilterDefinition` instead of naive `All ${label}s` string-building.
-2. **Stat-label collision** — `<dt>` labels ("Registered"/"Attended") in
-   narrow card/grid stat rows overlapped into the neighbouring column
-   because flex/grid children don't shrink below content size by default.
-   Fixed with `min-w-0` on the grid item + `truncate` on the label.
-3. **Run of Show cross-contamination** — Webinars and Podcasts pages called
-   the shared `getRunOfShow()` helper without an event-type filter, so its
-   "live event, else next upcoming" fallback could surface an unrelated
-   in-person conference's agenda on the Webinars/Podcasts page. Fixed by
-   adding an `eventTypes` filter parameter, scoped per page.
-4. **Sponsor name over-truncation** — "Slack" rendered as "S…" because the
-   tier badge and 32px avatar in the card header left almost no width for
-   the name at this grid density. Fixed by letting the name wrap instead of
-   truncating, shrinking the avatar, and giving the badge `shrink-0`.
-5. **"Create Episode" created the wrong record** — it reused the generic
-   event-creation wizard, which inserts into `events` but never into
-   `podcast_episodes` — so a new episode would never appear in the Podcasts
-   list. Fixed with a dedicated `createPodcastEpisode` action + modal.
-
-6. **Double-nested Speakers/Activity heading on the Event detail page** —
-   the dedicated Speakers and Activity tabs wrapped the Overview-preview
-   `PeoplePanel`/`ActivityPanel` components (which supply their own `Panel`
-   chrome and a "View All" link) inside an outer `Panel`, producing a
-   duplicated heading and a dead self-referential link. Fixed by inlining
-   the list markup directly, matching the Sponsors/Follow-up tabs' pattern.
-
-All six were found through live Chrome MCP testing against real seeded
-data, not inferred from code review.
-
----
-
-## 7. Known limitations this release
-
-An earlier Chrome DevTools MCP browser-tool outage mid-session
-(`"The browser is already running for …chrome-profile"`, requiring a
-tree-kill of the process group to clear) was resolved before the end of
-this session — all ten routes and all 19 detail-page tabs have since been
-live-verified (see §1). Two smaller gaps remain:
-
-1. **Tablet/mobile responsive QA** — every route has only been visually
-   verified at the 1491×1055 desktop reference size this release. See
-   `user-fixes/events.md` item 5.
-2. **Payments-tab RBAC negative case** — the `sponsorships.viewFinancials`
-   lock was reviewed in source and confirmed to gate both the Sponsors-tab
-   value column and the dedicated Payments tab, but wasn't exercised live
-   under a restricted-role session (this session was Owner-level
-   throughout). See `user-fixes/events.md` item 1.
-
----
-
-## 8. Tests run
-
-- `npx tsc --noEmit` — **0 errors** across `src/lib/events`,
-  `src/components/events`, `src/app/[workspaceType]/events/**`,
-  `src/app/api/events` (confirmed after every batch of changes, most
-  recently after the detail pages and creation modals).
-- `npx eslint` (same paths) — **0 errors, 0 warnings**, including the
-  `react-hooks/set-state-in-effect` and `react-hooks/purity` rules, which
-  caught two real bugs (search-input effect loop; an impure `Date.now()`
-  fallback in render) that are now fixed.
-- `npx tsc --noEmit` re-confirmed clean for `events/events/[id]/page.tsx`
-  after the Speakers/Activity tab fix in this pass.
-- Live RLS check via direct SQL: 22/22 tables RLS-enabled, 1 policy each,
-  workspace-membership-scoped.
-- Live Chrome MCP interaction testing: 10/10 routes, 19/19 detail-page
-  tabs, 3/3 creation modals, 2 live mutations (registration status,
-  follow-up task status) with server-side KPI recalculation confirmed both
-  times.
-- No automated unit/integration/E2E test files were added — this repo has
-  no test runner installed (confirmed absent from `package.json`).
-
----
-
-## 9. Performance / security findings
-
-- Every list page uses aggregate views/RPCs instead of N+1 per-card
-  queries (see §2). No sequential per-row Supabase calls in any hot path.
-- CSV export sanitises leading `=`, `+`, `-`, `@` characters to prevent
-  spreadsheet formula injection, and strips financial columns entirely for
-  roles without `sponsorships.viewFinancials` — not just hidden client-side.
-- Gala Dock is advertised only, never given write access to workspace data;
-  no external credentials are stored — `gala_dock_*` tables hold only link
-  state and dismissal state.
-- No secrets, service-role keys or provider tokens appear in any Events
-  component, action or query file.
-
----
-
-## 10. Cross-section effects checked
-
-- Sidebar "Events" group and its six sub-items render only for entitled
-  workspace types/plans/roles (`EventsShell` + `visibleEventsTabs`).
-- Follow-up task status changes call `revalidatePath`, so the Overview and
-  Events-directory "Follow-up Tasks" KPI cards, the Follow-up page's own
-  KPIs, and the Reminders/Top Owners panels all reflect the change on next
-  load — verified live for the single mutation tested.
-- Export, activity feed and audit log entries share the existing
-  `audit_logs` / `event_activity` tables — no parallel logging system.
-
----
-
-## 11. Final release decision
-
-**Ready behind feature flag / admin-only beta.**
-
-All ten routes (six list pages + four detail-record route families, 19
-detail-page tabs) and all three creation modals are now fully built,
-live-verified against real seeded data, and free of known bugs — one bug
-(double-nested Speakers/Activity heading) was found and fixed during this
-pass's live verification. The two remaining gaps — tablet/mobile responsive
-QA, and a live (not just source-reviewed) check of the Payments-tab RBAC
-lock under a restricted role — are both documented in
-`user-fixes/events.md` with exact manual steps. Recommend enabling for
-internal/admin users first, completing those two checks, then widening
-release.
+**Ready for release behind the existing entitlement gates**, with the manual
+follow-ups in the user-fixes file. Not marked 100/100 — the outstanding items
+are genuine and are listed rather than papered over.

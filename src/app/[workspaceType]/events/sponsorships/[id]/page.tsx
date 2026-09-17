@@ -76,13 +76,13 @@ export default async function SponsorshipDetailPage({
         <div className="space-y-4">
           <KpiStrip>
             {showMoney ? (
-              <KpiCard label="Value" tone="amber" icon={<DollarSign size={17} />} value={formatCurrency(sponsorship.value, sponsorship.currency)} comparison="Contracted value" />
+              <KpiCard label="Value" tone="amber" icon={<DollarSign size={15} />} value={formatCurrency(sponsorship.value, sponsorship.currency)} comparison="Contracted value" />
             ) : (
-              <KpiCard label="Value" tone="amber" icon={<DollarSign size={17} />} value="Hidden" comparison="Restricted for your role" />
+              <KpiCard label="Value" tone="amber" icon={<DollarSign size={15} />} value="Hidden" comparison="Restricted for your role" />
             )}
-            <KpiCard label="Stage" tone="blue" icon={<Star size={17} />} value={titleCase(sponsorship.stage)} comparison="Sales pipeline" />
-            <KpiCard label="Deliverables" tone="violet" icon={<FileText size={17} />} value={`${completed} / ${deliverables.length}`} comparison="Completed" />
-            <KpiCard label="Renewal" tone="emerald" icon={<Star size={17} />} value={formatEventDate(sponsorship.renewal_due_at, workspace.timezone)} comparison="Due date" />
+            <KpiCard label="Stage" tone="blue" icon={<Star size={15} />} value={titleCase(sponsorship.stage)} comparison="Sales pipeline" />
+            <KpiCard label="Deliverables" tone="violet" icon={<FileText size={15} />} value={`${completed} / ${deliverables.length}`} comparison="Completed" />
+            <KpiCard label="Renewal" tone="emerald" icon={<Star size={15} />} value={formatEventDate(sponsorship.renewal_due_at, workspace.timezone)} comparison="Due date" />
           </KpiStrip>
 
           <div className="grid gap-4 xl:grid-cols-2">

@@ -57,7 +57,7 @@ export default function RegistrationsTable({
           {error}
         </p>
       )}
-      <div className="overflow-x-auto rounded-xl border border-slate-200">
+      <div className="relative overflow-x-auto rounded-xl border border-slate-200">
         <table className="w-full min-w-[720px] border-collapse text-left">
           <caption className="sr-only">Event registrations</caption>
           <thead>

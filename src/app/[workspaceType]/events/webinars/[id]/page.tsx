@@ -87,11 +87,11 @@ export default async function WebinarDetailPage({
       {tab === 'overview' && (
         <div className="space-y-4">
           <KpiStrip>
-            <KpiCard label="Registrations" tone="violet" icon={<UsersIcon size={17} />} value={formatNumber(webinar.registrations)} comparison="Total" />
-            <KpiCard label="Attendance Rate" tone="emerald" icon={<UsersIcon size={17} />} value={formatRate(webinar.attendanceRate)} comparison="Of eligible registrations" />
-            <KpiCard label="Avg Watch Time" tone="sky" icon={<UsersIcon size={17} />} value={formatDuration(webinar.webinar?.avg_watch_seconds ?? null)} comparison="Reported by provider" />
-            <KpiCard label="Questions" tone="rose" icon={<HelpCircle size={17} />} value={formatNumber(webinar.webinar?.questions_count ?? 0)} comparison="Submitted" />
-            <KpiCard label="Recording" tone="indigo" icon={<Video size={17} />} value={titleCase(webinar.webinar?.recording_state ?? 'none')} comparison="Provider status" />
+            <KpiCard label="Registrations" tone="violet" icon={<UsersIcon size={15} />} value={formatNumber(webinar.registrations)} comparison="Total" />
+            <KpiCard label="Attendance Rate" tone="emerald" icon={<UsersIcon size={15} />} value={formatRate(webinar.attendanceRate)} comparison="Of eligible registrations" />
+            <KpiCard label="Avg Watch Time" tone="sky" icon={<UsersIcon size={15} />} value={formatDuration(webinar.webinar?.avg_watch_seconds ?? null)} comparison="Reported by provider" />
+            <KpiCard label="Questions" tone="rose" icon={<HelpCircle size={15} />} value={formatNumber(webinar.webinar?.questions_count ?? 0)} comparison="Submitted" />
+            <KpiCard label="Recording" tone="indigo" icon={<Video size={15} />} value={titleCase(webinar.webinar?.recording_state ?? 'none')} comparison="Provider status" />
           </KpiStrip>
           <div className="grid gap-4 xl:grid-cols-[1.4fr_1fr]">
             <RunOfShowPanel sessions={sessions} title="Agenda" viewAllHref={`${detailPath}?tab=agenda`} timezone={workspace.timezone} />

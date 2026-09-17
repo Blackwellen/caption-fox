@@ -95,7 +95,7 @@ async function insertIfMissing(
   const db = supabase as DemoDb
   let query = db.from(table).select('id').limit(1)
   for (const [key, value] of Object.entries(filters)) query = query.eq(key, value)
-  const { data } = await query.maybeSingle()
+  const { data } = await query.limit(1).maybeSingle()
   if (!data) await db.from(table).insert(row)
 }
 
@@ -114,7 +114,7 @@ export async function ensureDemoWorkspaces(userId: string, email?: string | null
       .from('workspaces')
       .select('id')
       .eq('slug', demo.slug)
-      .maybeSingle()
+      .limit(1).maybeSingle()
     if (lookupError) return
 
     let workspaceId = existing?.id as string | undefined
@@ -176,7 +176,7 @@ export async function ensureDemoWorkspaces(userId: string, email?: string | null
       })
     }
 
-    const { data: existingCampaign } = await supabase.from('campaigns').select('id').eq('workspace_id', workspaceId).eq('name', demo.campaign).maybeSingle()
+    const { data: existingCampaign } = await supabase.from('campaigns').select('id').eq('workspace_id', workspaceId).eq('name', demo.campaign).limit(1).maybeSingle()
     const { data: campaign } = existingCampaign
       ? { data: existingCampaign }
       : await supabase.from('campaigns').insert({
@@ -277,7 +277,7 @@ export async function ensureDemoWorkspaces(userId: string, email?: string | null
     ] as const
     const extraCampaignIds: string[] = []
     for (const row of extraCampaignRows) {
-      const { data: existing } = await supabase.from('campaigns').select('id').eq('workspace_id', workspaceId).eq('name', row.name).maybeSingle()
+      const { data: existing } = await supabase.from('campaigns').select('id').eq('workspace_id', workspaceId).eq('name', row.name).limit(1).maybeSingle()
       if (existing?.id) { extraCampaignIds.push(existing.id as string); continue }
       const { data: created } = await supabase.from('campaigns').insert({
         workspace_id: workspaceId, brand_id: brandId, name: row.name,
@@ -303,7 +303,7 @@ export async function ensureDemoWorkspaces(userId: string, email?: string | null
       })
     }
 
-    const { data: existingGiveaway } = await supabase.from('giveaways').select('id').eq('workspace_id', workspaceId).eq('title', `${demo.brand} Summer Giveaway`).maybeSingle()
+    const { data: existingGiveaway } = await supabase.from('giveaways').select('id').eq('workspace_id', workspaceId).eq('title', `${demo.brand} Summer Giveaway`).limit(1).maybeSingle()
     if (!existingGiveaway) {
       await supabase.from('giveaways').insert({
         workspace_id: workspaceId, campaign_id: campaignId, brand_id: brandId,
@@ -317,7 +317,7 @@ export async function ensureDemoWorkspaces(userId: string, email?: string | null
       })
     }
 
-    const { data: existingCompetition } = await supabase.from('competitions').select('id').eq('workspace_id', workspaceId).eq('title', `${demo.brand} Creator Challenge`).maybeSingle()
+    const { data: existingCompetition } = await supabase.from('competitions').select('id').eq('workspace_id', workspaceId).eq('title', `${demo.brand} Creator Challenge`).limit(1).maybeSingle()
     if (!existingCompetition) {
       await supabase.from('competitions').insert({
         workspace_id: workspaceId, campaign_id: campaignId, brand_id: brandId,

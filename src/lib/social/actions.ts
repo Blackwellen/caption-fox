@@ -3,8 +3,8 @@
 import { randomUUID } from 'node:crypto'
 import { revalidatePath } from 'next/cache'
 import { PERMISSIONS } from '@/lib/permissions'
-import { assertCapability, assertOwnedRecord, getSocialSession, logSocialActivity, type SocialSession } from './server'
-import { canAccessSocialCapability, connectionCanAct } from './entitlements'
+import { assertCapability, assertOwnedRecord, checkSocialRateLimit, getSocialSession, logSocialActivity, type SocialSession } from './server'
+import { canAccessSocialCapability, canAccessSocialSurface, connectionCanAct, type SocialSurface } from './entitlements'
 import { capabilitiesFor, validateDraft } from './providers'
 import { slaStateFor } from './metrics'
 import type { SocialProvider } from '@/types/social'
@@ -21,9 +21,17 @@ function fail<T = undefined>(message: string): ActionResult<T> {
   return { ok: false, message, reference: randomUUID().slice(0, 8) }
 }
 
-async function run<T>(fn: (session: SocialSession) => Promise<ActionResult<T>>): Promise<ActionResult<T>> {
+/**
+ * Every action resolves the session server-side and then checks that the
+ * surface it belongs to is open for this workspace (type, plan, flag, role)
+ * before any capability check — so a hidden area cannot be driven by calling
+ * the action directly.
+ */
+async function run<T>(surface: SocialSurface, fn: (session: SocialSession) => Promise<ActionResult<T>>): Promise<ActionResult<T>> {
   try {
     const session = await getSocialSession()
+    const open = canAccessSocialSurface(session.ctx, surface)
+    if (!open.allowed) return fail<T>(open.message)
     return await fn(session)
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Something went wrong.'
@@ -31,13 +39,51 @@ async function run<T>(fn: (session: SocialSession) => Promise<ActionResult<T>>):
   }
 }
 
-function revalidateSocial() {
-  for (const path of ['/app/social', '/app/social/publishing', '/app/social/engagement', '/app/social/listening', '/app/social/connections', '/app/social/analytics']) {
-    revalidatePath(path)
-  }
+/** Every Social page and detail route sits under one layout per workspace type. */
+function revalidateSocial(session: SocialSession) {
+  revalidatePath(session.basePath, 'layout')
 }
 
 // ── Publishing ───────────────────────────────────────────────────────────────
+
+/**
+ * One queue row per channel, keyed idempotently (post · channel · time) so a
+ * double submit, a retry or approving twice can never create two deliveries.
+ * Channels default to the post's own channel plus one workspace channel for
+ * each platform the post lists.
+ */
+async function queueDeliveries(session: SocialSession, postId: string, scheduledAt: string, channelIds?: string[]) {
+  let ids = channelIds
+  if (!ids) {
+    const [{ data: post }, { data: channels }] = await Promise.all([
+      session.supabase.from('content_posts')
+        .select('channel_id, platforms').eq('id', postId).eq('workspace_id', session.ctx.workspaceId).maybeSingle(),
+      session.supabase.from('social_channels')
+        .select('id, platform').eq('workspace_id', session.ctx.workspaceId).eq('is_active', true),
+    ])
+    const byPlatform = new Map<string, string>()
+    for (const channel of channels ?? []) if (!byPlatform.has(channel.platform)) byPlatform.set(channel.platform, channel.id)
+    const own = channels?.find(channel => channel.id === post?.channel_id)
+    ids = [...new Set([
+      own?.id,
+      ...((post?.platforms ?? []) as string[]).filter(platform => platform !== own?.platform).map(platform => byPlatform.get(platform)),
+    ].filter((id): id is string => Boolean(id)))]
+  }
+  if (ids.length === 0) return
+  const when = new Date(scheduledAt).toISOString()
+  await session.supabase.from('publishing_queue').upsert(
+    ids.map(channelId => ({
+      workspace_id: session.ctx.workspaceId,
+      post_id: postId,
+      channel_id: channelId,
+      scheduled_at: when,
+      status: 'queued',
+      idempotency_key: `${postId}:${channelId}:${when}`,
+    })),
+    { onConflict: 'idempotency_key', ignoreDuplicates: true },
+  )
+}
+
 
 async function loadChannels(session: SocialSession, ids: string[]) {
   if (ids.length === 0) return []
@@ -62,7 +108,7 @@ export async function schedulePost(input: {
   timezone?: string
   requireApproval?: boolean
 }): Promise<ActionResult<{ postId: string }>> {
-  return run(async session => {
+  return run('publishing', async session => {
     assertCapability(session, input.postId ? PERMISSIONS.SOCIAL_PUBLISHING_EDIT : PERMISSIONS.SOCIAL_PUBLISHING_CREATE)
 
     if (input.channelIds.length === 0) return fail<{ postId: string }>('Select at least one channel.')
@@ -71,10 +117,32 @@ export async function schedulePost(input: {
       return fail<{ postId: string }>('One or more channels are not available in this workspace.')
     }
 
+    // Media must come from this workspace's own library (or already be on the
+    // post being edited); a campaign must belong to this workspace.
+    const mediaUrls = [...new Set(input.mediaUrls ?? [])].slice(0, 20)
+    if (mediaUrls.length) {
+      const [{ data: library }, { data: existing }] = await Promise.all([
+        session.supabase.from('media_assets').select('file_path')
+          .eq('workspace_id', session.ctx.workspaceId).in('file_path', mediaUrls),
+        input.postId
+          ? session.supabase.from('content_posts').select('media_urls').eq('workspace_id', session.ctx.workspaceId).eq('id', input.postId).maybeSingle()
+          : Promise.resolve({ data: null }),
+      ])
+      const allowed = new Set([...(library ?? []).map(row => row.file_path as string), ...((existing?.media_urls ?? []) as string[])])
+      if (mediaUrls.some(url => !allowed.has(url))) return fail<{ postId: string }>('Attach media from your Brand & Assets library.')
+    }
+    if (input.campaignId) {
+      const { data: campaign } = await session.supabase.from('campaigns').select('id')
+        .eq('workspace_id', session.ctx.workspaceId).eq('id', input.campaignId).maybeSingle()
+      if (!campaign) return fail<{ postId: string }>('That campaign is not available in this workspace.')
+    }
+    if (input.title.length > 200 || input.caption.length > 70_000) return fail<{ postId: string }>('The title or caption is too long.')
+    if (input.scheduledAt && Number.isNaN(new Date(input.scheduledAt).getTime())) return fail<{ postId: string }>('Choose a valid date and time.')
+
     const scheduledAt = input.scheduledAt ? new Date(input.scheduledAt) : null
     const issues = channels.flatMap(channel => validateDraft(channel.platform, {
       caption: input.caption,
-      mediaCount: input.mediaUrls?.length ?? 0,
+      mediaCount: mediaUrls.length,
       hashtagCount: input.hashtags?.length ?? 0,
       postType: input.postType as never,
       scheduledAt,
@@ -83,8 +151,15 @@ export async function schedulePost(input: {
     if (blocked.length) {
       return fail<{ postId: string }>(`${blocked.map(channel => channel.account_name).join(', ')} cannot publish until the connection is repaired.`)
     }
-    if (issues.length) {
-      return fail<{ postId: string }>(issues.map(issue => `${issue.provider}: ${issue.message}`).join(' '))
+    const readOnly = channels.filter(channel => channel.permission_mode === 'read_only')
+    if (readOnly.length) {
+      return fail<{ postId: string }>(`${readOnly.map(channel => channel.account_name).join(', ')} is connected read-only. Reconnect with publishing permission first.`)
+    }
+    // A draft may be incomplete (e.g. media still to add); everything is enforced
+    // once it is scheduled or sent for approval.
+    const blocking = scheduledAt || input.requireApproval ? issues : issues.filter(issue => issue.field !== 'media')
+    if (blocking.length) {
+      return fail<{ postId: string }>(blocking.map(issue => `${issue.provider}: ${issue.message}`).join(' '))
     }
 
     const status = input.requireApproval ? 'pending_approval' : scheduledAt ? 'scheduled' : 'draft'
@@ -99,7 +174,7 @@ export async function schedulePost(input: {
       post_type: input.postType,
       status,
       scheduled_at: scheduledAt?.toISOString() ?? null,
-      media_urls: input.mediaUrls ?? [],
+      media_urls: mediaUrls,
       approval_required: Boolean(input.requireApproval),
       timezone: input.timezone ?? 'UTC',
       owner_id: session.userId,
@@ -124,17 +199,7 @@ export async function schedulePost(input: {
     if (scheduledAt && status === 'scheduled') {
       await session.supabase.from('publishing_queue')
         .delete().eq('workspace_id', session.ctx.workspaceId).eq('post_id', postId).eq('status', 'queued')
-      await session.supabase.from('publishing_queue').upsert(
-        channels.map(channel => ({
-          workspace_id: session.ctx.workspaceId,
-          post_id: postId!,
-          channel_id: channel.id,
-          scheduled_at: scheduledAt.toISOString(),
-          status: 'queued',
-          idempotency_key: `${postId}:${channel.id}:${scheduledAt.toISOString()}`,
-        })),
-        { onConflict: 'idempotency_key', ignoreDuplicates: true },
-      )
+      await queueDeliveries(session, postId!, scheduledAt.toISOString(), channels.map(channel => channel.id))
     }
 
     await logSocialActivity(session, {
@@ -143,17 +208,17 @@ export async function schedulePost(input: {
       entityId: postId,
       summary: `${input.postId ? 'Updated' : 'Created'} “${input.title || 'Untitled post'}” for ${channels.map(channel => channel.account_name).join(', ')}`,
       detail: scheduledAt ? `Scheduled for ${scheduledAt.toISOString()}` : 'Saved as a draft',
-      href: `/app/social/publishing?post=${postId}`,
+      href: `${session.basePath}/posts/${postId}`,
       severity: 'success',
     })
 
-    revalidateSocial()
+    revalidateSocial(session)
     return { ok: true, message: scheduledAt ? 'Post scheduled.' : 'Draft saved.', data: { postId: postId! } }
   })
 }
 
 export async function reschedulePost(postId: string, scheduledAt: string): Promise<ActionResult> {
-  return run(async session => {
+  return run('publishing', async session => {
     assertCapability(session, PERMISSIONS.SOCIAL_PUBLISHING_EDIT)
     await assertOwnedRecord(session, 'content_posts', postId)
 
@@ -166,6 +231,8 @@ export async function reschedulePost(postId: string, scheduledAt: string): Promi
     }
 
     const when = new Date(scheduledAt)
+    if (Number.isNaN(when.getTime())) return fail('Choose a valid date and time.')
+    if (when.getTime() < Date.now() + 5 * 60_000) return fail('Choose a time at least 5 minutes from now.')
     const unsupported = (post.platforms ?? []).filter(
       (platform: string) => !capabilitiesFor(platform as SocialProvider).schedulePost)
     if (unsupported.length) return fail(`${unsupported.join(', ')} does not support scheduling.`)
@@ -183,9 +250,9 @@ export async function reschedulePost(postId: string, scheduledAt: string): Promi
       action: 'social.post.rescheduled', entityType: 'content_post', entityId: postId,
       summary: `Rescheduled “${post.title ?? 'Untitled post'}”`,
       detail: `New time ${when.toISOString()}`,
-      href: `/app/social/publishing?post=${postId}`,
+      href: `${session.basePath}/posts/${postId}`,
     })
-    revalidateSocial()
+    revalidateSocial(session)
     return { ok: true, message: 'Post rescheduled.' }
   })
 }
@@ -195,7 +262,7 @@ export async function setApprovalDecision(
   decision: 'approve' | 'request_changes' | 'reject',
   note?: string,
 ): Promise<ActionResult> {
-  return run(async session => {
+  return run('publishing', async session => {
     assertCapability(session, PERMISSIONS.SOCIAL_PUBLISHING_APPROVE)
     await assertOwnedRecord(session, 'content_posts', postId)
 
@@ -203,6 +270,7 @@ export async function setApprovalDecision(
       .select('id, title, status, scheduled_at').eq('id', postId)
       .eq('workspace_id', session.ctx.workspaceId).single()
     if (!post) return fail('That post is not available.')
+    if (decision === 'reject' && !note?.trim()) return fail('Add a short reason so the author knows what to change.')
     if (post.status !== 'pending_approval') return fail('That post is not awaiting approval.')
 
     const status = decision === 'approve' ? (post.scheduled_at ? 'scheduled' : 'approved') : 'draft'
@@ -216,22 +284,23 @@ export async function setApprovalDecision(
     if (decision === 'approve' && post.scheduled_at) {
       await session.supabase.from('publishing_queue').update({ status: 'queued' })
         .eq('workspace_id', session.ctx.workspaceId).eq('post_id', postId).eq('status', 'skipped')
+      await queueDeliveries(session, postId, post.scheduled_at)
     }
 
     await logSocialActivity(session, {
       action: `social.post.${decision}`, entityType: 'content_post', entityId: postId,
       summary: `${decision === 'approve' ? 'Approved' : decision === 'reject' ? 'Rejected' : 'Requested changes on'} “${post.title ?? 'Untitled post'}”`,
       detail: note ?? null,
-      href: `/app/social/publishing?post=${postId}`,
+      href: `${session.basePath}/posts/${postId}`,
       severity: decision === 'approve' ? 'success' : 'warning',
     })
-    revalidateSocial()
+    revalidateSocial(session)
     return { ok: true, message: decision === 'approve' ? 'Post approved.' : 'Feedback recorded.' }
   })
 }
 
 export async function cancelScheduledPost(postId: string): Promise<ActionResult> {
-  return run(async session => {
+  return run('publishing', async session => {
     assertCapability(session, PERMISSIONS.SOCIAL_PUBLISHING_CANCEL)
     await assertOwnedRecord(session, 'content_posts', postId)
 
@@ -252,16 +321,16 @@ export async function cancelScheduledPost(postId: string): Promise<ActionResult>
     await logSocialActivity(session, {
       action: 'social.post.cancelled', entityType: 'content_post', entityId: postId,
       summary: `Cancelled “${post.title ?? 'Untitled post'}”`, severity: 'warning',
-      href: '/app/social/publishing',
+      href: `${session.basePath}/publishing`,
     })
-    revalidateSocial()
+    revalidateSocial(session)
     return { ok: true, message: 'Scheduled post cancelled.' }
   })
 }
 
 /** Retries only the channels that failed — successful channels are never re-sent. */
 export async function retryFailedDeliveries(postId: string): Promise<ActionResult> {
-  return run(async session => {
+  return run('publishing', async session => {
     assertCapability(session, PERMISSIONS.SOCIAL_PUBLISHING_PUBLISH)
     await assertOwnedRecord(session, 'content_posts', postId)
 
@@ -278,9 +347,9 @@ export async function retryFailedDeliveries(postId: string): Promise<ActionResul
     await logSocialActivity(session, {
       action: 'social.post.retried', entityType: 'content_post', entityId: postId,
       summary: `Requeued ${retryable.length} failed ${retryable.length === 1 ? 'delivery' : 'deliveries'}`,
-      href: '/app/social/publishing?view=queue',
+      href: `${session.basePath}/publishing?view=queue`,
     })
-    revalidateSocial()
+    revalidateSocial(session)
     return { ok: true, message: `${retryable.length} delivery requeued.` }
   })
 }
@@ -294,7 +363,7 @@ export async function sendReply(input: {
   sentiment?: string
   tags?: string[]
 }): Promise<ActionResult> {
-  return run(async session => {
+  return run('engagement', async session => {
     const isNote = input.mode === 'note' || input.mode === 'internal_comment'
     assertCapability(session, isNote ? PERMISSIONS.SOCIAL_ENGAGEMENT_VIEW : PERMISSIONS.SOCIAL_ENGAGEMENT_REPLY)
     if (!input.body.trim()) return fail('Write something before sending.')
@@ -347,16 +416,16 @@ export async function sendReply(input: {
       action: isNote ? 'social.conversation.note_added' : 'social.conversation.replied',
       entityType: 'inbox_thread', entityId: input.conversationId, channelId: thread.channel_id,
       summary: `${isNote ? 'Added an internal note on' : 'Replied to'} ${thread.sender_name ?? 'a conversation'}`,
-      href: `/app/social/engagement?conversation=${input.conversationId}`,
+      href: `${session.basePath}/conversations/${input.conversationId}`,
       severity: 'success',
     })
-    revalidatePath('/app/social/engagement')
+    revalidateSocial(session)
     return { ok: true, message: isNote ? 'Note added.' : 'Reply queued for delivery.' }
   })
 }
 
 export async function assignConversation(conversationId: string, assigneeId: string | null): Promise<ActionResult> {
-  return run(async session => {
+  return run('engagement', async session => {
     const access = canAccessSocialCapability(session.ctx, PERMISSIONS.SOCIAL_ENGAGEMENT_ASSIGN)
     if (!access.allowed) return fail(access.message)
     await assertOwnedRecord(session, 'inbox_threads', conversationId)
@@ -374,9 +443,9 @@ export async function assignConversation(conversationId: string, assigneeId: str
     await logSocialActivity(session, {
       action: 'social.conversation.assigned', entityType: 'inbox_thread', entityId: conversationId,
       summary: assigneeId ? 'Assigned a conversation' : 'Unassigned a conversation',
-      href: `/app/social/engagement?conversation=${conversationId}`,
+      href: `${session.basePath}/conversations/${conversationId}`,
     })
-    revalidatePath('/app/social/engagement')
+    revalidateSocial(session)
     return { ok: true, message: assigneeId ? 'Conversation assigned.' : 'Conversation unassigned.' }
   })
 }
@@ -391,7 +460,7 @@ export async function updateConversation(input: {
   sentiment?: 'positive' | 'neutral' | 'negative'
   priority?: 'low' | 'normal' | 'high' | 'urgent'
 }): Promise<ActionResult> {
-  return run(async session => {
+  return run('engagement', async session => {
     if (input.status === 'resolved' || input.status === 'done') {
       assertCapability(session, PERMISSIONS.SOCIAL_ENGAGEMENT_RESOLVE)
     } else if (input.isFlagged !== undefined || input.status === 'spam') {
@@ -429,9 +498,9 @@ export async function updateConversation(input: {
       summary: input.status === 'resolved' ? 'Resolved a conversation'
         : input.isFlagged ? 'Flagged a conversation for review'
         : 'Updated a conversation',
-      href: `/app/social/engagement?conversation=${input.conversationId}`,
+      href: `${session.basePath}/conversations/${input.conversationId}`,
     })
-    revalidatePath('/app/social/engagement')
+    revalidateSocial(session)
     return { ok: true, message: 'Conversation updated.' }
   })
 }
@@ -444,7 +513,7 @@ export async function updateMention(input: {
   isRead?: boolean
   isActioned?: boolean
 }): Promise<ActionResult> {
-  return run(async session => {
+  return run('listening', async session => {
     assertCapability(session, PERMISSIONS.SOCIAL_LISTENING_VIEW)
     await assertOwnedRecord(session, 'brand_mentions', input.mentionId)
     const patch: Record<string, unknown> = {}
@@ -456,7 +525,7 @@ export async function updateMention(input: {
     const { error } = await session.supabase.from('brand_mentions')
       .update(patch).eq('id', input.mentionId).eq('workspace_id', session.ctx.workspaceId)
     if (error) return fail('The mention could not be updated.')
-    revalidatePath('/app/social/listening')
+    revalidateSocial(session)
     return { ok: true, message: 'Mention updated.' }
   })
 }
@@ -478,7 +547,7 @@ export async function createAlertRule(input: {
   activeFrom?: string | null
   activeTo?: string | null
 }): Promise<ActionResult<{ id: string }>> {
-  return run(async session => {
+  return run('listening', async session => {
     const access = canAccessSocialCapability(session.ctx, PERMISSIONS.SOCIAL_LISTENING_CREATE_ALERT)
     if (!access.allowed) return fail<{ id: string }>(access.message)
     if (!input.name.trim()) return fail<{ id: string }>('Give the alert a name.')
@@ -513,35 +582,35 @@ export async function createAlertRule(input: {
       action: 'social.listening.alert_created', entityType: 'listening_alert_rule', entityId: data.id,
       summary: `Created listening alert “${input.name.trim()}”`,
       detail: `${input.keywords.length} keyword${input.keywords.length === 1 ? '' : 's'}, ${input.frequency} delivery`,
-      href: '/app/social/listening?view=alerts', severity: 'success',
+      href: `${session.basePath}/listening`, severity: 'success',
     })
-    revalidatePath('/app/social/listening')
+    revalidateSocial(session)
     return { ok: true, message: 'Alert created.', data: { id: data.id } }
   })
 }
 
 export async function setAlertRuleActive(ruleId: string, isActive: boolean): Promise<ActionResult> {
-  return run(async session => {
+  return run('listening', async session => {
     const access = canAccessSocialCapability(session.ctx, PERMISSIONS.SOCIAL_LISTENING_MANAGE_ALERT)
     if (!access.allowed) return fail(access.message)
     await assertOwnedRecord(session, 'listening_alert_rules', ruleId)
     await session.supabase.from('listening_alert_rules')
       .update({ is_active: isActive, updated_at: new Date().toISOString() })
       .eq('id', ruleId).eq('workspace_id', session.ctx.workspaceId)
-    revalidatePath('/app/social/listening')
+    revalidateSocial(session)
     return { ok: true, message: isActive ? 'Alert enabled.' : 'Alert paused.' }
   })
 }
 
 export async function resolveListeningAlert(alertId: string): Promise<ActionResult> {
-  return run(async session => {
+  return run('listening', async session => {
     const access = canAccessSocialCapability(session.ctx, PERMISSIONS.SOCIAL_LISTENING_MANAGE_ALERT)
     if (!access.allowed) return fail(access.message)
     await assertOwnedRecord(session, 'listening_alerts', alertId)
     await session.supabase.from('listening_alerts')
       .update({ status: 'resolved', resolved_at: new Date().toISOString(), is_read: true })
       .eq('id', alertId).eq('workspace_id', session.ctx.workspaceId)
-    revalidatePath('/app/social/listening')
+    revalidateSocial(session)
     return { ok: true, message: 'Alert resolved.' }
   })
 }
@@ -549,7 +618,7 @@ export async function resolveListeningAlert(alertId: string): Promise<ActionResu
 // ── Connections ──────────────────────────────────────────────────────────────
 
 export async function syncChannelNow(channelId: string): Promise<ActionResult> {
-  return run(async session => {
+  return run('connections', async session => {
     assertCapability(session, PERMISSIONS.SOCIAL_CONNECTIONS_SYNC)
     await assertOwnedRecord(session, 'social_channels', channelId)
 
@@ -557,6 +626,8 @@ export async function syncChannelNow(channelId: string): Promise<ActionResult> {
       .select('id').eq('workspace_id', session.ctx.workspaceId)
       .eq('channel_id', channelId).eq('status', 'running').maybeSingle()
     if (running) return fail('A sync is already running for this channel.')
+    const limited = await checkSocialRateLimit(session, 'social.connection.sync_started', 10, 10 * 60_000)
+    if (limited) return fail(limited)
 
     const { data: run, error } = await session.supabase.from('social_sync_runs').insert({
       workspace_id: session.ctx.workspaceId,
@@ -574,15 +645,15 @@ export async function syncChannelNow(channelId: string): Promise<ActionResult> {
 
     await logSocialActivity(session, {
       action: 'social.connection.sync_started', entityType: 'social_channel', entityId: channelId,
-      channelId, summary: 'Started a manual sync', href: '/app/social/connections',
+      channelId, summary: 'Started a manual sync', href: `${session.basePath}/connections`,
     })
-    revalidatePath('/app/social/connections')
+    revalidateSocial(session)
     return { ok: true, message: 'Sync started. Progress appears in Sync History.' }
   })
 }
 
 export async function disconnectChannel(channelId: string): Promise<ActionResult> {
-  return run(async session => {
+  return run('connections', async session => {
     assertCapability(session, PERMISSIONS.SOCIAL_CONNECTIONS_DISCONNECT)
     await assertOwnedRecord(session, 'social_channels', channelId)
 
@@ -604,21 +675,21 @@ export async function disconnectChannel(channelId: string): Promise<ActionResult
       channelId, severity: 'warning',
       summary: `Disconnected ${channel?.account_name ?? 'a channel'}`,
       detail: 'Queued posts for this channel were cancelled.',
-      href: '/app/social/connections',
+      href: `${session.basePath}/connections`,
     })
-    revalidateSocial()
+    revalidateSocial(session)
     return { ok: true, message: 'Channel disconnected. Queued posts for it were cancelled.' }
   })
 }
 
 export async function resolveConnectionIssue(issueId: string): Promise<ActionResult> {
-  return run(async session => {
+  return run('connections', async session => {
     assertCapability(session, PERMISSIONS.SOCIAL_CONNECTIONS_EDIT)
     await assertOwnedRecord(session, 'social_connection_issues', issueId)
     await session.supabase.from('social_connection_issues')
       .update({ status: 'resolved', resolved_at: new Date().toISOString() })
       .eq('id', issueId).eq('workspace_id', session.ctx.workspaceId)
-    revalidatePath('/app/social/connections')
+    revalidateSocial(session)
     return { ok: true, message: 'Issue marked as resolved.' }
   })
 }
@@ -632,7 +703,7 @@ export async function saveReportPreset(input: {
   config: Record<string, unknown>
   isDefault?: boolean
 }): Promise<ActionResult<{ id: string }>> {
-  return run(async session => {
+  return run('analytics', async session => {
     assertCapability(session, PERMISSIONS.SOCIAL_ANALYTICS_CREATE_REPORT)
     if (!input.name.trim()) return fail<{ id: string }>('Give the report a name.')
 
@@ -662,9 +733,9 @@ export async function saveReportPreset(input: {
 
     await logSocialActivity(session, {
       action: 'social.report.saved', entityType: 'social_report_preset', entityId: id,
-      summary: `Saved report “${input.name.trim()}”`, href: '/app/social/analytics', severity: 'success',
+      summary: `Saved report “${input.name.trim()}”`, href: `${session.basePath}/analytics`, severity: 'success',
     })
-    revalidatePath('/app/social/analytics')
+    revalidateSocial(session)
     return { ok: true, message: 'Report saved.', data: { id: id! } }
   })
 }
@@ -678,7 +749,7 @@ export async function scheduleReport(input: {
   sendTime: string
   timezone: string
 }): Promise<ActionResult> {
-  return run(async session => {
+  return run('analytics', async session => {
     const access = canAccessSocialCapability(session.ctx, PERMISSIONS.SOCIAL_ANALYTICS_SCHEDULE_REPORT)
     if (!access.allowed) return fail(access.message)
     await assertOwnedRecord(session, 'social_report_presets', input.presetId)
@@ -705,9 +776,141 @@ export async function scheduleReport(input: {
       action: 'social.report.scheduled', entityType: 'scheduled_report',
       summary: `Scheduled “${input.name.trim()}” ${input.frequency}`,
       detail: `${input.recipients.length} recipient${input.recipients.length === 1 ? '' : 's'} · ${input.format.toUpperCase()}`,
-      href: '/app/social/analytics', severity: 'success',
+      href: `${session.basePath}/analytics`, severity: 'success',
     })
-    revalidatePath('/app/social/analytics')
+    revalidateSocial(session)
     return { ok: true, message: 'Report scheduled.' }
+  })
+}
+
+// ── Additional publishing workflows ──────────────────────────────────────────
+
+/** Copies a post as a new draft. Schedule, approvals and delivery history are not copied. */
+export async function duplicatePost(postId: string): Promise<ActionResult<{ postId: string }>> {
+  return run('publishing', async session => {
+    assertCapability(session, PERMISSIONS.SOCIAL_PUBLISHING_CREATE)
+    const { data: post } = await session.supabase.from('content_posts')
+      .select('title, caption, hashtags, platforms, channel_id, campaign_id, post_type, media_urls, thumbnail_url, timezone, first_comment, link_in_bio_url')
+      .eq('id', postId).eq('workspace_id', session.ctx.workspaceId).maybeSingle()
+    if (!post) return fail<{ postId: string }>('That post is not available in this workspace.')
+    const { data, error } = await session.supabase.from('content_posts').insert({
+      ...post,
+      workspace_id: session.ctx.workspaceId,
+      title: `${post.title ?? 'Untitled post'} (copy)`,
+      status: 'draft',
+      scheduled_at: null,
+      created_by: session.userId,
+      owner_id: session.userId,
+    }).select('id').single()
+    if (error || !data) return fail<{ postId: string }>('The post could not be duplicated.')
+    await logSocialActivity(session, {
+      action: 'social.post.duplicated', entityType: 'content_post', entityId: data.id,
+      summary: `Duplicated “${post.title ?? 'Untitled post'}” as a draft`, href: `${session.basePath}/posts/${data.id}`,
+    })
+    revalidateSocial(session)
+    return { ok: true, message: 'Draft copy created.', data: { postId: data.id } }
+  })
+}
+
+/** Moves a draft or scheduled post into the approval queue; delivery waits for the decision. */
+export async function submitForApproval(postId: string): Promise<ActionResult> {
+  return run('publishing', async session => {
+    assertCapability(session, PERMISSIONS.SOCIAL_PUBLISHING_EDIT)
+    const { data: post } = await session.supabase.from('content_posts')
+      .select('id, title, status').eq('id', postId).eq('workspace_id', session.ctx.workspaceId).maybeSingle()
+    if (!post) return fail('That post is not available in this workspace.')
+    if (!['draft', 'approved', 'scheduled'].includes(post.status)) return fail('Only drafts and scheduled posts can be sent for approval.')
+    await session.supabase.from('content_posts')
+      .update({ status: 'pending_approval', approval_required: true, approved_at: null, approved_by: null, updated_at: new Date().toISOString() })
+      .eq('id', postId).eq('workspace_id', session.ctx.workspaceId)
+    await session.supabase.from('publishing_queue').update({ status: 'skipped' })
+      .eq('workspace_id', session.ctx.workspaceId).eq('post_id', postId).eq('status', 'queued')
+    await logSocialActivity(session, {
+      action: 'social.post.submitted', entityType: 'content_post', entityId: postId,
+      summary: `Requested approval for “${post.title ?? 'Untitled post'}”`, href: `${session.basePath}/posts/${postId}`,
+    })
+    revalidateSocial(session)
+    return { ok: true, message: 'Sent for approval.' }
+  })
+}
+
+/**
+ * Queues a post for immediate delivery. The worker makes the provider call;
+ * nothing is marked published until each provider confirms.
+ */
+export async function publishNow(postId: string): Promise<ActionResult> {
+  return run('publishing', async session => {
+    assertCapability(session, PERMISSIONS.SOCIAL_PUBLISHING_PUBLISH)
+    const { data: post } = await session.supabase.from('content_posts')
+      .select('id, title, status, platforms, approval_required, approved_at')
+      .eq('id', postId).eq('workspace_id', session.ctx.workspaceId).maybeSingle()
+    if (!post) return fail('That post is not available in this workspace.')
+    if (post.status === 'pending_approval' || (post.approval_required && !post.approved_at)) return fail('This post needs approval before it can be published.')
+    if (!['draft', 'approved', 'scheduled', 'queued'].includes(post.status)) return fail('This post cannot be published from its current state.')
+    const unsupported = ((post.platforms ?? []) as string[]).filter(platform => !capabilitiesFor(platform as SocialProvider).createPost)
+    if (unsupported.length) return fail(`${unsupported.join(', ')} does not support publishing through the API.`)
+
+    const when = new Date().toISOString()
+    await session.supabase.from('content_posts')
+      .update({ status: 'queued', scheduled_at: when, updated_at: when })
+      .eq('id', postId).eq('workspace_id', session.ctx.workspaceId)
+    await session.supabase.from('publishing_queue').update({ status: 'cancelled', cancelled_at: when })
+      .eq('workspace_id', session.ctx.workspaceId).eq('post_id', postId).in('status', ['queued', 'skipped'])
+    await queueDeliveries(session, postId, when)
+    await logSocialActivity(session, {
+      action: 'social.post.publish_requested', entityType: 'content_post', entityId: postId,
+      summary: `Queued “${post.title ?? 'Untitled post'}” to publish now`, href: `${session.basePath}/posts/${postId}`,
+    })
+    revalidateSocial(session)
+    return { ok: true, message: 'Queued for publishing. Status updates as each channel confirms.' }
+  })
+}
+
+// ── Additional connection and report management ─────────────────────────────
+
+export async function updateChannelTeam(channelId: string, teamLabel: string): Promise<ActionResult> {
+  return run('connections', async session => {
+    assertCapability(session, PERMISSIONS.SOCIAL_CONNECTIONS_EDIT)
+    await assertOwnedRecord(session, 'social_channels', channelId)
+    const label = teamLabel.trim().slice(0, 60)
+    if (!label) return fail('Enter a team name.')
+    await session.supabase.from('social_channels').update({ team_label: label, updated_at: new Date().toISOString() })
+      .eq('id', channelId).eq('workspace_id', session.ctx.workspaceId)
+    await logSocialActivity(session, {
+      action: 'social.connection.mapped', entityType: 'social_channel', entityId: channelId, channelId,
+      summary: `Mapped a channel to ${label}`, href: `${session.basePath}/connections/${channelId}`,
+    })
+    revalidateSocial(session)
+    return { ok: true, message: 'Team mapping updated.' }
+  })
+}
+
+export async function setReportScheduleActive(scheduleId: string, isActive: boolean): Promise<ActionResult> {
+  return run('analytics', async session => {
+    const access = canAccessSocialCapability(session.ctx, PERMISSIONS.SOCIAL_ANALYTICS_SCHEDULE_REPORT)
+    if (!access.allowed) return fail(access.message)
+    await assertOwnedRecord(session, 'scheduled_reports', scheduleId)
+    await session.supabase.from('scheduled_reports').update({ is_active: isActive, updated_at: new Date().toISOString() })
+      .eq('id', scheduleId).eq('workspace_id', session.ctx.workspaceId)
+    await logSocialActivity(session, {
+      action: isActive ? 'social.report.schedule_enabled' : 'social.report.schedule_disabled', entityType: 'scheduled_report', entityId: scheduleId,
+      summary: isActive ? 'Resumed a scheduled report' : 'Paused a scheduled report', href: `${session.basePath}/analytics`,
+    })
+    revalidateSocial(session)
+    return { ok: true, message: isActive ? 'Schedule resumed.' : 'Schedule paused.' }
+  })
+}
+
+export async function deleteReportPreset(presetId: string): Promise<ActionResult> {
+  return run('analytics', async session => {
+    assertCapability(session, PERMISSIONS.SOCIAL_ANALYTICS_CREATE_REPORT)
+    await assertOwnedRecord(session, 'social_report_presets', presetId)
+    await session.supabase.from('social_report_presets').delete().eq('id', presetId).eq('workspace_id', session.ctx.workspaceId)
+    await logSocialActivity(session, {
+      action: 'social.report.deleted', entityType: 'social_report_preset', entityId: presetId, severity: 'warning',
+      summary: 'Deleted a saved report', href: `${session.basePath}/analytics`,
+    })
+    revalidateSocial(session)
+    return { ok: true, message: 'Report deleted.' }
   })
 }

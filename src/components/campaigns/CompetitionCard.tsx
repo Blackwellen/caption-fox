@@ -1,4 +1,3 @@
-import Link from 'next/link'
 import { FileCheck2, Gavel, TrendingUp } from 'lucide-react'
 import { Badge } from '@/components/ui/Badge'
 import { cn } from '@/lib/utils'
@@ -11,6 +10,7 @@ import {
 } from '@/lib/campaigns/constants'
 import { COMPETITION_TYPE_LABELS } from '@/lib/constants'
 import type { CompetitionRow } from '@/lib/campaigns/types'
+import { CampaignLink } from './links'
 
 const COVER_TINTS = [
   'from-slate-200 via-slate-100 to-slate-200',
@@ -39,7 +39,7 @@ export default function CompetitionCard({
           <img src={competition.cover_url} alt="" className="h-[112px] w-full object-cover" />
         ) : (
           <div className={cn('flex h-[112px] w-full items-center justify-center bg-gradient-to-br px-4 text-center', tintFor(competition.id))}>
-            <span className="text-[13px] font-semibold uppercase tracking-wide text-slate-500">
+            <span className="text-[13px] lg:text-[10px] font-semibold uppercase tracking-wide text-slate-500">
               {COMPETITION_TYPE_LABELS[competition.competition_type] ?? competition.competition_type}
             </span>
           </div>
@@ -52,46 +52,46 @@ export default function CompetitionCard({
       </div>
 
       <div className="flex flex-1 flex-col p-3">
-        <Link
-          href={`/app/campaigns/competitions/${competition.id}`}
-          className="line-clamp-1 text-[13px] font-semibold text-slate-900 hover:text-blue-600"
+        <CampaignLink
+          to={`/competitions/${competition.id}`}
+          className="line-clamp-1 text-[13px] lg:text-[10px] font-semibold text-slate-900 hover:text-blue-600"
         >
           {competition.title}
-        </Link>
+        </CampaignLink>
 
         <div className="mt-1.5 flex items-center gap-1.5">
           <Avatar person={competition.owner} size={16} />
-          <span className="truncate text-[11px] text-slate-500">
+          <span className="truncate text-[11px] lg:text-[8.5px] text-slate-500">
             {competition.owner?.full_name ?? competition.owner?.email ?? 'Unassigned'}
           </span>
         </div>
 
         <dl className="mt-2.5 grid grid-cols-3 gap-2">
           <div className="min-w-0">
-            <dd className="flex items-center gap-1 text-[13px] font-bold text-slate-900">
+            <dd className="flex items-center gap-1 text-[13px] lg:text-[10px] font-bold text-slate-900">
               <FileCheck2 size={11} className="shrink-0 text-blue-500" />
               {formatNumber(competition.submission_count)}
             </dd>
-            <dt className="mt-0.5 truncate text-[10px] text-slate-400">Submissions</dt>
+            <dt className="mt-0.5 truncate text-[10px] lg:text-[8px] text-slate-400">Submissions</dt>
           </div>
           <div className="min-w-0">
-            <dd className="flex items-center gap-1 truncate text-[12px] font-semibold text-amber-600">
+            <dd className="flex items-center gap-1 truncate text-[12px] lg:text-[9.5px] font-semibold text-amber-600">
               <Gavel size={11} className="shrink-0" />
               {JUDGING_STAGE_LABELS[stage] ?? competition.judging_stage}
             </dd>
-            <dt className="mt-0.5 truncate text-[10px] text-slate-400">Judging stage</dt>
+            <dt className="mt-0.5 truncate text-[10px] lg:text-[8px] text-slate-400">Judging stage</dt>
           </div>
           <div className="min-w-0">
-            <dd className="flex items-center gap-1 text-[13px] font-bold text-emerald-600">
+            <dd className="flex items-center gap-1 text-[13px] lg:text-[10px] font-bold text-emerald-600">
               <TrendingUp size={11} className="shrink-0" />
               {Number(competition.engagement_rate ?? 0).toFixed(1)}%
             </dd>
-            <dt className="mt-0.5 truncate text-[10px] text-slate-400">Engagement</dt>
+            <dt className="mt-0.5 truncate text-[10px] lg:text-[8px] text-slate-400">Engagement</dt>
           </div>
         </dl>
 
         <div className="mt-2.5 flex items-center gap-2">
-          <span className="shrink-0 whitespace-nowrap text-[11px] text-slate-500">
+          <span className="shrink-0 whitespace-nowrap text-[11px] lg:text-[8.5px] text-slate-500">
             Due: {formatShortDate(competition.end_date)}
           </span>
           <span className="ml-auto">
@@ -103,7 +103,7 @@ export default function CompetitionCard({
 
         <div className="mt-2 flex items-center gap-2">
           <ProgressBar value={competition.progress} health={competition.health} label={`${competition.title} progress`} />
-          <span className="w-8 shrink-0 text-right text-[11px] font-semibold text-slate-700">{competition.progress}%</span>
+          <span className="w-8 shrink-0 text-right text-[11px] lg:text-[8.5px] font-semibold text-slate-700">{competition.progress}%</span>
         </div>
 
         <div className="mt-2.5 border-t border-slate-100 pt-2.5">

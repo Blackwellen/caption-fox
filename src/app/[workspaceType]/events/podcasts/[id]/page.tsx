@@ -76,10 +76,10 @@ export default async function PodcastEpisodeDetailPage({
       {tab === 'overview' && (
         <div className="space-y-4">
           <KpiStrip>
-            <KpiCard label="Listens" tone="blue" icon={<Headphones size={17} />} value={formatNumber(episode.listens)} comparison="Total" />
-            <KpiCard label="Unique Listeners" tone="violet" icon={<Headphones size={17} />} value={formatNumber(episode.unique_listeners)} comparison="Total" />
-            <KpiCard label="Completion Rate" tone="emerald" icon={<TrendingUp size={17} />} value={formatRate(episode.completion_rate)} comparison="Average" />
-            <KpiCard label="Distribution" tone="amber" icon={<Mic size={17} />} value={titleCase(episode.distribution_state)} comparison="Current state" />
+            <KpiCard label="Listens" tone="blue" icon={<Headphones size={15} />} value={formatNumber(episode.listens)} comparison="Total" />
+            <KpiCard label="Unique Listeners" tone="violet" icon={<Headphones size={15} />} value={formatNumber(episode.unique_listeners)} comparison="Total" />
+            <KpiCard label="Completion Rate" tone="emerald" icon={<TrendingUp size={15} />} value={formatRate(episode.completion_rate)} comparison="Average" />
+            <KpiCard label="Distribution" tone="amber" icon={<Mic size={15} />} value={titleCase(episode.distribution_state)} comparison="Current state" />
           </KpiStrip>
           <Panel title="Summary">
             {episode.summary ? (

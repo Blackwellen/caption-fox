@@ -51,7 +51,7 @@ export function ImportKitForm({ workspaceType, brands, base }: { workspaceType: 
         <label className="flex cursor-pointer items-center gap-3 rounded-lg border border-dashed border-slate-300 px-4 py-4 hover:border-blue-400 hover:bg-blue-50/30">
           <FileJson size={22} className="shrink-0 text-blue-600" aria-hidden="true" />
           <span className="min-w-0 flex-1 text-[13px] text-slate-700">{fileName || 'Select a file…'}</span>
-          <input type="file" accept=".json,application/json" className="sr-only" onChange={e => onFile(e.target.files?.[0])} aria-label="Brand kit file" />
+          <input type="file" name="kitFile" accept=".json,application/json" className="sr-only" onChange={e => onFile(e.target.files?.[0])} aria-label="Brand kit file" />
           <span className={btn.secondary}>Browse</span>
         </label>
       </section>
@@ -61,11 +61,11 @@ export function ImportKitForm({ workspaceType, brands, base }: { workspaceType: 
           <h2 className="mb-3 text-[14px] font-semibold text-slate-900">2. Review and name the new kit</h2>
           <div className="mb-3 grid gap-3 sm:grid-cols-2">
             <label className="block text-[12px] font-medium text-slate-700">Kit name
-              <input value={name} onChange={e => setName(e.target.value)} required minLength={2} maxLength={120}
+              <input name="name" value={name} onChange={e => setName(e.target.value)} required minLength={2} maxLength={120}
                 className="mt-1 h-10 w-full rounded-lg border border-slate-200 px-3 text-[13px] focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30" />
             </label>
             <label className="block text-[12px] font-medium text-slate-700">Brand in this workspace
-              <select value={brandId} onChange={e => setBrandId(e.target.value)} required
+              <select name="brandId" value={brandId} onChange={e => setBrandId(e.target.value)} required
                 className="mt-1 h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-[13px] focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30">
                 {brands.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
               </select>

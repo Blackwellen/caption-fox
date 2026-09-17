@@ -1,12 +1,13 @@
 import {
-  Activity, AtSign, BadgeCheck, BarChart3, Eye, Gauge, Globe2, Lightbulb, Link2, LinkIcon,
-  MapPin, Minus, MousePointerClick, Search, ShieldCheck, Star, TrendingDown, TrendingUp, Users,
+  Activity, ArrowDown, ArrowUp, AtSign, BadgeCheck, BarChart3, ClipboardCheck, Eye, FileText, Gauge, Globe2, Lightbulb,
+  Link2, LinkIcon, Loader, MapPin, Minus, MousePointerClick, Puzzle as PuzzleIcon, Rocket, Search,
+  ShieldCheck, Star, TrendingDown, TrendingUp, Users,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { absoluteChange, formatKpi, percentChange } from '@/lib/seo/format'
 import { humanise } from '@/lib/seo/format'
 import type { SeoKpi } from '@/lib/seo/types'
-import { Card, InfoTip } from './primitives'
+import { Card } from './primitives'
 import { Spark } from './charts'
 
 const ICONS: Record<string, typeof Search> = {
@@ -40,8 +41,12 @@ const ICONS: Record<string, typeof Search> = {
   new: TrendingUp,
   lost: TrendingDown,
   toxic: TrendingDown,
-  briefs: BarChart3,
-  gaps: Lightbulb,
+  briefs: FileText,
+  'in-progress': Loader,
+  'awaiting-review': ClipboardCheck,
+  published: Rocket,
+  gaps: PuzzleIcon,
+  'traffic-potential': TrendingUp,
 }
 
 /**
@@ -67,26 +72,28 @@ function KpiCard({ kpi, compareLabel }: { kpi: SeoKpi; compareLabel: string }) {
 
   const flat = change == null || Math.abs(change) < 0.05
   const good = kpi.invert ? (change ?? 0) < 0 : (change ?? 0) > 0
-  const ChangeIcon = flat ? Minus : good ? TrendingUp : TrendingDown
+  const ChangeIcon = flat ? Minus : (change ?? 0) > 0 ? ArrowUp : ArrowDown
   const tone = flat ? 'text-slate-400' : good ? 'text-emerald-600' : 'text-red-600'
+  const definition = `${kpi.tooltip} Source: ${humanise(kpi.source)}.`
 
+  // Reference layout: tinted icon beside a label/value stack, comparison line
+  // underneath and a full-width sparkline. The metric definition stays
+  // available on hover and to assistive technology rather than as a glyph.
   return (
-    <Card className="flex flex-col gap-2 p-4">
-      <div className="flex items-start gap-2">
-        <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
-          <Icon size={14} aria-hidden />
+    <Card className="flex flex-col px-3.5 pb-2 pt-3" title={definition}>
+      <div className="flex items-start gap-2.5">
+        <span className={cn('flex h-8 w-8 shrink-0 items-center justify-center rounded-lg', kpi.invert ? 'bg-rose-50 text-rose-600' : 'bg-blue-50 text-blue-600')}>
+          <Icon size={16} aria-hidden />
         </span>
         <div className="min-w-0 flex-1">
-          <p className="flex items-center gap-1 text-[12px] font-medium leading-tight text-slate-600">
-            <span className="truncate">{kpi.label}</span>
-            <InfoTip text={`${kpi.tooltip} Source: ${humanise(kpi.source)}.`} />
-          </p>
-          <p className="mt-1 flex items-baseline gap-1.5">
-            <span className={cn('text-[22px] font-bold leading-none tracking-tight', empty ? 'text-slate-300' : 'text-slate-900')}>
+          <p className="truncate text-[12.5px] font-medium leading-tight text-slate-700">{kpi.label}</p>
+          <p className="sr-only">{definition}</p>
+          <p className="mt-1 flex flex-wrap items-baseline gap-x-1.5">
+            <span className={cn('text-[21px] font-semibold leading-none tracking-tight', empty ? 'text-slate-300' : 'text-slate-900')}>
               {empty ? '—' : formatKpi(kpi.value, kpi.format)}
             </span>
             {change != null && (
-              <span className={cn('inline-flex items-center gap-0.5 text-[11px] font-semibold', tone)}>
+              <span className={cn('inline-flex items-center gap-0.5 text-[11.5px] font-medium', tone)}>
                 <ChangeIcon size={11} aria-hidden />
                 <span className="sr-only">{flat ? 'no change' : good ? 'improved by' : 'worsened by'} </span>
                 {Math.abs(change).toLocaleString('en-GB', { maximumFractionDigits: 1 })}{suffix}
@@ -95,8 +102,13 @@ function KpiCard({ kpi, compareLabel }: { kpi: SeoKpi; compareLabel: string }) {
           </p>
         </div>
       </div>
-      <p className="text-[11px] text-slate-400">{empty ? 'Awaiting first sync' : compareLabel}</p>
-      <Spark data={kpi.spark} tone={kpi.invert && !good && !flat ? '#EF4444' : '#2563EB'} />
+
+      <p className="mt-2 truncate text-[11px] leading-none text-slate-500">{empty ? 'Awaiting first sync' : compareLabel}</p>
+      {kpi.spark.filter(point => point.value != null).length >= 2 && (
+        <div className="mt-1">
+          <Spark data={kpi.spark} tone={kpi.invert && !good && !flat ? '#EF4444' : '#2563EB'} />
+        </div>
+      )}
     </Card>
   )
 }

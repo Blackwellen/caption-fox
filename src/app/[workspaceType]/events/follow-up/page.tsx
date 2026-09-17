@@ -12,7 +12,7 @@ import { ChartLegend, OutreachChart } from '@/components/events/charts'
 import { ActivityPanel } from '@/components/events/records'
 import {
   EventsEmptyState, EventsPageHeader, KpiCard, KpiStrip, Panel, PanelLink,
-  StatusBadge, TimelineDot,
+  DeltaTriangle, StatusBadge, TimelineDot,
 } from '@/components/events/primitives'
 import { getEventsPageContext, parseEventsFilters } from '@/lib/events/page-context'
 import {
@@ -20,7 +20,7 @@ import {
   getGalaDockState, getOutreachTrend, listEvents, listFollowUpSequences,
   listFollowUpTasks, listRecentRegistrationsToFollowUp,
 } from '@/lib/events/queries'
-import { formatEventDate, formatNumber, formatRate, formatRelative, titleCase } from '@/lib/events/format'
+import { formatChange, formatEventDate, formatNumber, formatRate, formatRelative, titleCase } from '@/lib/events/format'
 import type { EventViewMode, FollowUpTaskWithRelations } from '@/lib/events/types'
 
 export const dynamic = 'force-dynamic'
@@ -121,21 +121,21 @@ export default async function FollowUpPage({
       />
 
       <KpiStrip>
-        <KpiCard label="Follow-up Tasks" tone="blue" icon={<Users size={17} />}
+        <KpiCard label="Follow-up Tasks" tone="blue" icon={<Users size={18} />}
           value={formatNumber(kpis.tasks.value)} comparison="All open and completed" />
-        <KpiCard label="Leads to Contact" tone="violet" icon={<Mail size={17} />}
+        <KpiCard label="Leads to Contact" tone="violet" icon={<Mail size={18} />}
           value={formatNumber(kpis.leadsToContact.value)} comparison="Not yet contacted" />
-        <KpiCard label="Responses" tone="emerald" icon={<MessageSquare size={17} />}
+        <KpiCard label="Responses" tone="emerald" icon={<MessageSquare size={18} />}
           value={formatNumber(kpis.responses.value)} kpi={kpis.responses}
           comparison={`vs last ${filters.range} days`} />
-        <KpiCard label="Meetings Booked" tone="amber" icon={<CalendarCheck size={17} />}
+        <KpiCard label="Meetings Booked" tone="amber" icon={<CalendarCheck size={18} />}
           value={formatNumber(kpis.meetingsBooked.value)} kpi={kpis.meetingsBooked}
           comparison={`vs last ${filters.range} days`} />
-        <KpiCard label="Conversion Rate" tone="indigo" icon={<TrendingUp size={17} />}
+        <KpiCard label="Conversion Rate" tone="indigo" icon={<TrendingUp size={18} />}
           value={formatRate(kpis.conversionRate.value)} kpi={kpis.conversionRate}
           comparison={`vs last ${filters.range} days`}
           tooltip="Conversions divided by outreach emails sent in the period." />
-        <KpiCard label="Outstanding Actions" tone="rose" icon={<AlertCircle size={17} />}
+        <KpiCard label="Outstanding Actions" tone="rose" icon={<AlertCircle size={18} />}
           value={formatNumber(kpis.outstandingActions.value)} comparison="Past due" />
       </KpiStrip>
 
@@ -148,18 +148,20 @@ export default async function FollowUpPage({
         dismissed={gala.dismissedPlacements.includes('follow-up-banner')}
         title="Elevate your next event with Gala Dock"
         body="The all-in-one platform for event management, ticketing, sponsors and attendee engagement."
-        className="mb-5"
+        className="mb-3.5"
       />
 
-      <div className="mb-4 flex flex-wrap items-center gap-3">
-        <div className="min-w-[280px] flex-1">
+      <div className="mb-3.5 grid grid-cols-1 items-center gap-3.5 xl:grid-cols-[791fr_380fr]">
+        <div className="min-w-0">
           <EventsFilterBar
+            variant="inline"
+            showMoreFilters={false}
             searchPlaceholder="Search follow-up tasks, leads, sequences..."
             dateRangeLabel="Date Range"
             filters={[
-              { key: 'event', label: 'Event', options: events.events.map(event => ({ value: event.id, label: event.name })) },
+              { key: 'event', label: 'Event', width: 72, options: events.events.map(event => ({ value: event.id, label: event.name })) },
               {
-                key: 'status', label: 'Status', allLabel: 'All Statuses',
+                key: 'status', label: 'Status', allLabel: 'All Statuses', width: 72,
                 options: [
                   { value: 'not_started', label: 'Not started' },
                   { value: 'in_progress', label: 'In progress' },
@@ -167,29 +169,33 @@ export default async function FollowUpPage({
                   { value: 'completed', label: 'Completed' },
                 ],
               },
-              { key: 'sequence', label: 'Sequence', options: sequences.map(sequence => ({ value: sequence.id, label: sequence.name })) },
-              { key: 'owner', label: 'Owner', options: owners.map(owner => ({ value: owner.id, label: owner.name })) },
+              { key: 'sequence', label: 'Sequence', width: 90, options: sequences.map(sequence => ({ value: sequence.id, label: sequence.name })) },
+              { key: 'owner', label: 'Owner', width: 76, options: owners.map(owner => ({ value: owner.id, label: owner.name })) },
             ]}
           />
         </div>
-        <ViewSwitcher views={allowedViews} active={filters.view} />
+        <div className="min-w-0 rounded-xl border border-slate-200 bg-white px-3 py-2">
+          <ViewSwitcher views={allowedViews} active={filters.view} fill />
+        </div>
       </div>
 
-      <div className="mb-4 grid gap-4 xl:grid-cols-[1.25fr_1fr_1fr]">
-        <Panel title="Outreach Performance" action={<RangePicker value={filters.range} />}>
-          <dl className="mb-2 grid grid-cols-4 gap-2 border-b border-slate-100 pb-3">
+      <div className="mb-3.5 grid grid-cols-1 gap-3.5 xl:grid-cols-[433fr_348fr_380fr]">
+        <Panel title="Outreach Performance" action={<RangePicker value={filters.range} />} contentClassName="px-4 pb-3 pt-4">
+          <dl className="mb-4 grid grid-cols-4 gap-2">
             <Metric label="Emails Sent" value={formatNumber(totals.sent)} />
             <Metric label="Open Rate" value={formatRate(totals.sent ? totals.opened / totals.sent : null)} />
             <Metric label="Reply Rate" value={formatRate(totals.sent ? totals.replied / totals.sent : null)} />
-            <Metric label="Meetings" value={formatNumber(totals.meetings)} />
+            <Metric label="Meetings Booked" value={formatNumber(totals.meetings)} change={kpis.meetingsBooked.changePct} />
           </dl>
-          <ChartLegend items={[
-            { label: 'Emails Sent', colour: '#2563eb' },
-            { label: 'Opens', colour: '#7c3aed' },
-            { label: 'Replies', colour: '#10b981' },
-          ]} />
-          <div className="mt-2"><OutreachChart data={trend} height={185} /></div>
-          <p className="mt-2 text-[11px] text-slate-400">
+          <div className="pl-6">
+            <ChartLegend items={[
+              { label: 'Emails Sent', colour: '#2563eb' },
+              { label: 'Opens', colour: '#7c3aed' },
+              { label: 'Replies', colour: '#10b981' },
+            ]} />
+          </div>
+          <div className="mt-2"><OutreachChart data={trend} height={150} /></div>
+          <p className="mt-1 text-[10px] text-slate-400">
             Opens are counted only where the sending provider reports them.
           </p>
         </Panel>
@@ -207,33 +213,36 @@ export default async function FollowUpPage({
               />
             </div>
           ) : (
-            <ul className="divide-y divide-slate-50">
-              {recent.map(person => (
-                <li key={person.id} className="flex items-center gap-2.5 px-4 py-2.5">
-                  <TimelineDot state={person.followUpStatus === 'not_contacted' ? 'upcoming' : 'live'} />
-                  <Avatar name={person.name} src={person.avatarUrl} size={30} />
+            <ol className="px-4 py-2">
+              {recent.map((person, index) => (
+                <li key={person.id} className="relative flex min-h-[47px] items-start gap-2.5 py-[5px]">
+                  {index < recent.length - 1 && (
+                    <span className="absolute left-[3.5px] top-[17px] h-[calc(100%-6px)] w-px bg-slate-200" aria-hidden />
+                  )}
+                  <TimelineDot state={person.followUpStatus === 'not_contacted' ? 'completed' : 'live'} />
+                  <Avatar name={person.name} src={person.avatarUrl} size={24} />
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate text-[12.5px] font-semibold text-slate-900">{person.name}</span>
-                    <span className="block truncate text-[11px] text-slate-500">
-                      {person.eventName ?? 'Unassigned event'} · Registered {formatRelative(person.registeredAt)}
-                    </span>
+                    <span className="block truncate text-[10.5px] font-semibold leading-tight text-slate-900">{person.name}</span>
+                    <span className="block truncate text-[10px] leading-snug text-slate-500">{person.eventName ?? 'Unassigned event'}</span>
+                    <span className="block truncate text-[10px] leading-snug text-slate-400">Registered {formatRelative(person.registeredAt)}</span>
                   </span>
                   <StatusBadge
-                    status={person.followUpStatus === 'not_contacted' ? 'not_started' : person.followUpStatus}
+                    status={person.followUpStatus === 'not_contacted' ? 'upcoming' : person.followUpStatus}
                     label={person.followUpStatus === 'not_contacted' ? 'Not Contacted' : titleCase(person.followUpStatus)}
+                    className="mt-0.5 px-1.5 py-[1px] text-[10px]"
                   />
                 </li>
               ))}
-            </ul>
+            </ol>
           )}
         </Panel>
 
         <ActivityPanel activity={activity} viewAllHref={`${page.basePath}/follow-up`} />
       </div>
 
-      <div className="grid gap-4 xl:grid-cols-[1.9fr_1fr]">
-        <div className="space-y-4">
-          <Panel title="Follow-up Tasks" contentClassName="p-4">
+      <div className="grid grid-cols-1 gap-3.5 xl:grid-cols-[586fr_218fr_355fr]">
+        <div className="min-w-0">
+          <Panel title="Follow-up Tasks" contentClassName="p-2.5" className="h-full">
             {tasks.length === 0 ? (
               <EventsEmptyState
                 title={filters.q ? `No tasks match “${filters.q}”` : 'No follow-up tasks yet'}
@@ -258,15 +267,14 @@ export default async function FollowUpPage({
               />
             )}
           </Panel>
+        </div>
 
+        <div className="min-w-0">
           <Panel
             title="Follow-up Playbook"
+            className="h-full"
+            contentClassName="px-4 py-3"
             description={activeSequence ? activeSequence.name : undefined}
-            action={
-              page.can('followUp.sequences')
-                ? <PanelLink href={`${page.basePath}/follow-up/sequences`}>Manage sequences</PanelLink>
-                : undefined
-            }
           >
             {!activeSequence || activeSequence.steps.length === 0 ? (
               <EventsEmptyState
@@ -274,30 +282,33 @@ export default async function FollowUpPage({
                 description="A sequence turns a registration list into a scheduled outreach plan — thank-you, value follow-up, then a personal touch."
               />
             ) : (
-              <ol className="space-y-3">
+              <ol>
                 {activeSequence.steps.map((step, index) => (
-                  <li key={step.id} className="flex gap-3">
+                  <li key={step.id} className="flex gap-2.5">
                     <span className="flex flex-col items-center">
                       <TimelineDot state={index === 0 ? 'completed' : index === 1 ? 'live' : 'upcoming'} />
                       {index < activeSequence.steps.length - 1 && (
                         <span className="mt-1 w-px flex-1 bg-slate-200" aria-hidden />
                       )}
                     </span>
-                    <span className="pb-2">
-                      <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-400">
-                        Day {step.delay_days}
-                      </span>
-                      <span className="block text-[13px] font-semibold text-slate-900">{step.title}</span>
-                      {step.body && <span className="mt-0.5 block text-[11.5px] text-slate-500">{step.body}</span>}
+                    <span className="w-[38px] shrink-0 pt-[3px] text-[10px] text-slate-600">Day {step.delay_days}</span>
+                    <span className="min-w-0 pb-4">
+                      <span className="block text-[10px] font-semibold leading-snug text-slate-900">{step.title}</span>
+                      {step.body && <span className="mt-0.5 block text-[10px] leading-snug text-slate-500">{step.body}</span>}
                     </span>
                   </li>
                 ))}
               </ol>
             )}
+            {page.can('followUp.sequences') && (
+              <div className="mt-1 text-center">
+                <PanelLink href={`${page.basePath}/follow-up/sequences`}>Manage sequences →</PanelLink>
+              </div>
+            )}
           </Panel>
         </div>
 
-        <div className="space-y-4">
+        <div className="min-w-0 space-y-3.5">
           <Panel
             title="Reminders"
             action={<PanelLink href={`${page.basePath}/follow-up?status=not_started`}>View All</PanelLink>}
@@ -316,8 +327,8 @@ export default async function FollowUpPage({
               />
               <Reminder
                 icon={<CalendarCheck size={14} />} tone="emerald"
-                title={`${reminders.meetingsThisWeek} ${reminders.meetingsThisWeek === 1 ? 'meeting' : 'meetings'} this week`}
-                body="Keep track of scheduled calls"
+                title={`${reminders.meetingsThisWeek} ${reminders.meetingsThisWeek === 1 ? 'meeting' : 'meetings'} booked this week`}
+                body="Booked from follow-up in the last 7 days"
               />
             </ul>
           </Panel>
@@ -336,14 +347,14 @@ export default async function FollowUpPage({
                   <li key={owner.id} className="flex items-center gap-2.5 px-4 py-3">
                     <Avatar name={owner.name} src={owner.avatarUrl} size={30} />
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate text-[12.5px] font-semibold text-slate-900">{owner.name}</span>
-                      <span className="block text-[11px] text-slate-500">{owner.total} tasks</span>
+                      <span className="block truncate text-[11.5px] font-semibold text-slate-900">{owner.name}</span>
+                      <span className="block text-[10px] text-slate-500">{owner.total} tasks</span>
                     </span>
                     <span className="flex w-[110px] shrink-0 items-center gap-2">
                       <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-100" aria-hidden>
                         <span className="block h-full rounded-full bg-blue-600" style={{ width: `${owner.completionRate * 100}%` }} />
                       </span>
-                      <span className="text-[11.5px] font-semibold text-slate-700">{formatRate(owner.completionRate, 0)}</span>
+                      <span className="text-[10.5px] font-semibold text-slate-700">{formatRate(owner.completionRate, 0)}</span>
                     </span>
                   </li>
                 ))}
@@ -356,11 +367,21 @@ export default async function FollowUpPage({
   )
 }
 
-function Metric({ label, value }: { label: string; value: string }) {
+function Metric({ label, value, change }: { label: string; value: string; change?: number | null }) {
+  const hasChange = change !== null && change !== undefined
+  const positive = (change ?? 0) >= 0
   return (
     <div className="min-w-0">
-      <dd className="text-[17px] font-bold leading-tight text-slate-900">{value}</dd>
-      <dt className="mt-0.5 truncate text-[10.5px] text-slate-500" title={label}>{label}</dt>
+      <dt className="truncate text-[10px] text-slate-500" title={label}>{label}</dt>
+      <dd className="mt-1 flex items-baseline gap-1.5 whitespace-nowrap">
+        <span className="text-[15px] font-semibold leading-tight text-slate-900">{value}</span>
+        {hasChange && (
+          <span className={`inline-flex items-center gap-0.5 text-[10px] font-medium ${positive ? 'text-emerald-600' : 'text-rose-500'}`}>
+            <DeltaTriangle positive={positive} />
+            {formatChange(change).replace(/^[+-]/, '')}
+          </span>
+        )}
+      </dd>
     </div>
   )
 }
@@ -377,8 +398,8 @@ function Reminder({
     <li className="flex items-start gap-2.5 px-4 py-3">
       <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg ${tones[tone]}`} aria-hidden>{icon}</span>
       <span className="min-w-0">
-        <span className="block text-[12.5px] font-semibold text-slate-900">{title}</span>
-        <span className="block text-[11px] text-slate-500">{body}</span>
+        <span className="block text-[11.5px] font-semibold text-slate-900">{title}</span>
+        <span className="block text-[10px] text-slate-500">{body}</span>
       </span>
     </li>
   )
@@ -386,11 +407,11 @@ function Reminder({
 
 function TaskTable({ tasks, timezone }: { tasks: FollowUpTaskWithRelations[]; timezone: string }) {
   return (
-    <div className="overflow-x-auto">
+    <div className="relative overflow-x-auto">
       <table className="w-full min-w-[760px] border-collapse text-left">
         <caption className="sr-only">Follow-up tasks</caption>
         <thead>
-          <tr className="border-b border-slate-100 text-[11.5px] font-semibold uppercase tracking-wide text-slate-500">
+          <tr className="border-b border-slate-100 text-[10.5px] font-semibold uppercase tracking-wide text-slate-500">
             <th scope="col" className="px-3 py-3">Task</th>
             <th scope="col" className="px-3 py-3">Contact</th>
             <th scope="col" className="px-3 py-3">Event</th>
@@ -435,7 +456,7 @@ function TaskTimeline({ tasks, timezone }: { tasks: FollowUpTaskWithRelations[];
           <span className="absolute -left-[23px] top-3 h-2.5 w-2.5 rounded-full border-2 border-white bg-blue-600" aria-hidden />
           <div className="rounded-lg border border-slate-200 p-3">
             <p className="text-[13px] font-semibold text-slate-900">{task.title}</p>
-            <p className="mt-0.5 text-[11.5px] text-slate-500">
+            <p className="mt-0.5 text-[10.5px] text-slate-500">
               Due {formatEventDate(task.due_at, timezone)}
               {task.contactName && <> · {task.contactName}</>}
               {task.ownerName && <> · Owner {task.ownerName}</>}

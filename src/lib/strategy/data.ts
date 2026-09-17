@@ -61,7 +61,7 @@ export async function listStrategyRecords(
 const OBJECTIVE_COLUMNS = `
   id, workspace_id, strategy_id, name, description, objective_type, status, progress,
   confidence, priority, target_summary, next_action, owner_id, start_date, due_date,
-  tags, archived_at, created_at, updated_at,
+  tags, ref_number, completed_at, archived_at, created_at, updated_at,
   owner:profiles!strategy_objectives_owner_id_fkey(id, full_name, email, avatar_url),
   strategy:strategy_records!strategy_objectives_strategy_id_fkey(id, name)
 `
@@ -86,9 +86,11 @@ function sortFor(sort: string, fallback: string): { column: string; ascending: b
 /** Priority is semantic, so it sorts in code after the query returns. */
 function applyPrioritySort<T extends { priority?: string }>(rows: T[], sort: string): T[] {
   if (sort !== 'priority') return rows
-  return [...rows].sort((a, b) =>
-    (PRIORITY_RANK[(a.priority ?? 'medium') as StrategyPriority] ?? 9)
-    - (PRIORITY_RANK[(b.priority ?? 'medium') as StrategyPriority] ?? 9))
+  // Stable: equal priorities keep the database order (due date, then id).
+  return rows.map((row, index) => ({ row, index })).sort((a, b) =>
+    ((PRIORITY_RANK[(a.row.priority ?? 'medium') as StrategyPriority] ?? 9)
+    - (PRIORITY_RANK[(b.row.priority ?? 'medium') as StrategyPriority] ?? 9)) || a.index - b.index)
+    .map(item => item.row)
 }
 
 export async function listObjectives(
@@ -117,7 +119,12 @@ export async function listObjectives(
     // Stable secondary key so pagination never duplicates or skips a record.
     .order('id', { ascending: true })
 
-  if (opts.paginate) {
+  // Priority is semantic (urgent > high > …), so the database cannot order by
+  // it. Fetch the filtered set (bounded), sort in code, then page — otherwise
+  // each page would only be sorted within itself.
+  const semantic = q.sort === 'priority'
+  if (semantic) builder = builder.limit(1000)
+  else if (opts.paginate) {
     const start = (q.page - 1) * q.size
     builder = builder.range(start, start + q.size - 1)
   } else if (opts.limit) {
@@ -126,11 +133,12 @@ export async function listObjectives(
 
   const { data, error, count } = await builder
   if (error) return EMPTY<ObjectiveRow>(error.message)
-  return {
-    rows: applyPrioritySort((data ?? []) as unknown as ObjectiveRow[], q.sort),
-    total: count ?? 0,
-    error: null,
+  let rows = applyPrioritySort((data ?? []) as unknown as ObjectiveRow[], q.sort)
+  if (semantic) {
+    if (opts.paginate) rows = rows.slice((q.page - 1) * q.size, q.page * q.size)
+    else if (opts.limit) rows = rows.slice(0, opts.limit)
   }
+  return { rows, total: count ?? 0, error: null }
 }
 
 export async function getObjective(
@@ -224,13 +232,26 @@ export async function resolveLinks(
     }
   }))
 
+  // Linked audiences are shown as their lead persona's photo, fetched in one query.
+  const audienceAvatars = new Map<string, string>()
+  const audienceIds = [...(byType.get('audience') ?? [])]
+  if (audienceIds.length) {
+    const { data } = await supabase.from('strategy_audience_personas').select('audience_id, avatar_url')
+      .eq('workspace_id', workspaceId).in('audience_id', audienceIds).not('avatar_url', 'is', null).order('sort_order')
+    for (const row of (data ?? []) as { audience_id: string; avatar_url: string }[]) {
+      if (!audienceAvatars.has(row.audience_id)) audienceAvatars.set(row.audience_id, row.avatar_url)
+    }
+  }
+
   for (const pair of pairs) {
     const spec = TABLES[pair.type]
     if (!spec || !result[pair.owner]) continue
     const name = names.get(`${pair.type}:${pair.id}`)
     if (!name) continue
     const bucket = result[pair.owner][spec.bucket]
-    if (!bucket.some(item => item.id === pair.id)) bucket.push({ id: pair.id, name })
+    if (!bucket.some(item => item.id === pair.id)) {
+      bucket.push(pair.type === 'audience' ? { id: pair.id, name, avatar_url: audienceAvatars.get(pair.id) ?? null } : { id: pair.id, name })
+    }
   }
 
   return result
@@ -381,7 +402,7 @@ export async function audienceAggregates(supabase: SupabaseClient, workspaceId: 
 // ── Research ─────────────────────────────────────────────────────────────────
 
 const RESEARCH_COLUMNS = `
-  id, workspace_id, collection_id, title, summary, source_type, impact, confidence,
+  id, workspace_id, collection_id, title, summary, source_type, method, impact, confidence,
   status, theme, is_favourite, tags, file_path, file_name, file_type, file_size,
   owner_id, created_by, reviewed_by, reviewed_at, review_note, archived_at,
   created_at, updated_at,
@@ -391,7 +412,7 @@ const RESEARCH_COLUMNS = `
 
 export async function listResearch(
   supabase: SupabaseClient, workspaceId: string, q: StrategyQuery,
-  opts: { limit?: number; paginate?: boolean; statuses?: string[]; mine?: string } = {},
+  opts: { limit?: number; paginate?: boolean; statuses?: string[]; mine?: string; uploadedBy?: string; updatedSince?: string } = {},
 ): Promise<Page<ResearchRow>> {
   const sort = sortFor(q.sort, 'updated')
   let builder = supabase.from('strategy_research_items')
@@ -410,6 +431,8 @@ export async function listResearch(
   if (q.tag) builder = builder.contains('tags', [q.tag])
   if (q.favourites) builder = builder.eq('is_favourite', true)
   if (opts.mine) builder = builder.eq('created_by', opts.mine)
+  if (opts.uploadedBy) builder = builder.eq('uploaded_by', opts.uploadedBy)
+  if (opts.updatedSince) builder = builder.gte('updated_at', opts.updatedSince)
   // Confidence is stored 0–100 but filtered as a band.
   if (q.confidence === 'high') builder = builder.gte('confidence', 75)
   if (q.confidence === 'medium') builder = builder.gte('confidence', 45).lt('confidence', 75)
@@ -616,9 +639,10 @@ export async function positioningAggregates(supabase: SupabaseClient, workspaceI
 
 const PLAN_COLUMNS = `
   id, workspace_id, strategy_id, name, description, status, progress, budget,
-  budget_spent, currency, owner_id, start_date, end_date, archived_at,
+  budget_spent, currency, priority, target_summary, owner_id, start_date, end_date, archived_at,
   created_at, updated_at,
-  owner:profiles!strategy_plans_owner_id_fkey(id, full_name, email, avatar_url)
+  owner:profiles!strategy_plans_owner_id_fkey(id, full_name, email, avatar_url),
+  strategy:strategy_records!strategy_plans_strategy_id_fkey(id, name)
 `
 
 export async function listPlans(
@@ -767,7 +791,7 @@ export async function listHighPriorityItems(
 const FORECAST_COLUMNS = `
   id, workspace_id, strategy_id, name, description, metric, currency, period_start,
   period_end, target_value, confidence, risk_level, status, owner_id,
-  last_recalculated_at, archived_at, created_at, updated_at,
+  last_recalculated_at, refresh_interval_days, archived_at, created_at, updated_at,
   owner:profiles!strategy_forecasts_owner_id_fkey(id, full_name, email, avatar_url)
 `
 

@@ -26,7 +26,7 @@ export default function ActivityFeed({
   className,
 }: { items: ActivityRow[]; emptyMessage?: string; className?: string }) {
   if (items.length === 0) {
-    return <p className={cn('py-6 text-center text-[13px] text-slate-400', className)}>{emptyMessage}</p>
+    return <p className={cn('py-6 text-center text-[13px] lg:text-[10px] text-slate-400', className)}>{emptyMessage}</p>
   }
 
   return (
@@ -40,14 +40,14 @@ export default function ActivityFeed({
               <Icon size={12} />
             </span>
             <span className="min-w-0 flex-1">
-              <span className="block text-[12px] leading-snug text-slate-600">
+              <span className="block text-[12px] lg:text-[9.5px] leading-snug text-slate-600">
                 <span className="font-semibold text-slate-900">{actor}</span>{' '}
                 {item.summary}
               </span>
             </span>
             <time
               dateTime={item.created_at}
-              className="shrink-0 whitespace-nowrap text-[11px] text-slate-400"
+              className="shrink-0 whitespace-nowrap text-[11px] lg:text-[8.5px] text-slate-400"
             >
               {formatRelative(item.created_at)}
             </time>

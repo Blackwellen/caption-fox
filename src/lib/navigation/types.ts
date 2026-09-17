@@ -7,7 +7,7 @@ export type WorkspaceKind = 'creator' | 'business' | 'brand' | 'agency'
 export type NavContextId = WorkspaceKind | 'supplier' | 'admin' | 'affiliate'
 
 /** Modules that are optional (plan-gated) extensions of the Business workspace. */
-export type BusinessGatedModule = 'advertising' | 'seo' | 'partnerships' | 'events' | 'finance' | 'automations'
+export type BusinessGatedModule = 'advertising' | 'seo' | 'partnerships' | 'events' | 'finance' | 'automations' | 'creators'
 
 export type NavIconKey =
   | 'home' | 'strategy' | 'campaigns' | 'calendar' | 'studio' | 'brand' | 'links' | 'templates'

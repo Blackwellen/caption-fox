@@ -447,3 +447,46 @@ With geometry aligned, the remaining difference was the demo content itself. Cha
 - `supabase/seed_brand_assets_media.sql` §5: staggered product `updated_at` so "Recently Updated" opens on Serum, Runner Pro, Protein Bars, Headphones, Tote, Coffee — the reference's row, including its Active/Active/Review/Active/Draft/Review badges. Applied to the database.
 - Code: Overview panels +16px below the KPI row (reference gap 26px); Assets folder rows 33px pitch.
 - Diffs: Product Library 22.7 → **20.0**; Assets **24.6**, Overview **25.8** (pixel metric still dominated by photographs that cannot be identical). `tsc` 0 errors; 21/21 unit tests.
+
+## Update — 2026-09-16: Import Kit and Share Kit (previously dead buttons)
+
+- **Import Kit** (`/{type}/brand/kits/import`): reads a `.brandkit.json` file (≤256 KB, format + version checked by `src/lib/brand-assets/kit-transfer.ts`), previews colours/fonts/tone, lets the user pick the target brand in this workspace and rename, then creates the kit through the existing `createBrandKit` server action (capability `brand.kits.create`, server-side validation, activity row). Save as draft or submit for approval.
+- **Share Kit** → kit detail **Share** tab: copy workspace link (access still enforced by workspace RLS) and **Download brand kit** via `GET /{type}/brand/kits/{id}/export` — gated by `brand.kits.export`, workspace-scoped, UUID-validated, audit-logged (`exported` activity), `Cache-Control: no-store`.
+- Verified in Chrome: export returns 200 `application/json` attachment with 5 colours, 5 type styles and tone; feeding that file to Import Kit previews the kit with no errors. Share tab renders with working link and download. New unit tests: 4 parser cases (valid file, bad JSON/format/version, required fields, list caps) — **25/25 passing**, `tsc` 0 errors.
+- Visual: Rights coverage map cropped to licensable latitudes with touching dots (denser, as the reference); status donut 116px; Brand Kits Logo Lockups tiles tightened.
+- Remaining not built: asset and product CSV export, collections CRUD, asset metadata edit/replace UI, browser upload E2E test.
+
+## Update — 2026-09-16 (later): Asset and Product CSV export
+
+- `GET /{type}/brand/assets/export` (gated `brand.assets.download`) and `GET /{type}/brand/products/export` (gated `brand.products.export`). Both stream a UTF-8 BOM CSV attachment with a dated filename, `Cache-Control: no-store`, and write an `exported` activity row.
+- Rows come from new `exportAssets` / `exportProducts` in `queries.ts`, which reuse the **same** filter builders as the on-screen grids (`assetQuery` / `productQuery`, extracted in this pass) plus the same sort — so an export always matches what the user is looking at. Paged 100 at a time, capped at 5,000 rows.
+- Toolbar control: shared `ExportCsvLink` primitive on Assets and Product Library, disabled with a reason when the role/plan does not permit it. `exportHref()` carries the current filters and drops view-only params (view, page, dialogs).
+- Verified in Chrome: Assets `?status=approved&sort=name_asc` → 200, `text/csv`, 26 rows (matches the Approved KPI) in A–Z order; Products `?status=active` → 200, 5 rows; both audit-logged (test rows then removed from the demo workspace).
+- Note: a Supabase query builder is thenable, so the extracted helpers return `{ q }` — returning the builder bare from an `async` function executed the query. Caught by `tsc`, fixed, brand-assets type-checks clean.
+
+Remaining not built: collections CRUD, asset metadata edit/replace UI, browser upload E2E test.
+
+### Parity re-check after the export controls (2026-09-16)
+
+Adding the Export control to the Assets **filter** row wrapped it onto a second line and pushed the grid down 32px (diff 24.6 → 30.7). Moved into the first toolbar row beside the view switcher, where the reference has empty space: grid back at y=388, diff back to **24.6**. Final content-aligned diffs: Rights **13.6**, Product Library **20.0**, Brand Kits **23.8**, Assets **24.6**, Overview **25.9**. No horizontal overflow on any page at 1491px.
+
+## Update — 2026-09-16 (pass 5): measured the drift instead of guessing
+
+The colour diff had stopped moving, so I looked at the heat map: text was
+**doubled** down the page — a real vertical drift, not photo noise. Two new
+tools measure it instead of eyeballing:
+
+- `scripts/ui-drift.py` — per-band vertical offset (where a section is the wrong height).
+- `scripts/ui-lines.py` — matches the page's horizontal rules (panel tops, table rules, card edges) between reference and implementation. Robust where text-edge matching is not, because glyph rendering differs.
+
+Found and fixed (absolute pixels, since the references are drawn at our own 1491px viewport):
+
+| Item | Reference | Was | Now |
+|---|---|---|---|
+| Tabs → KPI gap | ~76px | 81px | 76px (heading margin 18→13) |
+| KPI band height | ~74px | 77px | 74px |
+| Assets filter panel | — | 5px tall | tightened (`lg:p-2.5`, tighter rows) |
+
+Result — horizontal rules now match within **±5px on every page** (medians: Overview +5, Brand Kits −4, Rights +4, Product Library +2, Assets +3), and the residual offsets flip sign between pages, i.e. the reference images themselves vary slightly. Colour diffs: Assets 24.6 → **23.0**, Brand Kits 23.8 → **23.1**, Overview 25.9 → **25.6**, Rights **13.5**, Product Library **20.4**.
+
+A crop-alignment sweep confirmed the scoring crop was near-optimal (within ~1.5), so the scores measure the page, not the comparison. What remains in the colour metric is photographic: our demo photos are real images and the references are generated ones — that difference cannot reach zero. `tsc` clean for this module, 25/25 unit tests, no horizontal overflow at 1491px on any page.

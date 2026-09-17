@@ -11,6 +11,7 @@ import { canAccessSeoCapability } from '@/lib/seo/entitlements'
 import { canAccessPartnershipModule } from '@/lib/partnerships/entitlements'
 import { canAccessEventsCapability } from '@/lib/events/entitlements'
 import { canAccessAutomationModule } from '@/lib/automations/entitlements'
+import { canAccessCreatorModule } from '@/lib/creators/entitlements'
 import { PLANS, type PlanId } from '@/lib/plans'
 import { canManageWorkspace } from '@/lib/workspace-shared'
 import { NAV_REGISTERS } from './registers'
@@ -82,6 +83,11 @@ export function businessModuleEntitled(module: BusinessGatedModule, ctx: NavEnti
         { workspaceId: '', plan: ctx.plan, planStatus: ctx.planStatus, role, isPlatformAdmin: ctx.isPlatformAdmin },
         'overview',
       ).allowed
+    case 'creators':
+      return canAccessCreatorModule(
+        { workspaceId: '', workspaceType: 'small_business', plan: ctx.plan, planStatus: ctx.planStatus, role, isPlatformAdmin: ctx.isPlatformAdmin },
+        'overview',
+      ).allowed
     case 'finance':
       // Finance has no module resolver yet; the plan/status/flag floor applies.
       return true
@@ -99,26 +105,26 @@ const typed = (path: string) => (kind: WorkspaceKind) => `/${kind}/${path}`
 
 const WORKSPACE_IMPLEMENTATION: Record<string, (kind: WorkspaceKind) => string> = {
   home: app('home'),
-  strategy: app('strategy'),
-  campaigns: app('campaigns'),
+  strategy: typed('strategy'),
+  campaigns: typed('campaigns'),
   calendar: typed('calendar'),
-  studio: app('studio'),
+  studio: typed('studio'),
   brand: typed('brand'),
-  links: app('links'),
+  links: typed('links'),
   'shared-templates': app('templates'),
-  social: app('social'),
+  social: typed('social'),
   advertising: typed('advertising'),
   messaging: app('messaging'),
   web: app('web'),
   seo: app('seo'),
-  creators: app('creators'),
+  creators: typed('creators'),
   marketplace: app('marketplace'),
   partnerships: app('partnerships'),
   reputation: app('reputation'),
   community: app('community'),
   events: typed('events'),
-  inbox: app('inbox'),
-  audiences: app('strategy/audiences'),
+  inbox: typed('inbox'),
+  audiences: typed('strategy/audiences'),
   'client-approvals': app('client-approvals'),
   analytics: app('analytics'),
   finance: app('finance'),
@@ -175,13 +181,13 @@ const HELP_MENU: ResolvedAction[] = [
 interface WorkspaceCreateDef { id: string; label: string; icon: ResolvedAction['icon']; requires: string; href: (kind: WorkspaceKind) => string }
 
 const WORKSPACE_CREATE: Record<string, WorkspaceCreateDef> = {
-  campaign: { id: 'campaign', label: 'New campaign', icon: 'campaigns', requires: 'campaigns', href: () => '/app/campaigns?action=new' },
-  content: { id: 'content', label: 'Create content', icon: 'content', requires: 'studio', href: () => '/app/studio?action=new-post' },
+  campaign: { id: 'campaign', label: 'New campaign', icon: 'campaigns', requires: 'campaigns', href: kind => `/${kind}/campaigns?action=new` },
+  content: { id: 'content', label: 'Create content', icon: 'content', requires: 'studio', href: kind => `/${kind}/studio/compose` },
   schedule: { id: 'schedule', label: 'Schedule post', icon: 'schedule', requires: 'calendar', href: kind => `/${kind}/calendar?new=1` },
-  link: { id: 'link', label: 'Link in Bio page', icon: 'links', requires: 'links', href: () => '/app/links' },
+  link: { id: 'link', label: 'Link in Bio page', icon: 'links', requires: 'links', href: kind => `/${kind}/links/new` },
   message: { id: 'message', label: 'New message', icon: 'messaging', requires: 'messaging', href: () => '/app/messaging' },
   page: { id: 'page', label: 'Landing page or form', icon: 'web', requires: 'web', href: () => '/app/web' },
-  brief: { id: 'brief', label: 'UGC brief', icon: 'creators', requires: 'creators', href: () => '/app/creators/briefs?action=new' },
+  brief: { id: 'brief', label: 'UGC brief', icon: 'creators', requires: 'creators', href: kind => `/${kind}/creators/briefs?action=new` },
   report: { id: 'report', label: 'Report', icon: 'reports', requires: 'analytics', href: () => '/app/analytics?action=report' },
   invite: { id: 'invite', label: 'Invite team member', icon: 'invite', requires: 'settings', href: () => '/app/settings?tab=team&action=invite' },
 }

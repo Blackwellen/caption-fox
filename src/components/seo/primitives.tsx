@@ -10,11 +10,13 @@ export const SEO_TOKENS = {
   page: 'mx-auto w-full max-w-[1400px] px-4 sm:px-6 lg:px-8',
   card: 'rounded-xl border border-slate-200 bg-white shadow-[0_1px_2px_0_rgb(15_23_42/0.04)]',
   cardPadding: 'p-5',
-  cardHeader: 'flex items-center justify-between gap-3 border-b border-slate-100 px-5 py-4',
+  cardHeader: 'flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-b border-slate-100 px-4 py-2.5',
   sectionGap: 'gap-5',
   control: 'h-9 rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-700',
-  tableHead: 'text-[11px] font-semibold uppercase tracking-wide text-slate-500',
+  tableHead: 'whitespace-nowrap text-[11.5px] font-medium text-slate-500',
   tableRow: 'h-12 border-b border-slate-100 last:border-0',
+  /** Denser row used by in-panel tables that sit beside a right rail. */
+  tableRowTight: 'h-8 border-b border-slate-100 last:border-0',
 } as const
 
 export function Card({ className, children, ...rest }: React.HTMLAttributes<HTMLDivElement>) {
@@ -27,19 +29,19 @@ export function CardHeader({
   return (
     <div className={SEO_TOKENS.cardHeader}>
       <div className="min-w-0">
-        <h2 className="flex items-center gap-1.5 text-[15px] font-semibold text-slate-900">
+        <h2 className="flex items-center gap-1.5 whitespace-nowrap text-[14.5px] font-semibold leading-tight text-slate-900">
           {title}
           {help && <InfoTip text={help} />}
         </h2>
         {subtitle && <p className="mt-0.5 truncate text-xs text-slate-500">{subtitle}</p>}
       </div>
-      {action && <div className="flex shrink-0 items-center gap-2">{action}</div>}
+      {action && <div className="flex min-w-0 max-w-full flex-wrap items-center gap-1.5">{action}</div>}
     </div>
   )
 }
 
 /** Accessible tooltip that works without JS — title + visible focus ring. */
-export function InfoTip({ text }: { text: string }) {
+export function InfoTip({ text, size = 13 }: { text: string; size?: number }) {
   return (
     <span className="group/tip relative inline-flex">
       <button
@@ -48,7 +50,7 @@ export function InfoTip({ text }: { text: string }) {
         title={text}
         className="rounded-full text-slate-400 outline-none transition-colors hover:text-slate-600 focus-visible:ring-2 focus-visible:ring-blue-500"
       >
-        <Info size={13} aria-hidden />
+        <Info size={size} aria-hidden />
       </button>
       <span
         role="tooltip"
@@ -182,9 +184,58 @@ export function StatusChip({
   status, label, dot = false, className,
 }: { status: string; label?: string; dot?: boolean; className?: string }) {
   return (
-    <span className={cn('inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-medium ring-1 ring-inset', STATUS_TONE[status] ?? STATUS_TONE.unknown, className)}>
+    <span className={cn('inline-flex items-center gap-1 whitespace-nowrap rounded-md px-2 py-0.5 text-[11px] font-medium ring-1 ring-inset', STATUS_TONE[status] ?? STATUS_TONE.unknown, className)}>
       {dot && <span className="h-1.5 w-1.5 rounded-full bg-current opacity-70" aria-hidden />}
       {label ?? status.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
+    </span>
+  )
+}
+
+
+/**
+ * Owner avatar used in brief lists, keyword tables and activity rows. Falls
+ * back to initials when the profile has no uploaded image, and always exposes
+ * the owner's name to assistive technology.
+ */
+export function OwnerAvatar({
+  owner, size = 24,
+}: { owner?: { full_name: string | null; avatar_url: string | null } | null; size?: number }) {
+  const name = owner?.full_name?.trim()
+  if (!owner || !name) {
+    return (
+      <span
+        aria-label="Unassigned"
+        title="Unassigned"
+        className="flex shrink-0 items-center justify-center rounded-full bg-slate-100 text-[10px] font-semibold text-slate-400"
+        style={{ width: size, height: size }}
+      >
+        &ndash;
+      </span>
+    )
+  }
+  const initials = name.split(/\s+/).slice(0, 2).map(part => part[0]?.toUpperCase() ?? '').join('')
+  if (owner.avatar_url) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element -- avatars come from arbitrary storage hosts
+      <img
+        src={owner.avatar_url}
+        alt={name}
+        title={name}
+        width={size}
+        height={size}
+        className="shrink-0 rounded-full object-cover ring-1 ring-slate-200"
+        style={{ width: size, height: size }}
+      />
+    )
+  }
+  return (
+    <span
+      aria-label={name}
+      title={name}
+      className="flex shrink-0 items-center justify-center rounded-full bg-blue-50 text-[10px] font-semibold text-blue-700 ring-1 ring-blue-100"
+      style={{ width: size, height: size }}
+    >
+      {initials}
     </span>
   )
 }
@@ -272,7 +323,7 @@ export function SkeletonBlock({ className }: { className?: string }) {
 /** Demo-data disclosure. Shown wherever seeded records are displayed. */
 export function DemoBadge() {
   return (
-    <span className="inline-flex items-center gap-1 rounded-md bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-700 ring-1 ring-inset ring-amber-100">
+    <span className="inline-flex items-center gap-1 whitespace-nowrap rounded-md bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-700 ring-1 ring-inset ring-amber-100">
       Demo data
     </span>
   )

@@ -99,22 +99,22 @@ function CreativeCard({ row, base }: { row: CreativeListRow; base: string }) {
           </KebabMenu>
         </div>
       </div>
-      <Link href={`${base}/creatives/${row.id}`} className="mt-2.5 flex items-center gap-1 text-[13px] font-semibold text-slate-900 hover:text-blue-700">
+      <Link href={`${base}/creatives/${row.id}`} className="mt-2.5 flex items-center gap-1 text-[13px] font-semibold text-slate-900 hover:text-blue-700 lg:text-[11px]">
         <span className="truncate">{row.name}</span>
         {row.isWinningVariant && <Sparkles size={13} className="shrink-0 text-amber-400" aria-label="Winning variant" />}
       </Link>
       {row.campaignId ? (
-        <Link href={`${base}/campaigns/${row.campaignId}`} className="truncate text-[11.5px] text-blue-600 hover:underline">{row.campaignName}</Link>
+        <Link href={`${base}/campaigns/${row.campaignId}`} className="truncate text-[11.5px] text-blue-600 hover:underline lg:text-[10px]">{row.campaignName}</Link>
       ) : <span className="text-[11.5px] text-slate-400">No campaign</span>}
       {/* Spend is the widest figure, so its column gets the extra share; every value truncates rather than collide. */}
-      <dl className="mt-3 grid grid-cols-[1.45fr_1fr_0.85fr] gap-x-1.5 gap-y-2.5 text-[10.5px] [&>div]:min-w-0 [&_dd]:mt-0.5 [&_dd]:truncate [&_dd]:text-[12px] [&_dd]:font-semibold [&_dd]:tabular-nums [&_dd]:text-slate-900 [&_dt]:truncate [&_dt]:text-slate-500">
+      <dl className="mt-3 grid grid-cols-[1.45fr_1fr_0.85fr] gap-x-1.5 gap-y-2.5 text-[10.5px] lg:text-[9.5px] [&>div]:min-w-0 [&_dd]:mt-0.5 [&_dd]:truncate [&_dd]:text-[12px] lg:[&_dd]:text-[11px] [&_dd]:font-semibold [&_dd]:tabular-nums [&_dd]:text-slate-900 [&_dt]:truncate [&_dt]:text-slate-500">
         <div><dt>Spend</dt><dd>{formatCurrency(row.spend)}</dd></div>
         <div><dt>CTR</dt><dd>{formatPercent(row.ctr)}</dd></div>
         <div><dt>Clicks</dt><dd>{formatNumber(row.clicks)}</dd></div>
         <div><dt>Conversions</dt><dd>{formatNumber(row.conversions)}</dd></div>
         <div><dt>Hook Rate</dt><dd>{formatPercent(row.hookRate)}</dd></div>
       </dl>
-      <div className="mt-auto flex items-center justify-between pt-2.5 text-[10.5px] text-slate-500">
+      <div className="mt-auto flex items-center justify-between pt-2.5 text-[10.5px] text-slate-500 lg:text-[9.5px]">
         <span className="flex items-center gap-1.5"><span className={`h-1.5 w-1.5 rounded-full ${row.status === 'active' ? 'bg-emerald-500' : 'bg-amber-500'}`} aria-hidden />Last updated {formatRelativeTime(row.updatedAt)}</span>
         <ProviderLogo provider={row.provider} size={14} decorative />
       </div>

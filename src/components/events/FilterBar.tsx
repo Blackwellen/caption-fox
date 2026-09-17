@@ -21,6 +21,8 @@ export interface FilterDefinition {
   options: { value: string; label: string }[]
   /** Label for the "no filter applied" option. Defaults to naive "All {label}s" pluralisation, which reads wrong for words like "Status" — always pass this explicitly for anything but a regular plural noun. */
   allLabel?: string
+  /** Control width in the compact inline variant, in px. */
+  width?: number
 }
 
 function useUrlState() {
@@ -43,13 +45,24 @@ function useUrlState() {
 
 export function EventsFilterBar({
   searchPlaceholder, filters, dateRangeLabel, showMoreFilters = true, extraCount = 0,
+  variant = 'card',
 }: {
   searchPlaceholder: string
   filters: FilterDefinition[]
   dateRangeLabel?: string
   showMoreFilters?: boolean
   extraCount?: number
+  /**
+   * `card` - its own bordered block with labelled controls.
+   * `inline` - one compact row inside a parent panel; the filter name shows in
+   * the control and "Clear Filters" is always available.
+   */
+  variant?: 'card' | 'inline' | 'stacked' | 'toolbar'
 }) {
+  const inline = variant === 'inline'
+  const toolbar = variant === 'toolbar'
+  // The toolbar is the stacked control style laid out as a single row on the page background.
+  const stacked = variant === 'stacked' || toolbar
   const { params, set, pending } = useUrlState()
   const [term, setTerm] = useState(params.get('q') ?? '')
   const [moreOpen, setMoreOpen] = useState(false)
@@ -75,26 +88,35 @@ export function EventsFilterBar({
   const anyActive = activeFilters.length > 0 || hasDates || Boolean(params.get('q'))
 
   return (
-    <div className={cn('rounded-xl border border-slate-200 bg-white p-3', pending && 'opacity-70')}>
-      <div className="flex flex-wrap items-center gap-2.5">
-        <div className="relative min-w-[220px] flex-1">
+    <div className={cn('min-w-0', !inline && !toolbar && 'rounded-xl border border-slate-200 bg-white p-2.5', pending && 'opacity-70')}>
+      <div className={cn('flex items-center', inline ? 'flex-wrap gap-2.5 lg:flex-nowrap' : toolbar ? 'flex-wrap gap-2.5 xl:flex-nowrap' : 'flex-wrap gap-2')}>
+        <div className={cn('relative', inline ? 'min-w-[120px] max-w-[235px] flex-1' : toolbar ? 'min-w-[160px] max-w-[260px] flex-1' : stacked ? 'w-full sm:w-[316px]' : 'min-w-[132px] flex-1')}>
           <label htmlFor="events-filter-search" className="sr-only">{searchPlaceholder}</label>
-          <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" aria-hidden />
+          <Search size={inline || stacked ? 13 : 15} className={cn('pointer-events-none absolute top-1/2 -translate-y-1/2 text-slate-400', inline || stacked ? 'left-2.5' : 'left-3')} aria-hidden />
           <input
             id="events-filter-search"
             value={term}
             onChange={event => onSearchChange(event.target.value)}
             onKeyDown={event => { if (event.key === 'Enter') set({ q: term.trim() || null }) }}
             placeholder={searchPlaceholder}
-            className="h-9 w-full rounded-lg border border-slate-200 bg-white pl-9 pr-3 text-[13px] placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+            className={cn(
+              'w-full rounded-lg border border-slate-200 bg-white pr-3 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100',
+              toolbar ? 'h-[38px] pl-8 text-[10px]' : inline || stacked ? 'h-[30px] pl-8 text-[10.5px]' : 'h-[42px] pl-9 text-[11.5px]',
+            )}
           />
         </div>
+
+        {stacked && !toolbar && <div className="basis-full" aria-hidden />}
 
         {filters.map(filter => (
           <Select
             key={filter.key}
             label={filter.label}
-            allLabel={filter.allLabel}
+            allLabel={inline ? filter.label : filter.allLabel}
+            compact={inline}
+            stacked={stacked}
+            dense={toolbar}
+            width={filter.width}
             value={params.get(filter.key) ?? 'all'}
             options={filter.options}
             onChange={value => set({ [filter.key]: value })}
@@ -104,6 +126,9 @@ export function EventsFilterBar({
         {dateRangeLabel && (
           <DateRange
             label={dateRangeLabel}
+            compact={inline}
+            stacked={stacked}
+            dense={toolbar}
             from={params.get('dateFrom')}
             to={params.get('dateTo')}
             onChange={(from, to) => set({ dateFrom: from, dateTo: to })}
@@ -115,7 +140,14 @@ export function EventsFilterBar({
             type="button"
             onClick={() => setMoreOpen(open => !open)}
             aria-expanded={moreOpen}
-            className="relative inline-flex h-9 items-center gap-2 rounded-lg border border-slate-200 px-3 text-[13px] font-medium text-slate-700 hover:bg-slate-50"
+            className={cn(
+              'relative inline-flex shrink-0 items-center gap-2 rounded-lg font-medium',
+              toolbar
+                ? 'h-[38px] px-2.5 text-[10.5px] font-semibold text-blue-600 hover:bg-blue-50'
+                : stacked
+                  ? 'h-[46px] border border-slate-200 px-3.5 text-[11px] text-slate-700 hover:bg-slate-50'
+                  : 'h-[42px] border border-slate-200 px-3 text-[11.5px] text-slate-700 hover:bg-slate-50',
+            )}
           >
             <SlidersHorizontal size={14} aria-hidden />
             More Filters
@@ -127,9 +159,10 @@ export function EventsFilterBar({
           </button>
         )}
 
-        {anyActive && (
+        {(anyActive || inline) && (
           <button
             type="button"
+            disabled={!anyActive}
             onClick={() => {
               setTerm('')
               set(Object.fromEntries([
@@ -137,7 +170,10 @@ export function EventsFilterBar({
                 ['q', null], ['dateFrom', null], ['dateTo', null],
               ]))
             }}
-            className="text-[13px] font-semibold text-blue-600 hover:text-blue-700"
+            className={cn(
+              'font-semibold text-blue-600 hover:text-blue-700 disabled:cursor-default',
+              inline ? 'shrink-0 whitespace-nowrap px-1 text-[10.5px]' : 'text-[13px]',
+            )}
           >
             Clear Filters
           </button>
@@ -203,7 +239,7 @@ function Chip({ label, onRemove }: { label: string; onRemove: () => void }) {
       <button
         type="button"
         onClick={onRemove}
-        className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-2.5 py-1 text-[11.5px] font-medium text-blue-700 hover:bg-blue-100"
+        className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-2.5 py-1 text-[10.5px] font-medium text-blue-700 hover:bg-blue-100"
       >
         {label}
         <span aria-hidden>×</span>
@@ -214,8 +250,12 @@ function Chip({ label, onRemove }: { label: string; onRemove: () => void }) {
 }
 
 function Select({
-  label, value, options, onChange, block = false, allLabel, hideAllOption = false,
+  label, value, options, onChange, block = false, allLabel, hideAllOption = false, compact = false, stacked = false, dense = false, width,
 }: {
+  compact?: boolean
+  stacked?: boolean
+  dense?: boolean
+  width?: number
   label: string
   value: string
   options: { value: string; label: string }[]
@@ -227,23 +267,34 @@ function Select({
 }) {
   const id = `events-filter-${label.toLowerCase().replaceAll(/\s+/g, '-')}`
   return (
-    <div className={cn('relative', block ? 'w-full' : 'min-w-[132px]')}>
+    <div
+      className={cn('relative', block ? 'w-full' : compact ? 'shrink-0' : dense ? 'w-[112px] shrink-0' : stacked ? 'min-w-[120px] flex-1' : 'w-[112px] shrink-0')}
+      style={compact && !block ? { width: width ?? 92 } : undefined}
+    >
       <label htmlFor={id} className="sr-only">{label}</label>
-      <span className="pointer-events-none absolute left-3 top-1 text-[9.5px] font-medium uppercase tracking-wide text-slate-400">
-        {label}
-      </span>
+      {!compact && (
+        <span className={cn(
+          'pointer-events-none absolute left-3 text-slate-500',
+          dense ? 'top-[5px] text-[9.5px]' : stacked ? 'top-[7px] text-[10px]' : 'top-1 text-[9.5px] font-medium uppercase tracking-wide text-slate-400',
+        )}>
+          {label}
+        </span>
+      )}
       <select
         id={id}
         value={value}
         onChange={event => onChange(event.target.value)}
-        className="h-[46px] w-full appearance-none rounded-lg border border-slate-200 bg-white pl-3 pr-8 pt-3.5 text-[13px] font-medium text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+        className={cn(
+          'w-full appearance-none truncate rounded-lg border border-slate-200 bg-white text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100',
+          compact ? 'h-[30px] pl-2.5 pr-6 text-[10.5px]' : dense ? 'h-[38px] pl-3 pr-7 pt-3.5 text-[10px]' : stacked ? 'h-[46px] pl-3 pr-7 pt-4 text-[10.5px]' : 'h-[42px] pl-2.5 pr-7 pt-3 text-[11.5px] font-medium',
+        )}
       >
         {!hideAllOption && <option value="all">{allLabel ?? `All ${label}s`}</option>}
         {options.map(option => (
           <option key={option.value} value={option.value}>{option.label}</option>
         ))}
       </select>
-      <svg className="pointer-events-none absolute right-3 top-1/2 translate-y-0 text-slate-400" width="12" height="12" viewBox="0 0 12 12" aria-hidden>
+      <svg className={cn('pointer-events-none absolute top-1/2 text-slate-500', compact ? 'right-2 -translate-y-1/2' : 'right-3 translate-y-0')} width="12" height="12" viewBox="0 0 12 12" aria-hidden>
         <path d="M2.5 4.5 6 8l3.5-3.5" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
       </svg>
     </div>
@@ -251,42 +302,69 @@ function Select({
 }
 
 function DateRange({
-  label, from, to, onChange,
-}: { label: string; from: string | null; to: string | null; onChange: (from: string | null, to: string | null) => void }) {
+  label, from, to, onChange, compact = false, stacked = false, dense = false,
+}: {
+  label: string
+  from: string | null
+  to: string | null
+  onChange: (from: string | null, to: string | null) => void
+  compact?: boolean
+  stacked?: boolean
+  dense?: boolean
+}) {
   const [open, setOpen] = useState(false)
+  const summary = from || to ? `${from ?? 'Any'} – ${to ?? 'Any'}` : null
   return (
-    <div className="relative">
+    <div className={cn('relative', dense ? 'w-[118px] shrink-0' : stacked && 'min-w-[150px] flex-[1.15]')}>
+      {compact ? (
+        <button
+          type="button"
+          onClick={() => setOpen(value => !value)}
+          aria-expanded={open}
+          aria-label={`${label}: ${summary ?? 'any dates'}`}
+          className="inline-flex h-[30px] w-[104px] shrink-0 items-center justify-between gap-1 rounded-lg border border-slate-200 bg-white pl-2.5 pr-2 text-[10.5px] text-slate-800"
+        >
+          <span className="truncate">{summary ?? label}</span>
+          <svg className="shrink-0 text-slate-500" width="12" height="12" viewBox="0 0 12 12" aria-hidden>
+            <path d="M2.5 4.5 6 8l3.5-3.5" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </button>
+      ) : (
       <button
         type="button"
         onClick={() => setOpen(value => !value)}
         aria-expanded={open}
-        className="inline-flex h-[46px] items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-[13px] font-medium text-slate-800"
+        className={cn(
+          'inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-slate-200 bg-white text-slate-800',
+          dense ? 'h-[38px] w-full px-2.5 text-[10px]' : stacked ? 'h-[46px] w-full px-3 text-[10.5px]' : 'h-[42px] px-2 text-[11px] font-medium',
+        )}
       >
         <CalendarRange size={14} className="text-slate-400" aria-hidden />
         <span className="flex flex-col items-start leading-none">
-          <span className="text-[9.5px] font-medium uppercase tracking-wide text-slate-400">{label}</span>
-          <span className="mt-1">{from || to ? `${from ?? 'Any'} – ${to ?? 'Any'}` : 'Any dates'}</span>
+          <span className={cn(stacked ? 'text-[10px] text-slate-500' : 'text-[9.5px] font-medium uppercase tracking-wide text-slate-400')}>{label}</span>
+          <span className="mt-1 whitespace-nowrap">{summary ?? 'Any dates'}</span>
         </span>
       </button>
+      )}
       {open && (
         <div className="absolute left-0 top-full z-20 mt-1.5 w-64 rounded-xl border border-slate-200 bg-white p-3 shadow-lg">
-          <label className="block text-[11.5px] font-medium text-slate-600" htmlFor="events-date-from">From</label>
+          <label className="block text-[10.5px] font-medium text-slate-600" htmlFor="events-date-from">From</label>
           <input
             id="events-date-from" type="date" defaultValue={from ?? ''}
             onChange={event => onChange(event.target.value || null, to)}
             className="mt-1 h-9 w-full rounded-lg border border-slate-200 px-2.5 text-[13px]"
           />
-          <label className="mt-2.5 block text-[11.5px] font-medium text-slate-600" htmlFor="events-date-to">To</label>
+          <label className="mt-2.5 block text-[10.5px] font-medium text-slate-600" htmlFor="events-date-to">To</label>
           <input
             id="events-date-to" type="date" defaultValue={to ?? ''}
             onChange={event => onChange(from, event.target.value || null)}
             className="mt-1 h-9 w-full rounded-lg border border-slate-200 px-2.5 text-[13px]"
           />
           <div className="mt-3 flex justify-between">
-            <button type="button" onClick={() => { onChange(null, null); setOpen(false) }} className="text-[12.5px] font-medium text-slate-500 hover:text-slate-700">
+            <button type="button" onClick={() => { onChange(null, null); setOpen(false) }} className="text-[11.5px] font-medium text-slate-500 hover:text-slate-700">
               Clear
             </button>
-            <button type="button" onClick={() => setOpen(false)} className="rounded-lg bg-blue-600 px-3 py-1.5 text-[12.5px] font-semibold text-white">
+            <button type="button" onClick={() => setOpen(false)} className="rounded-lg bg-blue-600 px-3 py-1.5 text-[11.5px] font-semibold text-white">
               Done
             </button>
           </div>
@@ -313,11 +391,15 @@ const VIEW_LABELS: Record<EventViewMode, string> = {
 }
 
 export function ViewSwitcher({
-  views, active,
-}: { views: EventViewMode[]; active: EventViewMode }) {
+  views, active, fill = false,
+}: { views: EventViewMode[]; active: EventViewMode; fill?: boolean }) {
   const { set } = useUrlState()
   return (
-    <div className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white p-1" role="tablist" aria-label="View mode">
+    <div
+      className={cn('items-center gap-1 rounded-lg border border-slate-200 bg-white p-[3px]', fill ? 'flex w-full' : 'inline-flex')}
+      role="tablist"
+      aria-label="View mode"
+    >
       {views.map(view => {
         const Icon = VIEW_ICONS[view]
         const selected = view === active
@@ -329,7 +411,8 @@ export function ViewSwitcher({
             aria-selected={selected}
             onClick={() => set({ view }, false)}
             className={cn(
-              'inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-[12.5px] font-semibold transition-colors',
+              'inline-flex h-[28px] items-center justify-center gap-1.5 rounded-md text-[11px] font-semibold transition-colors',
+              fill ? 'min-w-0 flex-1 px-1.5' : 'px-3',
               selected ? 'bg-blue-600 text-white' : 'text-slate-600 hover:bg-slate-50',
             )}
           >
@@ -355,7 +438,7 @@ export function RangePicker({
         id="events-range"
         value={String(value)}
         onChange={event => set({ range: event.target.value }, false)}
-        className="h-8 appearance-none rounded-lg border border-slate-200 bg-white pl-2.5 pr-7 text-[12px] font-medium text-slate-700 focus:border-blue-500 focus:outline-none"
+        className="h-8 appearance-none rounded-lg border border-slate-200 bg-white pl-2.5 pr-7 text-[11px] font-medium text-slate-700 focus:border-blue-500 focus:outline-none"
       >
         {options.map(days => (
           <option key={days} value={days}>Last {days} days</option>
@@ -388,14 +471,14 @@ export function Pagination({
 
   return (
     <nav className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 px-4 py-3" aria-label="Pagination">
-      <p className="text-[12.5px] text-slate-500">
+      <p className="text-[11.5px] text-slate-500">
         Showing {first} to {last} of {total} {total === 1 ? 'record' : 'records'}
       </p>
       <div className="flex items-center gap-1">
         <PageButton disabled={page <= 1} onClick={() => set({ page: String(page - 1) }, false)} label="Previous page">‹</PageButton>
         {numbers.map((number, index) =>
           number === '…' ? (
-            <span key={`gap-${index}`} className="px-1.5 text-[12.5px] text-slate-400">…</span>
+            <span key={`gap-${index}`} className="px-1.5 text-[11.5px] text-slate-400">…</span>
           ) : (
             <button
               key={number}
@@ -403,7 +486,7 @@ export function Pagination({
               onClick={() => set({ page: String(number) }, false)}
               aria-current={number === page ? 'page' : undefined}
               className={cn(
-                'h-8 min-w-8 rounded-lg px-2 text-[12.5px] font-semibold',
+                'h-8 min-w-8 rounded-lg px-2 text-[11.5px] font-semibold',
                 number === page ? 'bg-blue-600 text-white' : 'text-slate-600 hover:bg-slate-100',
               )}
             >
@@ -419,7 +502,7 @@ export function Pagination({
           id="events-page-size"
           value={String(pageSize)}
           onChange={event => set({ pageSize: event.target.value })}
-          className="h-8 rounded-lg border border-slate-200 bg-white px-2 text-[12.5px] text-slate-700"
+          className="h-8 rounded-lg border border-slate-200 bg-white px-2 text-[11.5px] text-slate-700"
         >
           {[10, 25, 50].map(size => <option key={size} value={size}>{size} per page</option>)}
         </select>
@@ -437,7 +520,7 @@ function PageButton({
       disabled={disabled}
       onClick={onClick}
       aria-label={label}
-      className="h-8 w-8 rounded-lg text-[14px] text-slate-500 hover:bg-slate-100 disabled:opacity-35 disabled:hover:bg-transparent"
+      className="h-8 w-8 rounded-lg text-[13px] text-slate-500 hover:bg-slate-100 disabled:opacity-35 disabled:hover:bg-transparent"
     >
       {children}
     </button>

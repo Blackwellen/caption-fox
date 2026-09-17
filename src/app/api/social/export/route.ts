@@ -1,8 +1,10 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { PERMISSIONS, type Permission } from '@/lib/permissions'
-import { canAccessSocialCapability } from '@/lib/social/entitlements'
-import { getSocialSession, logSocialActivity } from '@/lib/social/server'
+import { canAccessSocialCapability, canAccessSocialSurface, type SocialSurface } from '@/lib/social/entitlements'
+import { checkSocialRateLimit, getSocialSession, logSocialActivity } from '@/lib/social/server'
 import { rangeFromDays } from '@/lib/social/metrics'
+import { toCsv, toPdf, toXlsx } from '@/lib/social/export-formats'
+import { parseDays, parseSearch } from '@/lib/social/url-state'
 import {
   getChannelBreakdown, getChannels, getContentPerformance, getConversations,
   getMentions, getPostsInRange,
@@ -21,11 +23,12 @@ const PERMISSION_FOR: Record<Dataset, Permission> = {
   analytics: PERMISSIONS.SOCIAL_ANALYTICS_EXPORT,
 }
 
-function csv(rows: (string | number | null)[][]): string {
-  return rows.map(row => row.map(cell => {
-    const value = cell === null || cell === undefined ? '' : String(cell)
-    return /[",\n]/.test(value) ? `"${value.replaceAll('"', '""')}"` : value
-  }).join(',')).join('\r\n')
+const SURFACE_FOR: Record<Dataset, SocialSurface> = {
+  posts: 'publishing',
+  engagement: 'engagement',
+  listening: 'listening',
+  connections: 'connections',
+  analytics: 'analytics',
 }
 
 /**
@@ -36,21 +39,29 @@ function csv(rows: (string | number | null)[][]): string {
 export async function GET(request: NextRequest) {
   const params = request.nextUrl.searchParams
   const dataset = (params.get('dataset') ?? 'analytics') as Dataset
-  if (!(dataset in PERMISSION_FOR)) {
+  if (!Object.hasOwn(PERMISSION_FOR, dataset)) {
     return NextResponse.json({ error: 'Unknown dataset.' }, { status: 400 })
   }
 
   const session = await getSocialSession()
+  // The capability and the surface the data belongs to must both be open: a
+  // workspace without Listening cannot export mentions by calling the API.
+  const surface = SURFACE_FOR[dataset]
+  const surfaceAccess = canAccessSocialSurface(session.ctx, surface)
+  if (!surfaceAccess.allowed) return NextResponse.json({ error: surfaceAccess.message }, { status: 403 })
   const access = canAccessSocialCapability(session.ctx, PERMISSION_FOR[dataset])
   if (!access.allowed) return NextResponse.json({ error: access.message }, { status: 403 })
+  const limited = await checkSocialRateLimit(session, 'social.export', 20, 10 * 60_000)
+  if (limited) return NextResponse.json({ error: limited }, { status: 429 })
 
-  const days = Math.min(365, Math.max(1, Number(params.get('days') ?? 7)))
+  const days = parseDays(params.get('days'))
   const range = rangeFromDays(days)
   const channels = await getChannels(session)
   const channelName = new Map(channels.map(channel => [channel.id, channel.account_name]))
 
   let rows: (string | number | null)[][] = []
-  let filename = `caption-fox-social-${dataset}.csv`
+  const format = params.get('format') === 'xlsx' ? 'xlsx' : params.get('format') === 'pdf' ? 'pdf' : 'csv'
+  let filename = `caption-fox-social-${dataset}`
 
   if (dataset === 'posts') {
     const posts = await getPostsInRange(session, range, { limit: 1000 })
@@ -68,7 +79,7 @@ export async function GET(request: NextRequest) {
       view: (params.get('view') as 'feed') ?? 'all',
       channelId: params.get('channel') ?? undefined,
       sentiment: params.get('sentiment') ?? undefined,
-      search: params.get('q') ?? undefined,
+      search: parseSearch(params.get('q')) ?? undefined,
       pageSize: 1000,
     })
     rows = [['Author', 'Handle', 'Channel', 'Type', 'Sentiment', 'Status', 'Priority', 'Assigned', 'SLA', 'Received', 'Message']]
@@ -84,7 +95,7 @@ export async function GET(request: NextRequest) {
   } else if (dataset === 'listening') {
     const { rows: mentions } = await getMentions(session, range, {
       tab: (params.get('tab') as 'all') ?? 'all',
-      search: params.get('q') ?? undefined,
+      search: parseSearch(params.get('q')) ?? undefined,
       source: params.get('source') ?? undefined,
       sentiment: params.get('sentiment') ?? undefined,
       pageSize: 1000,
@@ -123,20 +134,28 @@ export async function GET(request: NextRequest) {
         row.reach, row.impressions, row.engagements,
         row.engagementRate === null ? '' : row.engagementRate.toFixed(4), row.linkClicks])
     }
-    filename = 'caption-fox-social-analytics.csv'
   }
 
   await logSocialActivity(session, {
     action: 'social.export', entityType: 'social_export',
-    summary: `Exported ${dataset} (${rows.length - 1} rows, last ${days} days)`,
-    href: '/app/social/analytics',
+    summary: `Exported ${dataset} as ${format.toUpperCase()} (${rows.length - 1} rows, last ${days} days)`,
+    href: `${session.basePath}/analytics`,
   })
 
-  return new NextResponse(csv(rows), {
-    headers: {
-      'Content-Type': 'text/csv; charset=utf-8',
-      'Content-Disposition': `attachment; filename="${filename}"`,
-      'Cache-Control': 'no-store',
-    },
+  const stamp = new Date().toISOString().slice(0, 10)
+  const common = { 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' }
+  if (format === 'xlsx') {
+    return new NextResponse(Buffer.from(toXlsx(rows, dataset)), {
+      headers: { ...common, 'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'Content-Disposition': `attachment; filename="${filename}-${stamp}.xlsx"` },
+    })
+  }
+  if (format === 'pdf') {
+    const title = `Caption Fox - Social ${dataset.charAt(0).toUpperCase()}${dataset.slice(1)}`
+    return new NextResponse(Buffer.from(toPdf(rows, title, `${session.workspace.name} - last ${days} days - times in UTC - ${rows.length - 1} rows`)), {
+      headers: { ...common, 'Content-Type': 'application/pdf', 'Content-Disposition': `attachment; filename="${filename}-${stamp}.pdf"` },
+    })
+  }
+  return new NextResponse(toCsv(rows), {
+    headers: { ...common, 'Content-Type': 'text/csv; charset=utf-8', 'Content-Disposition': `attachment; filename="${filename}-${stamp}.csv"` },
   })
 }

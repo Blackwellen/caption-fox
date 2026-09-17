@@ -19,6 +19,7 @@ import {
 } from '@/lib/campaigns/constants'
 import type { PersonLite, TemplateRow } from '@/lib/campaigns/types'
 import type { CampaignCapabilities } from '@/lib/campaigns/entitlements'
+import { useCampaignsBase } from './links'
 
 const ICON_BTN = 'inline-flex h-6 w-6 items-center justify-center rounded-md text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600 disabled:opacity-40'
 const MENU_ITEM = 'flex w-full items-center gap-2 px-3 py-1.5 text-left text-[13px] text-slate-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40'
@@ -38,6 +39,7 @@ export default function TemplateActions({
   template, capabilities, members,
 }: { template: TemplateRow; capabilities: CampaignCapabilities; members: PersonLite[] }) {
   const router = useRouter()
+  const campaignsBase = useCampaignsBase()
   const { notify } = useToast()
   const [menuOpen, setMenuOpen] = useState(false)
   const [preview, setPreview] = useState(false)
@@ -151,7 +153,7 @@ export default function TemplateActions({
             if (result.ok) {
               setUseOpen(false)
               router.refresh()
-              if (result.id) router.push(`/app/campaigns/${result.id}`)
+              if (result.id) router.push(`${campaignsBase}/${result.id}`)
             }
           })}
         />

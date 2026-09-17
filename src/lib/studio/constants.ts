@@ -11,41 +11,40 @@ export type StudioModule = typeof STUDIO_MODULES[number]
 
 export const STUDIO_MODULE_META: Record<StudioModule, {
   label: string
-  href: string
   title: string
   description: string
   breadcrumb: string
 }> = {
   overview: {
-    label: 'Overview', href: '/app/studio', title: 'Studio', breadcrumb: 'Overview',
-    description: 'Create, customise, and prepare content that performs across every channel.',
+    label: 'Overview', title: 'Studio', breadcrumb: 'Overview',
+    description: 'Create, customise and prepare content that performs across every channel.',
   },
   compose: {
-    label: 'Compose', href: '/app/studio/compose', title: 'Compose', breadcrumb: 'Compose',
+    label: 'Compose', title: 'Compose', breadcrumb: 'Compose',
     description: 'Write, refine, preview and schedule channel-ready content in one place.',
   },
   'ai-generate': {
-    label: 'AI Generate', href: '/app/studio/ai-generate', title: 'AI Generate', breadcrumb: 'AI Generate',
+    label: 'AI Generate', title: 'AI Generate', breadcrumb: 'AI Generate',
     description: 'Generate high-quality, on-brand content in seconds, then refine it into a draft.',
   },
   ideas: {
-    label: 'Ideas', href: '/app/studio/ideas', title: 'Ideas', breadcrumb: 'Ideas',
+    label: 'Ideas', title: 'Ideas', breadcrumb: 'Ideas',
     description: 'Capture, evaluate and prioritise the ideas that drive meaningful content.',
   },
   templates: {
-    label: 'Templates', href: '/app/studio/templates', title: 'Templates', breadcrumb: 'Templates',
+    label: 'Templates', title: 'Templates', breadcrumb: 'Templates',
     description: 'Build faster with reusable, brand-approved templates for every channel and campaign.',
   },
   hashtags: {
-    label: 'Hashtags & Keywords', href: '/app/studio/hashtags', title: 'Hashtags & Keywords', breadcrumb: 'Hashtags & Keywords',
+    label: 'Hashtags & Keywords', title: 'Hashtags & Keywords', breadcrumb: 'Hashtags & Keywords',
     description: 'Discover, analyse and curate high-performing hashtags and keywords to grow your reach.',
   },
   media: {
-    label: 'Media', href: '/app/studio/media', title: 'Media', breadcrumb: 'Media',
+    label: 'Media', title: 'Media', breadcrumb: 'Media',
     description: 'A central hub for every image, video, document and creative asset in this workspace.',
   },
   content: {
-    label: 'Content Library', href: '/app/studio/content', title: 'Content Library', breadcrumb: 'Content Library',
+    label: 'Content Library', title: 'Content Library', breadcrumb: 'Content Library',
     description: 'Manage, organise and repurpose your approved content across all channels.',
   },
 }

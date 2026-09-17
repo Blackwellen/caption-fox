@@ -46,8 +46,8 @@ export function CalendarPageChrome({
 
       <div className="mb-[14px] flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div className="min-w-0">
-          <h1 className="text-[22px] lg:text-[20px] font-bold leading-7 tracking-[-0.015em] text-slate-900">{title}</h1>
-          <p className="mt-[3px] max-w-3xl text-[12px] lg:text-[10.5px] leading-4 text-slate-600">{subtitle}</p>
+          <h1 className="text-[22px] lg:text-[20px] font-bold leading-7 lg:leading-6 tracking-[-0.015em] text-slate-900">{title}</h1>
+          <p className="mt-[3px] lg:mt-0 max-w-3xl text-[12px] lg:text-[10.5px] leading-4 lg:leading-[13px] text-slate-600">{subtitle}</p>
         </div>
         {actions && <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div>}
       </div>

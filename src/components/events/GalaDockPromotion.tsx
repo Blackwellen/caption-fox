@@ -20,14 +20,14 @@ import type { GalaDockConnectionState, GalaDockPlacement } from '@/lib/events/ty
 
 export const GALA_DOCK_MARKETING_URL = 'https://galadock.com'
 
-type Variant = 'wide' | 'wide-reverse' | 'tall' | 'footer'
+type Variant = 'wide' | 'wide-reverse' | 'wide-cta-right' | 'tall' | 'footer'
 
 const VARIANT_FOR: Record<GalaDockPlacement, Variant> = {
   'overview-banner': 'wide',
   'events-sidebar': 'tall',
   'webinars-banner': 'wide-reverse',
   'podcasts-banner': 'wide',
-  'sponsorships-banner': 'wide-reverse',
+  'sponsorships-banner': 'wide-cta-right',
   'sponsorships-footer': 'footer',
   'follow-up-banner': 'wide',
 }
@@ -99,10 +99,12 @@ export default function GalaDockPromotion(props: GalaDockPromotionProps) {
       onClick={onCtaClick}
       {...(external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
       className={cn(
-        'inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-[13px] font-semibold transition-colors',
+        'inline-flex h-[26px] items-center gap-1.5 rounded-md px-3.5 text-[11.5px] font-semibold transition-colors',
         variant === 'footer'
           ? 'bg-indigo-600 text-white hover:bg-indigo-700'
-          : 'bg-slate-900/90 text-white ring-1 ring-white/15 hover:bg-slate-900',
+          : variant === 'tall'
+            ? 'border border-white/40 text-white hover:bg-white/10'
+            : 'bg-[#07071a] text-white ring-1 ring-white/10 hover:bg-black',
       )}
     >
       {cta.label}
@@ -119,7 +121,7 @@ export default function GalaDockPromotion(props: GalaDockPromotionProps) {
       onClick={onCtaClick}
       target="_blank"
       rel="noopener noreferrer"
-      className="inline-flex items-center gap-1.5 rounded-lg border border-white/25 px-4 py-2 text-[13px] font-semibold text-white transition-colors hover:bg-white/10"
+      className="inline-flex h-[26px] items-center gap-1.5 rounded-md border border-white/30 px-3.5 text-[11.5px] font-semibold text-white transition-colors hover:bg-white/10"
     >
       {cta.secondary}
       <span className="sr-only">(opens in a new tab)</span>
@@ -157,7 +159,7 @@ export default function GalaDockPromotion(props: GalaDockPromotionProps) {
           <p className="text-[13.5px] font-semibold text-slate-900">{title}</p>
           <p className="mt-0.5 text-[12.5px] text-slate-600">{body}</p>
         </div>
-        {ctaButton}
+        <div className="sm:mr-24">{ctaButton}</div>
         {dismissButton}
       </aside>
     )
@@ -168,16 +170,13 @@ export default function GalaDockPromotion(props: GalaDockPromotionProps) {
     return (
       <aside
         aria-label="Gala Dock cross-product recommendation"
-        className={cn('relative overflow-hidden rounded-xl bg-[#0b1033] px-5 py-6 text-white', className)}
+        className={cn('relative overflow-hidden rounded-xl bg-[linear-gradient(135deg,#0b0c2c_0%,#131048_60%,#1f1a7a_100%)] px-5 py-5 text-white', className)}
       >
         <Starfield />
         <div className="relative">
-          <div className="flex items-center gap-2.5">
-            <GalaDockMark size={34} />
-            <GalaDockWordmark className="h-[22px] w-auto" />
-          </div>
-          <h2 className="mt-4 text-[19px] font-bold leading-snug">{title}</h2>
-          <p className="mt-2 text-[12.5px] leading-relaxed text-slate-300">{body}</p>
+          <GalaDockLogo height={46} />
+          <h2 className="mt-3 max-w-[240px] text-[17px] font-bold leading-snug">{title}</h2>
+          <p className="mt-2 max-w-[250px] text-[12px] leading-relaxed text-slate-200">{body}</p>
           {connectionState === 'error' && syncError && (
             <p className="mt-2 rounded-md bg-rose-500/15 px-2 py-1 text-[11.5px] text-rose-200">{syncError}</p>
           )}
@@ -189,10 +188,14 @@ export default function GalaDockPromotion(props: GalaDockPromotionProps) {
   }
 
   /* ----------------------------------------------------------------- wide */
-  const logoBlock = (
-    <div className="flex shrink-0 items-center gap-3">
-      <GalaDockMark size={variant === 'wide' ? 62 : 52} />
-      {variant === 'wide-reverse' && <GalaDockWordmark className="hidden h-[34px] w-auto sm:block" />}
+  const logoBlock = variant === 'wide' ? (
+    <div className="relative flex shrink-0 items-center">
+      <GalaDockMark size={74} />
+    </div>
+  ) : (
+    <div className="relative flex shrink-0 items-center lg:pr-4">
+      <span className="sm:hidden"><GalaDockMark size={56} /></span>
+      <GalaDockLogo height={70} className="hidden sm:block" />
     </div>
   )
 
@@ -200,25 +203,34 @@ export default function GalaDockPromotion(props: GalaDockPromotionProps) {
     <aside
       aria-label="Gala Dock cross-product recommendation"
       className={cn(
-        'relative flex items-center gap-5 overflow-hidden rounded-xl bg-[#0b1033] px-6 py-5 text-white',
+        'relative flex items-center gap-[38px] overflow-hidden rounded-xl',
+        variant === 'wide' ? 'min-h-[107px]' : variant === 'wide-cta-right' ? 'min-h-[116px]' : 'min-h-[140px]',
+        ' bg-[linear-gradient(90deg,#0b0c2c_0%,#131048_55%,#1f1a7a_100%)] py-3 pl-5 pr-6 text-white',
         className,
       )}
     >
       <Starfield />
       {logoBlock}
       <div className="relative min-w-0 flex-1 pr-8">
-        <h2 className="text-[17px] font-bold leading-snug">{title}</h2>
-        <p className="mt-1 max-w-xl text-[12.5px] leading-relaxed text-slate-300">{body}</p>
+        <h2 className="text-[17px] font-bold leading-snug tracking-tight">{title}</h2>
+        <p className={cn('mt-1 text-[12px] leading-snug text-slate-200', variant === 'wide' ? 'max-w-2xl' : 'max-w-[340px]')}>{body}</p>
         {connectionState === 'error' && syncError && (
           <p className="mt-2 inline-block rounded-md bg-rose-500/15 px-2 py-1 text-[11.5px] text-rose-200">{syncError}</p>
         )}
-        <div className="mt-3.5 flex flex-wrap items-center gap-2.5">
-          {ctaButton}
-          {secondaryButton}
-        </div>
+        {(variant !== 'wide-cta-right') ? (
+          <div className="mt-2.5 flex flex-wrap items-center gap-2.5">
+            {ctaButton}
+            {secondaryButton}
+          </div>
+        ) : (
+          <div className="mt-2.5 md:hidden">{ctaButton}</div>
+        )}
       </div>
+      {variant === 'wide-cta-right' && <div className="relative mr-14 hidden shrink-0 md:block">{ctaButton}</div>}
       {variant === 'wide' && (
-        <GalaDockWordmark className="relative hidden h-[46px] w-auto shrink-0 xl:block" />
+        <div className="relative mr-10 hidden shrink-0 items-center xl:flex" aria-hidden>
+          <GalaDockLogo height={76} />
+        </div>
       )}
       {dismissButton}
     </aside>
@@ -227,46 +239,41 @@ export default function GalaDockPromotion(props: GalaDockPromotionProps) {
 
 /* ------------------------------------------------------------------ brand */
 
-/**
- * Gala Dock spiral mark. Rendered as inline SVG so it stays crisp at every
- * placement size and in both themes. Swap for the official PNG by replacing
- * this component's body with an <Image> — nothing else needs to change.
+/*
+ * Official Gala Dock artwork (transparent PNGs, trimmed to their content).
+ * Plain <img> with explicit dimensions: tiny static brand assets, and the
+ * intrinsic size reserves space so nothing shifts while they load.
  */
+const ICON_SRC = '/brands/gala-dock/gala-dock-icon.png' // 116 x 115
+const LOGO_SRC = '/brands/gala-dock/gala-dock-logo.png' // 431 x 115
+
+/** The spiral mark on its own. */
 export function GalaDockMark({ size = 48, tone = 'dark' }: { size?: number; tone?: 'dark' | 'light' }) {
-  const bg = tone === 'dark' ? '#161a3f' : '#ffffff'
+  const icon = (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img src={ICON_SRC} alt="Gala Dock" width={size} height={size} className="shrink-0 object-contain" style={{ width: size, height: size }} />
+  )
+  if (tone === 'dark') return icon
   return (
-    <svg width={size} height={size} viewBox="0 0 64 64" role="img" aria-label="Gala Dock">
-      <rect width="64" height="64" rx="18" fill={bg} />
-      <path
-        d="M44 24.5a15 15 0 1 0 2.2 12.4c1-4.6-1.6-8.7-6-9.4-4-.6-7.6 1.9-8.3 5.7-.6 3.2 1.4 6 4.4 6.5 2.6.4 4.9-1.2 5.3-3.6"
-        fill="none"
-        stroke="#5b4bf5"
-        strokeWidth="5"
-        strokeLinecap="round"
-      />
-    </svg>
+    <span className="flex shrink-0 items-center justify-center rounded-xl bg-white p-1 shadow-sm ring-1 ring-indigo-100">
+      {icon}
+    </span>
   )
 }
 
-export function GalaDockWordmark({ className }: { className?: string }) {
+/** Mark + "Gala·Dock" wordmark lockup, sized by height. */
+export function GalaDockLogo({ height, className }: { height: number; className?: string }) {
+  const width = Math.round((height * 431) / 115)
   return (
-    <svg viewBox="0 0 260 48" className={className} role="img" aria-label="Gala Dock">
-      <text
-        x="0" y="35"
-        fontFamily="system-ui, -apple-system, 'Segoe UI', sans-serif"
-        fontSize="36" fontWeight="700" fill="#5b4bf5" letterSpacing="-0.5"
-      >
-        Gala
-      </text>
-      <circle cx="93" cy="24" r="4" fill="#5b4bf5" />
-      <text
-        x="104" y="35"
-        fontFamily="system-ui, -apple-system, 'Segoe UI', sans-serif"
-        fontSize="36" fontWeight="700" fill="#5b4bf5" letterSpacing="-0.5"
-      >
-        Dock
-      </text>
-    </svg>
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={LOGO_SRC}
+      alt="Gala Dock"
+      width={width}
+      height={height}
+      className={cn('shrink-0 object-contain', className)}
+      style={{ width, height }}
+    />
   )
 }
 
@@ -284,9 +291,8 @@ function Starfield() {
           <stop offset="100%" stopColor="#6d5cff" stopOpacity="0" />
         </radialGradient>
       </defs>
-      <ellipse cx="430" cy="70" rx="120" ry="70" fill="url(#gd-glow)" />
-      <path d="M430 34 L436 66 L468 70 L436 74 L430 106 L424 74 L392 70 L424 66 Z" fill="#a99cff" opacity="0.75" />
-      <path d="M520 52 L523 66 L537 69 L523 72 L520 86 L517 72 L503 69 L517 66 Z" fill="#a99cff" opacity="0.5" />
+      <ellipse cx="455" cy="70" rx="90" ry="60" fill="url(#gd-glow)" opacity="0.45" />
+      <path d="M455 38 L458 67 L487 70 L458 73 L455 102 L452 73 L423 70 L452 67 Z" fill="#7f74ff" opacity="0.7" />
     </svg>
   )
 }

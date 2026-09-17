@@ -36,7 +36,13 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Export is not permitted for your role' }, { status: 403 })
   }
 
+  // "Export selected" sends the chosen ids; everything else still comes from
+  // the screen's own query.
+  const ids = (params.get('ids') ?? '')
+    .split(',').map(v => v.trim()).filter(v => /^[0-9a-f-]{36}$/i.test(v)).slice(0, 200)
+
   const filters: EventsFilters = {
+    ids: ids.length ? ids : undefined,
     q: params.get('q') ?? undefined,
     type: params.get('type') ?? undefined,
     status: params.get('status') ?? undefined,
@@ -49,7 +55,7 @@ export async function GET(request: NextRequest) {
     dateTo: params.get('dateTo') ?? undefined,
     sort: params.get('sort') ?? undefined,
     page: 1,
-    pageSize: 50,
+    pageSize: ids.length ? Math.max(50, ids.length) : 50,
   }
 
   const workspaceId = resolved.workspace.id

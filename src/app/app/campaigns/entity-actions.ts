@@ -1,6 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
+import { CAMPAIGNS_ROUTE_PATTERN } from '@/lib/campaigns/paths'
 import { getCampaignSession } from '@/lib/campaigns/server'
 import { GIVEAWAY_ENTRY_METHODS, COMPETITION_TYPES } from '@/lib/constants'
 import type { ActionResult } from './actions'
@@ -8,9 +9,7 @@ import type { ActionResult } from './actions'
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/
 
 function revalidateAll() {
-  for (const path of ['/app/campaigns', '/app/campaigns/giveaways', '/app/campaigns/competitions', '/app/campaigns/all']) {
-    revalidatePath(path)
-  }
+  revalidatePath(CAMPAIGNS_ROUTE_PATTERN, 'layout')
 }
 
 // ============================================================================
@@ -107,7 +106,7 @@ export async function createGiveaway(input: GiveawayInput): Promise<ActionResult
   await supabase.from('campaign_activity').insert({
     workspace_id: ctx.workspaceId, actor_id: userId, entity_type: 'giveaway',
     entity_id: data.id, action: 'created', summary: `created giveaway ${data.title}`,
-    link: `/app/campaigns/giveaways/${data.id}`, surface: 'giveaways',
+    link: `${session.base}/giveaways/${data.id}`, surface: 'giveaways',
   })
 
   revalidateAll()
@@ -135,7 +134,7 @@ export async function setGiveawayFulfilment(id: string, state: string): Promise<
   await supabase.from('campaign_activity').insert({
     workspace_id: ctx.workspaceId, actor_id: userId, entity_type: 'giveaway', entity_id: id,
     action: `fulfilment_${state}`, summary: `marked prize fulfilment as ${state.replace('_', ' ')} for ${giveaway.title}`,
-    link: `/app/campaigns/giveaways/${id}`, surface: 'giveaways',
+    link: `${session.base}/giveaways/${id}`, surface: 'giveaways',
   })
 
   revalidateAll()
@@ -233,7 +232,7 @@ export async function createCompetition(input: CompetitionInput): Promise<Action
   await supabase.from('campaign_activity').insert({
     workspace_id: ctx.workspaceId, actor_id: userId, entity_type: 'competition',
     entity_id: data.id, action: 'created', summary: `created competition ${data.title}`,
-    link: `/app/campaigns/competitions/${data.id}`, surface: 'competitions',
+    link: `${session.base}/competitions/${data.id}`, surface: 'competitions',
   })
 
   revalidateAll()
@@ -270,7 +269,7 @@ export async function setCompetitionJudgingStage(id: string, stage: string): Pro
   await supabase.from('campaign_activity').insert({
     workspace_id: ctx.workspaceId, actor_id: userId, entity_type: 'competition', entity_id: id,
     action: `judging_${stage}`, summary: `advanced ${competition.title} to ${stage.replace('_', ' ')}`,
-    link: `/app/campaigns/competitions/${id}`, surface: 'competitions',
+    link: `${session.base}/competitions/${id}`, surface: 'competitions',
   })
 
   revalidateAll()

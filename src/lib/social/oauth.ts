@@ -258,3 +258,14 @@ export function refreshAccessToken(input: {
     refresh_token: input.refreshToken,
   })
 }
+
+/**
+ * Post-authorisation redirect target. Only same-origin relative paths are
+ * allowed: `//host`, `/\host` and absolute URLs would send the user off-site
+ * with a freshly connected account, so they fall back to Connections.
+ */
+export function safeReturnPath(returnTo: string | null | undefined): string {
+  if (typeof returnTo !== 'string' || !returnTo.startsWith('/')) return '/app/social/connections'
+  if (returnTo.startsWith('//') || returnTo.startsWith('/\\') || /[\r\n\t]/.test(returnTo)) return '/app/social/connections'
+  return returnTo
+}

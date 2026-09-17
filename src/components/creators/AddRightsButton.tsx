@@ -1,13 +1,15 @@
 'use client'
 
 import { useState } from 'react'
+import { BUTTON_PRIMARY, BUTTON_SECONDARY } from './design'
+import { useCreatorsBase } from './controls'
 import { useRouter } from 'next/navigation'
 import { Plus, Send } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Modal } from '@/components/ui/Modal'
 import { Input, Select, Textarea } from '@/components/ui/Input'
 import { useToast } from '@/components/campaigns/Toast'
-import { createRightsRecord, sendUsageRequest } from '@/app/app/creators/actions'
+import { createRightsRecord, sendUsageRequest } from '@/lib/creators/actions'
 import WizardShell, { WizardChipToggle, WizardSection, WizardSummaryRow, type WizardStepDef } from './WizardShell'
 import {
   CHANNEL_LABELS, CREATOR_CHANNELS, RIGHTS_TERRITORIES, USAGE_SCOPE_LABELS, USAGE_SCOPES,
@@ -23,6 +25,7 @@ export default function AddRightsButton({
   creators, label = 'Add Rights Record', className,
 }: { creators: Pick<CreatorRow, 'id' | 'name' | 'handle'>[]; label?: string; className?: string }) {
   const router = useRouter()
+  const base = useCreatorsBase()
   const { notify } = useToast()
   const [open, setOpen] = useState(false)
   const [submitting, setSubmitting] = useState(false)
@@ -46,7 +49,7 @@ export default function AddRightsButton({
     if (!result.ok) { setSubmitError(result.error ?? 'Could not create the rights record.'); return false }
     notify('success', result.message ?? 'Rights record created.')
     setOpen(false); reset(); router.refresh()
-    if (result.id) router.push(`/app/creators/rights/${result.id}`)
+    if (result.id) router.push(`${base}/rights/${result.id}`)
     return true
   }
 
@@ -145,7 +148,7 @@ export default function AddRightsButton({
 
   return (
     <>
-      <Button size="sm" icon={<Plus size={15} />} onClick={() => setOpen(true)} className={className}>{label}</Button>
+      <button type="button" onClick={() => setOpen(true)} className={className ?? BUTTON_PRIMARY}><Plus size={16} aria-hidden />{label}</button>
       <WizardShell
         open={open} onClose={() => { setOpen(false); reset() }}
         title="Add a rights record" subtitle="Record a usage licence, assignment or permission tied to a creator's work."
@@ -183,7 +186,7 @@ export function SendUsageRequestButton({
 
   return (
     <>
-      <Button variant="secondary" size="sm" icon={<Send size={14} />} onClick={() => setOpen(true)} className={className}>{label}</Button>
+      <button type="button" onClick={() => setOpen(true)} className={className ?? BUTTON_SECONDARY}><Send size={16} aria-hidden />{label}</button>
       <Modal
         open={open} onClose={() => { setOpen(false); reset() }}
         title="Send a usage request" description="Ask a creator to grant additional usage rights for their content."

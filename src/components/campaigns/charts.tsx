@@ -1,12 +1,12 @@
 'use client'
 
 import {
-  CartesianGrid, Cell, Line, LineChart, Pie, PieChart, ResponsiveContainer,
+  CartesianGrid, Cell, Label, Line, LineChart, Pie, PieChart, ResponsiveContainer,
   Scatter, ScatterChart, Tooltip, XAxis, YAxis, ZAxis,
 } from 'recharts'
 import { cn } from '@/lib/utils'
 
-const AXIS = { fontSize: 10, fill: '#94a3b8' }
+const AXIS = { fontSize: 8.5, fill: '#94a3b8' }
 const GRID = '#f1f5f9'
 
 function compact(value: number): string {
@@ -26,7 +26,7 @@ export interface TrendSeries { key: string; label: string; colour: string }
  * chart so the same data is available to screen readers.
  */
 export function TrendChart({
-  data, series, xKey = 'date', height = 190, emptyMessage = 'No performance data for this period yet.',
+  data, series, xKey = 'date', height = 162, emptyMessage = 'No performance data for this period yet.',
 }: {
   data: Record<string, string | number>[]
   series: TrendSeries[]
@@ -105,7 +105,7 @@ export function ChartLegend({ series, className }: { series: TrendSeries[]; clas
 export interface DonutSlice { key: string; label: string; value: number; colour: string }
 
 export function DonutChart({
-  slices, total, totalLabel = 'Total', centreValue, size = 150, emptyMessage = 'Nothing to break down yet.',
+  slices, total, totalLabel = 'Total', centreValue, size = 120, emptyMessage = 'Nothing to break down yet.',
 }: {
   slices: DonutSlice[]
   total: number
@@ -155,12 +155,14 @@ export function DonutLegend({
   return (
     <ul className={cn('min-w-0 flex-1 space-y-1.5', className)}>
       {slices.map(slice => (
-        <li key={slice.key} className="flex items-center gap-2 text-[11px]">
-          <span className="h-2 w-2 shrink-0 rounded-sm" style={{ background: slice.colour }} aria-hidden />
+        <li key={slice.key} className="flex items-center gap-1.5 text-[11px] lg:text-[9px]">
+          <span className="h-2 w-2 shrink-0 rounded-sm lg:h-1.5 lg:w-1.5" style={{ background: slice.colour }} aria-hidden />
           <span className="min-w-0 flex-1 truncate text-slate-600">{slice.label}</span>
-          <span className="shrink-0 font-medium text-slate-900">{slice.value}</span>
-          <span className="w-10 shrink-0 text-right text-slate-400">
-            {total > 0 ? `${Math.round((slice.value / total) * 100)}%` : '0%'}
+          <span className="shrink-0 whitespace-nowrap font-medium text-slate-900">
+            {slice.value}
+            <span className="ml-1 font-normal text-slate-400">
+              ({total > 0 ? Math.round((slice.value / total) * 100) : 0}%)
+            </span>
           </span>
         </li>
       ))}
@@ -183,7 +185,7 @@ const SCATTER_COLOURS: Record<ScatterPoint['group'], string> = {
 }
 
 export function BudgetScatter({
-  points, height = 180, emptyMessage = 'No budget or performance data yet.',
+  points, height = 152, emptyMessage = 'No budget or performance data yet.',
 }: { points: ScatterPoint[]; height?: number; emptyMessage?: string }) {
   if (points.length === 0) {
     return (
@@ -201,12 +203,16 @@ export function BudgetScatter({
             <CartesianGrid stroke={GRID} />
             <XAxis
               type="number" dataKey="spend" name="Spend" tick={AXIS} tickLine={false}
-              axisLine={{ stroke: GRID }} tickFormatter={compact}
-            />
+              axisLine={{ stroke: GRID }} tickFormatter={compact} height={26}
+            >
+              <Label value="Spend (GBP)" position="insideBottom" offset={-2} style={{ fontSize: 8.5, fill: '#94a3b8' }} />
+            </XAxis>
             <YAxis
               type="number" dataKey="engagements" name="Engagements" tick={AXIS}
               tickLine={false} axisLine={false} tickFormatter={compact} width={44}
-            />
+            >
+              <Label value="Engagements" angle={-90} position="insideLeft" style={{ fontSize: 8.5, fill: '#94a3b8', textAnchor: 'middle' }} />
+            </YAxis>
             <ZAxis range={[60, 60]} />
             <Tooltip
               cursor={{ strokeDasharray: '3 3' }}

@@ -227,7 +227,7 @@ export default async function CalendarPage({
           {agendaDays.length === 0 ? (
             <EmptyState title="Nothing coming up" body="Items scheduled in this period will be listed here." />
           ) : agendaDays.flatMap(day => [...day.allDay, ...day.timed].slice(0, 1).map(entry => (
-            <div key={entry.id} className="flex items-center gap-3 px-3.5 py-[5px]">
+            <div key={entry.id} className="flex items-center gap-3 px-3.5 py-[5px] lg:py-[3px]">
               {/* Reference date badge: weekday tag (solid for today), day number, month. */}
               <span className="flex w-[34px] shrink-0 flex-col items-center overflow-hidden rounded-md border border-[#eef0f4] bg-white text-center">
                 <span className={cn('w-full py-px text-[8px] font-bold uppercase leading-[11px] tracking-wide', day.isToday ? 'bg-blue-600 text-white' : 'bg-blue-50 text-blue-600')}>
@@ -325,7 +325,7 @@ export default async function CalendarPage({
           {activity.error ? <ErrorState message={activity.error} /> : activity.data.length === 0 ? (
             <EmptyState icon={<Clock size={18} />} title="No activity yet" body="Schedule changes, approvals and publishes will be logged here." />
           ) : activity.data.map(item => (
-            <div key={item.id} className="flex items-start gap-2.5 px-3.5 py-[5px]">
+            <div key={item.id} className="flex items-start gap-2.5 px-3.5 py-[5px] lg:py-2">
               <ActivityTile tone={item.tone} />
               <div className="min-w-0 flex-1">
                 <p className="truncate text-[11px] lg:text-[9.5px] font-medium leading-[14px] text-slate-900">{item.summary}</p>

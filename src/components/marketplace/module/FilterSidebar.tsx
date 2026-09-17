@@ -44,20 +44,20 @@ export default function FilterSidebar({
     }))
   }
 
-  const field = 'w-full rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-xs text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500'
+  const field = 'w-full rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-xs text-slate-800 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 lg:rounded-md lg:px-2 lg:py-1 lg:text-[10px]'
 
   return (
-    <aside className="rounded-xl border border-slate-200 bg-white p-4" aria-label="Advanced filters">
+    <aside className="rounded-xl border border-slate-200 bg-white p-4 lg:p-3" aria-label="Advanced filters">
       <div className="flex items-center justify-between">
-        <h2 className="text-sm font-semibold text-slate-900">Filters</h2>
-        <button type="button" onClick={clearAll} className="text-xs font-medium text-blue-600 hover:text-blue-700">
+        <h2 className="text-sm font-semibold text-slate-900 lg:text-[11.5px]">Filters</h2>
+        <button type="button" onClick={clearAll} className="text-xs font-medium text-blue-600 hover:text-blue-700 lg:text-[9.5px]">
           Clear all
         </button>
       </div>
 
-      <div className="mt-4 space-y-4">
+      <div className="mt-4 space-y-4 lg:mt-3 lg:space-y-2.5">
         <div>
-          <label htmlFor="flt-location" className="mb-1.5 block text-xs font-semibold text-slate-700">Location</label>
+          <label htmlFor="flt-location" className="mb-1.5 block text-xs font-semibold text-slate-700 lg:mb-1 lg:text-[10px]">Location</label>
           <div className="relative">
             <Search size={13} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
@@ -65,7 +65,7 @@ export default function FilterSidebar({
               onChange={event => setDraft({ ...draft, location: event.target.value })}
               onKeyDown={event => { if (event.key === 'Enter') apply() }}
               placeholder="Search locations"
-              className={`${field} pl-7`}
+              className={`${field} pl-7 lg:pl-7`}
             />
           </div>
           <select
@@ -79,7 +79,7 @@ export default function FilterSidebar({
         </div>
 
         <div>
-          <label htmlFor="flt-category" className="mb-1.5 block text-xs font-semibold text-slate-700">Category</label>
+          <label htmlFor="flt-category" className="mb-1.5 block text-xs font-semibold text-slate-700 lg:mb-1 lg:text-[10px]">Category</label>
           <select
             id="flt-category" value={draft.category}
             onChange={event => setDraft({ ...draft, category: event.target.value })}
@@ -91,7 +91,7 @@ export default function FilterSidebar({
         </div>
 
         <div>
-          <label htmlFor="flt-platform" className="mb-1.5 block text-xs font-semibold text-slate-700">Platform</label>
+          <label htmlFor="flt-platform" className="mb-1.5 block text-xs font-semibold text-slate-700 lg:mb-1 lg:text-[10px]">Platform</label>
           <select
             id="flt-platform" value={draft.platform}
             onChange={event => setDraft({ ...draft, platform: event.target.value })}
@@ -103,7 +103,7 @@ export default function FilterSidebar({
         </div>
 
         <div>
-          <label htmlFor="flt-budget" className="mb-1.5 block text-xs font-semibold text-slate-700">Budget range</label>
+          <label htmlFor="flt-budget" className="mb-1.5 block text-xs font-semibold text-slate-700 lg:mb-1 lg:text-[10px]">Budget range</label>
           <select
             id="flt-budget" value={draft.budget}
             onChange={event => setDraft({ ...draft, budget: event.target.value })}
@@ -114,7 +114,7 @@ export default function FilterSidebar({
         </div>
 
         <div>
-          <label htmlFor="flt-rating" className="mb-1.5 block text-xs font-semibold text-slate-700">Rating</label>
+          <label htmlFor="flt-rating" className="mb-1.5 block text-xs font-semibold text-slate-700 lg:mb-1 lg:text-[10px]">Rating</label>
           <select
             id="flt-rating" value={draft.rating}
             onChange={event => setDraft({ ...draft, rating: event.target.value })}
@@ -125,7 +125,7 @@ export default function FilterSidebar({
         </div>
 
         <div>
-          <label htmlFor="flt-speed" className="mb-1.5 block text-xs font-semibold text-slate-700">Delivery speed</label>
+          <label htmlFor="flt-speed" className="mb-1.5 block text-xs font-semibold text-slate-700 lg:mb-1 lg:text-[10px]">Delivery speed</label>
           <select
             id="flt-speed" value={draft.turnaround}
             onChange={event => setDraft({ ...draft, turnaround: event.target.value })}
@@ -145,16 +145,16 @@ export default function FilterSidebar({
         />
       </div>
 
-      <div className="mt-5 space-y-2">
+      <div className="mt-5 space-y-2 lg:mt-3 lg:space-y-1.5">
         <button
           type="button" onClick={apply}
-          className="w-full rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white transition hover:bg-blue-700"
+          className="w-full rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white transition hover:bg-blue-700 lg:py-1.5 lg:text-[10.5px]"
         >
           Apply filters
         </button>
         <button
           type="button" onClick={() => router.push(buildMarketplaceHref(pathname, query, draft))}
-          className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-50"
+          className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-50 lg:py-1.5 lg:text-[10.5px]"
         >
           <SlidersHorizontal size={14} />Advanced filters
         </button>
@@ -166,11 +166,11 @@ export default function FilterSidebar({
 function Toggle({ label, checked, onChange }: { label: string; checked: boolean; onChange: (value: boolean) => void }) {
   return (
     <div className="flex items-center justify-between">
-      <span className="text-xs font-semibold text-slate-700">{label}</span>
+      <span className="text-xs font-semibold text-slate-700 lg:text-[10px]">{label}</span>
       <button
         type="button" role="switch" aria-checked={checked} aria-label={label}
         onClick={() => onChange(!checked)}
-        className={`relative h-5 w-9 rounded-full transition ${checked ? 'bg-blue-600' : 'bg-slate-200'}`}
+        className={`relative h-5 w-9 shrink-0 rounded-full transition lg:scale-90 ${checked ? 'bg-blue-600' : 'bg-slate-200'}`}
       >
         <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white transition ${checked ? 'left-[1.125rem]' : 'left-0.5'}`} />
       </button>

@@ -1,133 +1,89 @@
-# Manual Follow-up — Events
+# Events — Manual Actions Required
 
-Items Claude Code could not complete, with exact steps.
-
----
-
-## 1. Screenshot pass of the four detail routes + three creation modals — RESOLVED
-
-All ten routes and all 19 detail-page tabs (Event: 7, Webinar: 5, Podcast
-episode: 4, Sponsorship: 3) have now been live-verified against real seeded
-data with Chrome DevTools MCP at 1491×1055, once the earlier browser-tool
-lock cleared. All three creation modals were exercised end-to-end:
-"Create Episode" and "Create Sequence" were filled and submitted, confirmed
-to appear in their respective lists (with a KPI recalculation proving the
-server round-trip), then removed via a one-off SQL cleanup script;
-"Create Sponsorship" was opened with real sponsor/event data populated and
-cancelled cleanly. One real bug was found and fixed in the process: the
-Event detail page's Speakers and Activity tabs double-rendered their
-heading and carried a dead "View All" link, because the tab reused the
-Overview-preview `PeoplePanel`/`ActivityPanel` components (which supply
-their own Panel chrome) inside an outer `Panel` — see
-`src/app/[workspaceType]/events/events/[id]/page.tsx`.
-
-**Still outstanding:** the Payments tab's `EventsLockedState` gate for a
-role without `sponsorships.viewFinancials` was reviewed in source
-(`page.can('sponsorships.viewFinancials')` gates both the Sponsors-tab
-value column and the dedicated Payments tab) but not exercised live, since
-this session only had an Owner-level session. To confirm live:
-1. Create or switch to a workspace member with a role that lacks
-   `sponsorships.viewFinancials` (e.g. a restricted Team Member — check
-   `src/lib/events/entitlements.ts` `PERMISSION_FOR` for the exact role
-   list).
-2. Visit `/brand/events/sponsorships/{id}?tab=payments` as that user and
-   confirm the locked/upgrade state renders instead of real figures.
+Things I could not complete from here, with exact steps.
 
 ---
 
-## 2. Real Gala Dock logo/icon assets
+## 1. Official Gala Dock logo assets — DONE (2026-09-16)
 
-**Why manual:** the original brief referenced `/mnt/data/gala dock
-logo.png` and `/mnt/data/gala favicon.png`, but no such files exist in this
-environment or were attached to the conversation. `GalaDockPromotion.tsx`
-currently renders an inline SVG spiral mark (`GalaDockMark`) and an inline
-SVG wordmark (`GalaDockWordmark`) as a faithful stand-in — purple/indigo,
-correct proportions, matches the reference images' layout — but it is not
-the real Gala Dock brand asset.
+Supplied as `public/gala dock logo.png` and `public/gala favicon.png`. Trimmed
+copies live at `public/brands/gala-dock/gala-dock-logo.png` (lockup) and
+`gala-dock-icon.png` (mark), used by `GalaDockLogo` / `GalaDockMark` in
+`src/components/events/GalaDockPromotion.tsx`. The SVG stand-ins were removed.
+Verified in all placements: overview, events side card, webinars, podcasts,
+sponsorships banner and footer, follow-up.
+
+---
+
+## 1b. Supply the Gala Dock product screenshot for the Webinars banner (5 minutes)
+
+**Why:** the approved Webinars image shows a Gala Dock dashboard/phone mockup on
+the right of the banner. No such asset exists in the repo, and inventing a fake
+product UI would misrepresent Gala Dock.
+
+**Steps:** save it as `public/brands/gala-dock/gala-dock-dashboard.png` (transparent
+background, ~620×280) and ask for it to be placed in the `wide-reverse` variant of
+`src/components/events/GalaDockPromotion.tsx`.
+
+---
+
+## 2. Confirm the Gala Dock destination URL (2 minutes)
+
+**Why:** `GALA_DOCK_MARKETING_URL` in `GalaDockPromotion.tsx` is set to
+`https://galadock.com`. I could not verify that this is the correct production
+destination, and the "See How It Works" secondary CTA appends `/how-it-works`.
+
+**Steps:** confirm both URLs resolve, or change the constant. The CTA already
+opens in a new tab with `noopener noreferrer` and is tracked through the
+existing analytics action.
+
+---
+
+## 3. Cross-workspace RLS negative test (15 minutes, needs a second account)
+
+**Why:** I verified server-side scoping by reading the code path (every query
+filters `workspace_id`, and `getEventsPageContext` 404s a non-member before any
+record loads). I could **not** run the live negative test, because this
+environment has one real user.
 
 **Steps:**
-1. Obtain the official Gala Dock logo and favicon files (PNG or SVG,
-   transparent background) from the Gala Dock brand team.
-2. Save them under `public/brands/gala-dock/` (e.g.
-   `gala-dock-logo.png`, `gala-dock-icon.png`), matching the convention
-   described in the original brief.
-3. In `src/components/events/GalaDockPromotion.tsx`, replace the bodies of
-   `GalaDockMark` and `GalaDockWordmark` with `next/image` `<Image>` tags
-   pointing at those files. Keep the same `size`/`className` props so every
-   call site (5 placements) continues to work unchanged.
+1. Create a second Supabase user and a workspace they own.
+2. Sign in as that user and request a first user's event directly, e.g.
+   `/brand/events/events/<event-id-from-the-demo-workspace>`.
+3. Expect a 404 (not a 403, and not an empty shell).
+4. Repeat for `/events/webinars/<id>`, `/events/podcasts/<id>`,
+   `/events/sponsorships/<id>`.
+5. Repeat against the export endpoint:
+   `/api/events/export?resource=events&workspaceType=brand`.
 
 ---
 
-## 3. Webinar and podcast provider integrations (Zoom, Teams, Spotify, etc.)
+## 4. Connect a webinar / podcast provider to exercise sync (30 minutes)
 
-**Why manual:** requires real OAuth app registrations and API credentials
-per provider, which only the account owner can create.
+**Why:** provider capability handling is implemented and gated, but no live
+provider is connected here, so "Average Watch Time" and recording states read
+from stored values rather than a live sync.
 
-**Steps:**
-1. Decide which providers to launch with first (the schema already
-   supports `zoom`, `teams`, `google_meet`, `webinarjam`, `demio`,
-   `livestorm`, `youtube_live` for webinars; `riverside`, `spotify`,
-   `apple`, `youtube`, `buzzsprout`, `libsyn`, `transistor`, `captivate`,
-   `rss` for podcasts).
-2. Register OAuth apps with each provider, add client ID/secret to
-   environment variables, and build the connect flow under
-   `/{type}/integrations` (existing integrations pattern) writing to
-   `webinar_details.provider_connection_id` / `podcast_shows
-   .provider_connection_id`, which reference the existing `integrations`
-   table.
-3. Add a background sync job (existing job-runner pattern, if any) to pull
-   registrations, attendance, watch time, questions and recording state
-   from the connected provider into `webinar_details` / `event_registrations`
-   / `webinar_questions`.
-4. Until this is done, "Average Watch Time" and "Attendance Rate" correctly
-   show "Needs a connected provider" / "—" rather than a fabricated number
-   — this is working as intended, not a bug.
+**Steps:** connect a provider under `/{type}/integrations`, then confirm the
+Webinars KPI strip shows provider-reported watch time and that a webinar with
+read-only provider scope does **not** offer write actions.
 
 ---
 
-## 4. Automated RLS negative-test suite
+## 5. Decide the demo-data policy for production (5 minutes)
 
-**Why manual:** requires a second seeded workspace + a decision on how this
-repo wants to run automated tests (no test runner is currently installed —
-confirmed absent from `package.json`).
-
-**Steps:**
-1. Install a test runner (Vitest is the lightest fit for a Next.js App
-   Router + Supabase project like this one).
-2. Write one negative test per Events table: authenticate as a user who is
-   a member of Workspace A only, attempt to read/write a row scoped to
-   Workspace B's `workspace_id`, assert zero rows / a permission error.
-3. Add positive-path tests: correct member can read/write their own
-   workspace's rows.
-4. Wire into CI once a CI pipeline exists for this repo.
+**Why:** the five new migrations seed the Brand demo workspace only (guarded on
+slug `jamahl-thomas-campaign-manager-demo`), and every row is `is_demo = true`.
+They are safe to ship, but if you do **not** want demo data created on a fresh
+production database, exclude the five `20260916000*_events_demo_*.sql` files
+from the production migration path.
 
 ---
 
-## 5. Tablet and mobile responsive QA pass
+## 6. Pre-existing breakage outside Events (not mine)
 
-**Why manual:** blocked by the same Chrome MCP outage as item 1. The
-module was built with the same three-tier responsive pattern
-(desktop row nav / tablet sliding tray / mobile dropdown) used everywhere
-else in Caption Fox (`EventsMobileNav.tsx` implements the mobile dropdown),
-but has only been visually verified at the 1491×1055 desktop reference
-size.
-
-**Steps:** once the browser tool is available again, resize to 1024, 768
-and 390px widths for all ten routes and fix anything that doesn't match
-the rest of the app's responsive behaviour.
-
----
-
-## 6. Podcast episode "Show Notes" editing and Follow-up sequence step editing
-
-**Why manual/deferred, not a bug:** the podcast episode detail page's Show
-Notes tab and the follow-up sequence detail/edit screen are read-only in
-this release — `show_notes` and sequence steps can be seeded and read, but
-there is no in-app editor yet. This was a deliberate scope cut to ship the
-six core list pages and their detail routes first, not an oversight.
-
-**Steps:** build a simple form (same pattern as the creation modals in
-`src/components/events/CreateModals.tsx`) with a corresponding
-`updatePodcastEpisode` / `updateFollowUpSequenceStep` server action
-following the exact guard pattern already established in
-`src/lib/events/actions.ts`.
+`src/components/campaigns/CampaignBoard.tsx` imports `BOARD_COLUMN_FOR`, which
+its source module does not export, so a full `npx tsc --noEmit` fails on that
+file. It is uncommitted work in the Campaigns module that predates this task —
+I did not touch it. Events itself typechecks clean. Worth fixing before a
+production build, since `next build` will fail on it.

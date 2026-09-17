@@ -174,9 +174,24 @@ export function surfaceHasEvents(surface: string): surface is EventsSurface {
 }
 
 /** The single gate every server component, action and API route calls. */
+/**
+ * Capabilities that change data. A suspended workspace keeps read access to
+ * its own records — it just cannot mutate them — which is what the suspended
+ * locked-state copy promises ("before event data can be changed"). Blocking
+ * reads as well would 404 the whole module and lock a customer out of their
+ * own event history over a billing problem.
+ */
+const MUTATING_CAPABILITIES = new Set<EventsCapability>([
+  'events.create', 'events.edit', 'events.delete', 'events.import',
+  'registrations.manage', 'sessions.manage', 'webinars.manage',
+  'podcasts.manage', 'podcasts.publish', 'sponsorships.manage',
+  'sponsorships.approve', 'followUp.manage', 'followUp.sequences',
+  'galaDock.connect',
+])
+
 export function canAccessEventsCapability(ctx: EventsContext, capability: EventsCapability): boolean {
   if (!surfaceHasEvents(ctx.surface)) return false
-  if (ctx.workspaceStatus === 'suspended') return false
+  if (ctx.workspaceStatus === 'suspended' && MUTATING_CAPABILITIES.has(capability)) return false
 
   const tab = TAB_FOR[capability]
   if (tab && !SURFACE_TABS[ctx.surface].includes(tab)) return false
@@ -196,7 +211,8 @@ export function eventsCapabilityBlocker(
   capability: EventsCapability,
 ): 'workspace-type' | 'plan' | 'feature-flag' | 'permission' | 'workspace-status' | null {
   if (!surfaceHasEvents(ctx.surface)) return 'workspace-type'
-  if (ctx.workspaceStatus === 'suspended') return 'workspace-status'
+  // Mirrors canAccessEventsCapability: suspension blocks changes, not reads.
+  if (ctx.workspaceStatus === 'suspended' && MUTATING_CAPABILITIES.has(capability)) return 'workspace-status'
   const tab = TAB_FOR[capability]
   if (tab && !SURFACE_TABS[ctx.surface].includes(tab)) return 'workspace-type'
   if (!planAllows(capability, ctx.plan)) return 'plan'

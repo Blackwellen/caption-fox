@@ -4,8 +4,8 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   Upload, Camera, Plus, Edit2, Trash2, Users, ShieldCheck, Bell,
-  CreditCard, Plug, ClipboardList, FileArchive, PlayCircle,
-  Briefcase, AtSign, Hash, Link2, CheckCircle2, AlertCircle,
+  CreditCard, Plug, ClipboardList, FileArchive,
+  AtSign, Link2, CheckCircle2, AlertCircle,
   RefreshCw, Loader2, Lock, Eye, EyeOff, ChevronRight, X,
   Building2, Globe, DollarSign, UserCircle2, Mail,
   Settings, Sparkles, BarChart2, MessageSquare, Clock, Key,
@@ -22,6 +22,7 @@ import { Modal, ConfirmModal } from '@/components/ui/Modal'
 import { Input, Textarea, Select } from '@/components/ui/Input'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { cn, formatDate, formatRelative, initials, slugify } from '@/lib/utils'
+import { BrandLogo } from '@/components/brand/BrandLogo'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -133,16 +134,10 @@ const SETTINGS_GROUPS: { group: string; manage: boolean; items: { id: string; la
 const ALL_TABS = SETTINGS_GROUPS.flatMap(g => g.items)
 const MANAGE_TAB_IDS = new Set(SETTINGS_GROUPS.filter(g => g.manage).flatMap(g => g.items.map(i => i.id)))
 
-const PLATFORM_ICONS: Record<string, React.ReactNode> = {
-  instagram: <Camera size={16} className="text-pink-500" />,
-  tiktok: <PlayCircle size={16} className="text-black" />,
-  linkedin: <Briefcase size={16} className="text-blue-600" />,
-  twitter: <AtSign size={16} className="text-sky-500" />,
-  x: <AtSign size={16} className="text-sky-500" />,
-  threads: <Hash size={16} className="text-slate-700" />,
-  facebook: <Users size={16} className="text-blue-700" />,
-  youtube: <PlayCircle size={16} className="text-red-600" />,
-}
+const PLATFORM_ICONS: Record<string, React.ReactNode> = Object.fromEntries(
+  ['instagram', 'tiktok', 'linkedin', 'twitter', 'x', 'threads', 'facebook', 'youtube']
+    .map(id => [id, <BrandLogo key={id} brand={id} size={16} decorative />]),
+)
 
 const TONE_OPTIONS = [
   'Professional', 'Casual', 'Playful', 'Bold', 'Inspiring',
@@ -180,12 +175,12 @@ const ROLE_OPTIONS = [
 ]
 
 const PLATFORMS = [
-  { id: 'instagram', label: 'Instagram', icon: <Camera size={18} className="text-pink-500" /> },
-  { id: 'tiktok', label: 'TikTok', icon: <PlayCircle size={18} className="text-black" /> },
-  { id: 'linkedin', label: 'LinkedIn', icon: <Briefcase size={18} className="text-blue-600" /> },
-  { id: 'twitter', label: 'X (Twitter)', icon: <AtSign size={18} className="text-sky-500" /> },
-  { id: 'threads', label: 'Threads', icon: <Hash size={18} className="text-slate-700" /> },
-  { id: 'youtube', label: 'YouTube', icon: <PlayCircle size={18} className="text-red-600" /> },
+  { id: 'instagram', label: 'Instagram', icon: <BrandLogo brand="instagram" size={18} decorative /> },
+  { id: 'tiktok', label: 'TikTok', icon: <BrandLogo brand="tiktok" size={18} decorative /> },
+  { id: 'linkedin', label: 'LinkedIn', icon: <BrandLogo brand="linkedin" size={18} decorative /> },
+  { id: 'twitter', label: 'X (Twitter)', icon: <BrandLogo brand="x" size={18} decorative /> },
+  { id: 'threads', label: 'Threads', icon: <BrandLogo brand="threads" size={18} decorative /> },
+  { id: 'youtube', label: 'YouTube', icon: <BrandLogo brand="youtube" size={18} decorative /> },
 ]
 
 // ─── Password Strength ────────────────────────────────────────────────────────

@@ -2,12 +2,12 @@
 
 import { useId, useMemo } from 'react'
 import {
-  Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Line, LineChart, Pie, PieChart,
+  Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, LabelList, Line, LineChart, Pie, PieChart,
   ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from 'recharts'
 import { formatCompact, formatDateShort, formatDecimal, formatNumber } from '@/lib/seo/format'
 
-const AXIS = { stroke: '#94A3B8', fontSize: 11 }
+const AXIS = { fill: '#64748B', fontSize: 11 }
 const GRID = '#F1F5F9'
 
 /** Sparkline used inside KPI cards. Purely decorative — data is in the value. */
@@ -17,7 +17,8 @@ export function Spark({ data, tone = '#2563EB' }: { data: { date: string; value:
   return (
     <div className="h-8" aria-hidden>
       <ResponsiveContainer width="100%" height="100%">
-        <LineChart data={points} margin={{ top: 2, right: 0, bottom: 2, left: 0 }}>
+        <LineChart data={points} margin={{ top: 3, right: 0, bottom: 3, left: 0 }}>
+          <YAxis hide domain={['dataMin', 'dataMax']} />
           <Line type="monotone" dataKey="value" stroke={tone} strokeWidth={1.5} dot={false} isAnimationActive={false} />
         </LineChart>
       </ResponsiveContainer>
@@ -30,7 +31,7 @@ export interface TrendSeries {
   label: string
   colour: string
   /** Right-hand axis. Used when a series has a different unit. */
-  axis?: 'left' | 'right'
+  axis?: 'left' | 'right' | 'right2'
   dashed?: boolean
   /** Lower values sit higher on the chart (rank). */
   reversed?: boolean
@@ -42,16 +43,21 @@ export interface TrendSeries {
  * AI Search. Renders an accessible data summary alongside the visual.
  */
 export function TrendChart({
-  data, series, height = 260, leftLabel, rightLabel,
+  data, series, height = 260, leftLabel, rightLabel, right2Label, axisTitles = false, curve = 'linear',
 }: {
   data: Record<string, number | string | null>[]
   series: TrendSeries[]
   height?: number
   leftLabel?: string
   rightLabel?: string
+  right2Label?: string
+  /** Render axis labels as titles above each axis (reference style) instead of rotated text. */
+  axisTitles?: boolean
+  curve?: 'monotone' | 'linear'
 }) {
   const id = useId()
   const hasRight = series.some(s => s.axis === 'right')
+  const hasRight2 = series.some(s => s.axis === 'right2')
   const reversedLeft = series.some(s => s.axis !== 'right' && s.reversed)
 
   const summary = useMemo(() => series.map(s => {
@@ -70,9 +76,18 @@ export function TrendChart({
 
   return (
     <figure className="m-0">
+      {axisTitles && (
+        <div className="flex items-end justify-between text-[10.5px] text-slate-500" aria-hidden>
+          <span>{leftLabel}</span>
+          <span className="flex gap-3">
+            {rightLabel && <span>{rightLabel}</span>}
+            {right2Label && <span className="w-[74px] whitespace-nowrap text-right">{right2Label}</span>}
+          </span>
+        </div>
+      )}
       <div style={{ height }}>
         <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={data} margin={{ top: 8, right: hasRight ? 8 : 4, bottom: 4, left: -8 }}>
+          <LineChart data={data} margin={{ top: 8, right: hasRight || hasRight2 ? 8 : 4, bottom: 4, left: -8 }}>
             <CartesianGrid stroke={GRID} vertical={false} />
             <XAxis
               dataKey="date"
@@ -89,7 +104,7 @@ export function TrendChart({
               axisLine={false}
               width={44}
               reversed={reversedLeft}
-              label={leftLabel ? { value: leftLabel, angle: -90, position: 'insideLeft', style: { fontSize: 10, fill: '#94A3B8' } } : undefined}
+              label={leftLabel && !axisTitles ? { value: leftLabel, angle: -90, position: 'insideLeft', style: { fontSize: 10, fill: '#94A3B8' } } : undefined}
             />
             {hasRight && (
               <YAxis
@@ -99,7 +114,18 @@ export function TrendChart({
                 tickLine={false}
                 axisLine={false}
                 width={44}
-                label={rightLabel ? { value: rightLabel, angle: 90, position: 'insideRight', style: { fontSize: 10, fill: '#94A3B8' } } : undefined}
+                label={rightLabel && !axisTitles ? { value: rightLabel, angle: 90, position: 'insideRight', style: { fontSize: 10, fill: '#94A3B8' } } : undefined}
+              />
+            )}
+            {hasRight2 && (
+              <YAxis
+                yAxisId="right2"
+                orientation="right"
+                tick={AXIS}
+                tickLine={false}
+                axisLine={false}
+                width={48}
+                tickFormatter={value => formatCompactAxis(Number(value))}
               />
             )}
             <Tooltip
@@ -109,8 +135,8 @@ export function TrendChart({
             {series.map(s => (
               <Line
                 key={s.key}
-                yAxisId={s.axis === 'right' ? 'right' : 'left'}
-                type="monotone"
+                yAxisId={s.axis ?? 'left'}
+                type={curve}
                 dataKey={s.key}
                 name={s.label}
                 stroke={s.colour}
@@ -166,8 +192,14 @@ export function DistributionBars({
               contentStyle={{ borderRadius: 10, border: '1px solid #E2E8F0', fontSize: 12 }}
               formatter={(value) => [formatNumber(Number(value)), 'Keywords']}
             />
-            <Bar dataKey="count" radius={[4, 4, 0, 0]} isAnimationActive={false}>
-              {data.map(entry => <Cell key={entry.label} fill={entry.colour} />)}
+            <defs>
+              <linearGradient id="cf-dist-bar" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0" stopColor="#3B82F6" />
+                <stop offset="1" stopColor="#93C5FD" />
+              </linearGradient>
+            </defs>
+            <Bar dataKey="count" radius={[4, 4, 0, 0]} maxBarSize={26} fill="url(#cf-dist-bar)" isAnimationActive={false}>
+              <LabelList dataKey="count" position="top" style={{ fontSize: 10, fill: '#334155', fontWeight: 500 }} formatter={(v: unknown) => (Number(v) > 0 ? formatCompact(Number(v)) : '')} />
             </Bar>
           </BarChart>
         </ResponsiveContainer>
@@ -215,9 +247,9 @@ export function Donut({
         </PieChart>
       </ResponsiveContainer>
       {centreValue && (
-        <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
-          <span className="text-lg font-bold text-slate-900">{centreValue}</span>
-          {centreLabel && <span className="text-[11px] text-slate-500">{centreLabel}</span>}
+        <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center px-2 text-center">
+          <span className="text-[15px] font-bold leading-none text-slate-900">{centreValue}</span>
+          {centreLabel && <span className="mt-0.5 text-[9px] leading-tight text-slate-500">{centreLabel}</span>}
         </div>
       )}
       <figcaption className="sr-only">
@@ -238,7 +270,7 @@ export function StackedTrend({
     <figure className="m-0">
       <div style={{ height }}>
         <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={data} stackOffset="expand" margin={{ top: 4, right: 4, bottom: 0, left: -16 }}>
+          <AreaChart data={data} stackOffset="expand" margin={{ top: 4, right: 4, bottom: 0, left: -6 }}>
             <CartesianGrid stroke={GRID} vertical={false} />
             <XAxis dataKey="date" tick={AXIS} tickLine={false} axisLine={{ stroke: GRID }} minTickGap={30} tickFormatter={v => formatDateShort(String(v))} />
             <YAxis tick={AXIS} tickLine={false} axisLine={false} width={44} tickFormatter={v => `${Math.round(Number(v) * 100)}%`} />
@@ -292,16 +324,25 @@ export function GroupedBars({
 }
 
 /** Small inline trend used in competitor rows. */
-export function MiniTrend({ data, colour }: { data: { value: number | null }[]; colour: string }) {
+export function MiniTrend({
+  data, colour, reversed = false, wide = false,
+}: { data: { value: number | null }[]; colour: string; reversed?: boolean; wide?: boolean }) {
   const points = data.filter(d => d.value != null)
-  if (points.length < 2) return <div className="h-6 w-24" aria-hidden />
+  const box = wide ? 'h-8 w-full' : 'h-5 w-14'
+  if (points.length < 2) return <div className={box} aria-hidden />
   return (
-    <div className="h-6 w-24" aria-hidden>
+    <div className={box} aria-hidden>
       <ResponsiveContainer width="100%" height="100%">
         <LineChart data={points} margin={{ top: 2, right: 0, bottom: 2, left: 0 }}>
+          <YAxis hide domain={['dataMin', 'dataMax']} reversed={reversed} />
           <Line type="monotone" dataKey="value" stroke={colour} strokeWidth={1.5} dot={false} isAnimationActive={false} />
         </LineChart>
       </ResponsiveContainer>
     </div>
   )
+}
+
+function formatCompactAxis(value: number) {
+  if (!Number.isFinite(value)) return ''
+  return Math.abs(value) >= 1000 ? `${Math.round(value / 100) / 10}K`.replace('.0K', 'K') : String(value)
 }

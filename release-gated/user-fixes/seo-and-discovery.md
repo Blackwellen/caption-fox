@@ -58,3 +58,21 @@ Per your original brief: *"Remember the user sets up webhooks and integrations w
 
 - `src/components/fox-ai/tabs/AgentTab.tsx` is a placeholder stub added only to unblock the build (a different, pre-existing bug unrelated to SEO — a file was missing that the shared layout imports). It says "Agent mode is coming soon" and does nothing else. Build the real Agent tab, or remove the reference to it, when you get to that feature.
 - `supabase/migrations/20260829000200_fix_workspace_members_recursion.sql` was written by an earlier session but never applied until now. It fixed an app-wide bug (every authenticated request against any workspace-scoped table was failing). Worth a broad regression pass across the rest of the app (not just SEO) now that it's live, since it changes how every module resolves workspace membership.
+
+
+---
+
+## Update — 2026-09-16
+
+Closed since the original list: browser QA (done live at desktop, tablet and mobile), the Keywords favourite toggle, and keyword bulk edits.
+
+### Still to do
+
+1. **Map tiles for production (required before public release).** The Local map defaults to `tile.openstreetmap.org`. That is fine for development, but the OSM tile usage policy doesn't allow production app traffic. Pick a tile provider (for example MapTiler, Stadia or Mapbox raster tiles), then set these in Vercel:
+   - `NEXT_PUBLIC_MAP_TILE_URL`, e.g. `https://api.maptiler.com/maps/dataviz-light/{z}/{x}/{y}.png?key=YOUR_KEY`
+   - `NEXT_PUBLIC_MAP_TILE_ATTRIBUTION`: the attribution text your provider requires.
+2. **Regression-check audit logging app-wide.** Before this fix, `src/lib/audit.ts` never wrote a row (wrong column names). It now writes for every existing caller (11 files). Use a few non-SEO features (billing, team invites and so on), then check that the new `audit_logs` rows have sensible `action` and `resource_type` values.
+3. **Negative RLS test.** Create a second Supabase user with no membership in workspace `d7b7c61e-7685-4b15-8a0c-d9fa85f25103`, sign in, and confirm that no `/app/seo/*` route and no `/api/seo/export` call shows data from that workspace.
+4. **Rate limiting** on `addKeywords`, `createBrief`, `addLocation`, `trackPrompt`, `createOutreachList`, `updateKeywordsBulk` and `/api/seo/export`, using whichever limiter the rest of the app standardises on.
+5. **Click through the remaining wizards live:** Add Keywords, Create Brief, Add Location, Track Prompts and Add Outreach List. Confirm the new row appears after submit.
+6. **Marketplace owner:** another session left two marketplace files syntactically broken, which stopped the dev build. They got minimal repairs so the build could run: `src/app/app/marketplace/discover/services/page.tsx` and `src/components/marketplace/module/ProfileCards.tsx`. Whoever owns that work should confirm the repairs match what they intended.

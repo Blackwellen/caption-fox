@@ -171,3 +171,84 @@ Rationale: the data model, entitlements, real Supabase-backed pages, wizards, se
 ## 20. Final release decision
 
 **Blocked pending manual fix** — specifically, pending a Chrome MCP or manual browser QA pass (the one dependency this agent session could not complete due to an already-locked browser profile and an unstable local dev server across a long session), and pending a decision on rate limiting for the export/create actions. The underlying code is release-quality; what's missing is the verification step, not the implementation.
+
+
+---
+
+# Addendum — 1:1 design pass and live QA (2026-09-16)
+
+This pass rebuilt all seven routes against their reference images and closed most of the verification gaps listed above. Sections 19–20 above are superseded by the score and decision at the end of this addendum.
+
+## A1. Screen sizes tested (live, Chrome MCP)
+
+| Size | Routes | Result |
+|---|---|---|
+| 1491 × 1055 (reference native size) | All 7 | Screenshots in `docs/ui-verification/caption-fox/seo-discovery/*-implementation.png`, diffed against `*-reference.png` with `scripts/ui-diff.py` |
+| 1024 × 768 (tablet) | Keywords (widest table) | Header stacks; KPI grid 3-up; table scrolls inside its card (`keywords-tablet.png`) |
+| 390 × 844 (mobile, touch) | All 7 | `main.scrollWidth === clientWidth` on every route (no page-level sideways scroll); sub-nav collapses to a dropdown |
+
+Content diff (0 = identical): Overview 15.1 · Keywords 16.5 · Briefs 13.8 · Rankings 14.5 · Local 17.2 · AI Search 14.0 · Backlinks 16.3. Most of the remaining difference is the locked app shell (a different top bar and sidebar from the mock) and different real data values, not layout.
+
+## A2. Layout now matching the references
+
+- **Overview:** two-column grid (Ranking Trend + Keyword Movements | Content Briefs + Top SEO Opportunities), activity row full width; 7D–12M range pills, tinted Gainers/Losers tabs, intent filter, in-panel pager.
+- **Keywords:** table + right rail (Clusters donut, SERP intent, Quick Wins) + analytics row (distribution, band trend, activity); selection column, star toggle, row menu, bulk bar.
+- **Briefs:** dense brief rows with column headers + rail (Brief Insights with rank trend, Outline Preview, Opportunities to Brief Next) + Activity/Comments row; inline status control.
+- **Rankings:** trend + changes (+ Opportunities/Declining side by side) | Distribution, Tracking Sources, Competitor Comparison, Activity; engine selector; SERP features and source columns.
+- **Local:** Locations list + real tile map (numbered rank markers, zoom/recentre) + Local Ranking Trend; Local Opportunities table with tabs; rail of Listings Health, Reviews Overview, Activity.
+- **AI Search:** trend, Tracked Prompts table, Prompt Brief / Source Transparency / Data Freshness cards | engine tiles, Top Cited Pages, Emerging Opportunities, Activity.
+- **Backlinks:** table with page-size selector, Alerts + Top Link Opportunities | Authority trend, New vs Lost, Top Linked Pages, Activity.
+- Shared: reference-style KPI cards, sentence-case table headers, tinted/segmented tabs, split-button primary action with a real menu, header Filters popover on every page.
+
+## A3. Actions exercised live
+
+| Action | Result |
+|---|---|
+| Keyword star toggle (`updateKeywordsBulk`, favourite) | UI flipped; `seo_keywords.is_favourite` persisted; `seo_activity` row written; `audit_logs` row `seo.keyword.favourite` written (after the fix in A4). Toggled back to the seeded value. |
+| Brief status change (Briefs list inline control) | `awaiting_review → approved` persisted; activity "moved from awaiting review to approved"; audit `seo.brief.status_changed`. Restored afterwards. |
+| Filters, view switchers, pagination, range pills | URL-driven; exercised through navigation during the screenshot pass. |
+
+## A4. Bugs found and fixed in this pass
+
+1. **App-wide: `logAudit` wrote columns that don't exist** (`user_id`, `entity_type`, `entity_id`; the table has `actor_id`, `resource_type`, `resource_id`). Supabase returned the error instead of throwing, and it was ignored, so no `logAudit` call anywhere in the app had ever written a row. Fixed in `src/lib/audit.ts`: column mapping, non-uuid ids kept in metadata, failures now logged server-side. 11 files across the app call this helper.
+2. Grid blowout clipping the Overview right rail (missing `min-w-0`).
+3. Chart tick text used `stroke`, so it rendered bold and blurry.
+4. `sr-only` labels inside scrollable tables escaped the scroll container and caused sideways scrolling on mobile (containers are now `relative`).
+5. Header controls crushed the page title at 1024px (header now stacks below `xl`).
+6. Constants exported from a client module were used on the server, which crashed Local. Moved to `src/lib/seo/map-pack.ts`.
+7. A function prop was passed from a Server Component into `TrendChart`, which crashed AI Search. Removed.
+8. `AddToListButton` swallowed server errors silently. It now shows a retry state and an alert.
+9. The keyword favourite star was display-only. It is now a real, permission-checked write.
+10. Lint: `setState` inside an effect in `FilterBar`, replaced with the render-time adjustment pattern.
+11. Two unrelated files were left syntactically broken by another session, which blocked the whole dev build: `src/app/app/marketplace/discover/services/page.tsx` (relocated JSX block) and `src/components/marketplace/module/ProfileCards.tsx` (one missing `</div>`). Only minimal structural repairs were made.
+
+## A5. New server logic
+
+- `updateKeywordsBulk` (status / cluster / favourite / archive / restore): capability-checked (`keywords.edit` / `keywords.archive`); every id re-scoped to the caller's workspace **and** site before update; cluster ownership verified; max 500 ids; activity and audit logged.
+
+## A6. Migrations applied (all additive, idempotent, demo sites only, `is_demo = true`)
+
+1. `20260916000100_seo_discovery_seed_briefs_content.sql`: content-scope opportunities, outlines, comments.
+2. `20260916000200_seo_discovery_seed_brief_keywords.sql`: tracks each demo brief's target keyword and relinks briefs.
+3. `20260916000300_seo_discovery_seed_brief_keyword_history.sql`: 120-day rank history for those keywords.
+4. `20260916000400_seo_discovery_seed_outreach_lists.sql`: two outreach lists per demo site.
+
+RLS is confirmed enabled, with policies, on every table these touch.
+
+## A7. Tests
+
+- `npx tsc --noEmit`: 0 errors repo-wide.
+- ESLint on the SEO module and audit helper: 0 errors (3 pre-existing unused-variable warnings).
+- Vitest `src/lib/seo`: 8 files, 103 tests passing (new `map-pack.test.ts`).
+
+## A8. Still open
+
+See `release-gated/user-fixes/seo-and-discovery.md` (updated): negative RLS test with a second real account, an E2E suite, rate limiting on create/export actions, a map tile provider for production, and a live click-through of the remaining wizards.
+
+## A9. Release score
+
+**82 / 100.** The 1:1 visual pass, responsive QA, live action checks and a real app-wide audit bug fix are done. It is not 100 because there has been no negative RLS run with a second account, there is no automated E2E or integration suite, create/export actions have no rate limiting, and five wizards were not clicked through live in this pass.
+
+## A10. Release decision
+
+**Ready for admin-only beta.** Not ready for general release until the A8 items are closed.

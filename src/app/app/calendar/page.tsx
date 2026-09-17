@@ -18,6 +18,8 @@ import BulkImportModal from '@/components/ui/BulkImportModal'
 import { createClient } from '@/lib/supabase/client'
 import { cn, formatDate, truncate } from '@/lib/utils'
 import { PLATFORM_LABELS } from '@/lib/constants'
+import { BrandLogo } from '@/components/brand/BrandLogo'
+import { hasBrand } from '@/lib/brand/brands'
 import type { ContentPost } from '@/types/database'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -592,10 +594,13 @@ export default function CalendarPage() {
                 key={p}
                 onClick={() => setPlatformFilter(p)}
                 className={cn(
-                  'px-3 py-1 text-xs font-medium rounded-full border transition-all capitalize',
+                  'inline-flex items-center gap-1.5 px-3 py-1 text-xs font-medium rounded-full border transition-all capitalize',
                   platformFilter === p ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300',
                 )}
-              >{p === 'all' ? 'All' : PLATFORM_LABELS[p] ?? p}</button>
+              >
+                {p !== 'all' && hasBrand(p) && <BrandLogo brand={p} size={13} decorative />}
+                {p === 'all' ? 'All' : PLATFORM_LABELS[p] ?? p}
+              </button>
             ))}
             <span className="text-xs font-medium text-slate-500 ml-4">Status:</span>
             {STATUSES.map(s => (
@@ -1076,6 +1081,7 @@ export default function CalendarPage() {
                       )}
                     >
                       {selected && <Check size={14} />}
+                      {hasBrand(p) && <BrandLogo brand={p} size={16} decorative />}
                       <span className="capitalize">{PLATFORM_LABELS[p] ?? p}</span>
                     </button>
                   )

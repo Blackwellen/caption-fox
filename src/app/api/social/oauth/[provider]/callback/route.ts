@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from 'next/server'
-import { exchangeCode, providerCredentials, SocialAuthError } from '@/lib/social/oauth'
+import { exchangeCode, providerCredentials, safeReturnPath, SocialAuthError } from '@/lib/social/oauth'
 import { REQUIRED_SCOPES } from '@/lib/social/providers'
 import { socialServiceClient } from '@/lib/social/service-client'
 import { storeTokens } from '@/lib/social/vault'
@@ -8,7 +8,9 @@ import { SOCIAL_PROVIDERS, type SocialProvider } from '@/types/social'
 export const runtime = 'nodejs'
 
 function back(origin: string, returnTo: string, params: Record<string, string>) {
-  const url = new URL(returnTo.startsWith('/') ? returnTo : '/app/social/connections', origin)
+  const url = new URL(safeReturnPath(returnTo), origin)
+  // Belt and braces: never redirect off the application origin.
+  if (url.origin !== new URL(origin).origin) url.href = new URL('/app/social/connections', origin).href
   for (const [key, value] of Object.entries(params)) url.searchParams.set(key, value)
   return NextResponse.redirect(url)
 }
@@ -127,7 +129,7 @@ export async function GET(request: NextRequest, context: { params: Promise<{ pro
       channel_id: channelId,
       summary: `Connected a ${provider} channel`,
       detail: missing.length ? `${missing.length} requested permission(s) were not granted.` : 'All required permissions granted.',
-      href: '/app/social/connections',
+      href: safeReturnPath(returnTo).split('?')[0],
       severity: missing.length ? 'warning' : 'success',
     })
 

@@ -75,8 +75,8 @@ export function ConflictDonut({ data }: { data: ConflictTypeBreakdown[] }) {
   }
 
   return (
-    <div className="flex flex-col items-center gap-5 sm:flex-row">
-      <div className="relative h-[168px] w-[168px] shrink-0" role="img" aria-label={`${total} open conflicts by type`}>
+    <div className="flex flex-col items-center gap-5 lg:gap-3 sm:flex-row">
+      <div className="relative h-[168px] w-[168px] lg:h-[132px] lg:w-[132px] shrink-0" role="img" aria-label={`${total} open conflicts by type`}>
         <ResponsiveContainer width="100%" height="100%" initialDimension={{ width: 168, height: 168 }}>
           <PieChart>
             <Pie data={data} dataKey="count" nameKey="label" innerRadius={52} outerRadius={78} paddingAngle={2} stroke="none">

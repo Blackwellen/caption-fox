@@ -1,43 +1,42 @@
-import { redirect } from 'next/navigation'
+import 'server-only'
+import { revalidatePath } from 'next/cache'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase/server'
 import { getActiveWorkspace } from '@/lib/workspace'
-import type { WorkspaceLite } from '@/lib/workspace-shared'
+import { logAudit } from '@/lib/audit'
 import {
-  canAccessStrategyModule, strategyCapabilities, visibleStrategyModules,
-  type ModuleAccess, type StrategyCapabilities, type StrategyContext,
+  canAccessStrategyModule, strategyCapabilities,
+  type StrategyCapabilities, type StrategyContext,
 } from './entitlements'
 import type { StrategyModule } from './constants'
+import type { ActionResult } from './action-types'
+import { FieldErrors } from './validation'
 
-export interface StrategySession {
+/**
+ * Session for Strategy server actions and API routes. Unlike page rendering it
+ * never redirects: an expired session or a missing workspace comes back as a
+ * structured error the client can show.
+ */
+export interface StrategyActionSession {
   supabase: SupabaseClient
   userId: string
   ctx: StrategyContext
-  workspace: WorkspaceLite & { plan?: string | null; plan_status?: string | null; currency: string; timezone: string }
   capabilities: StrategyCapabilities
-  modules: StrategyModule[]
 }
 
-/**
- * Resolves the authenticated session, active workspace, plan, role and feature
- * flags for the Strategy module. Redirects unauthenticated users to login and
- * users with no workspace to onboarding — every Strategy route funnels here.
- */
-export async function getStrategySession(): Promise<StrategySession> {
+export async function getStrategyActionSession(): Promise<StrategyActionSession | null> {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/login?next=/app/strategy')
+  if (!user) return null
 
   const { active } = await getActiveWorkspace(supabase, user.id)
-  if (!active) redirect('/onboarding')
+  if (!active) return null
 
   const [{ data: workspace }, { data: profile }] = await Promise.all([
-    supabase.from('workspaces').select('id, name, type, plan, plan_status, logo_url, settings').eq('id', active.id).single(),
-    supabase.from('profiles').select('is_platform_admin').eq('id', user.id).single(),
+    supabase.from('workspaces').select('type, plan, plan_status, settings').eq('id', active.id).maybeSingle(),
+    supabase.from('profiles').select('is_platform_admin').eq('id', user.id).maybeSingle(),
   ])
-
   const settings = (workspace?.settings ?? {}) as Record<string, unknown>
-  const flags = (settings.feature_flags ?? {}) as Record<string, boolean>
 
   const ctx: StrategyContext = {
     workspaceId: active.id,
@@ -46,50 +45,114 @@ export async function getStrategySession(): Promise<StrategySession> {
     planStatus: workspace?.plan_status,
     role: active.role,
     isPlatformAdmin: profile?.is_platform_admin ?? false,
-    flags,
+    flags: (settings.feature_flags ?? {}) as Record<string, boolean>,
   }
+  return { supabase, userId: user.id, ctx, capabilities: strategyCapabilities(ctx) }
+}
 
-  return {
-    supabase,
-    userId: user.id,
-    ctx,
-    workspace: {
-      ...active,
-      plan: workspace?.plan,
-      plan_status: workspace?.plan_status,
-      currency: (settings.currency as string) ?? 'GBP',
-      timezone: (settings.timezone as string) ?? 'Europe/London',
-    },
-    capabilities: strategyCapabilities(ctx),
-    modules: visibleStrategyModules(ctx),
-  }
+export function fail(error: string, fieldErrors?: Record<string, string>): ActionResult {
+  return { ok: false, error, fieldErrors }
+}
+
+export function invalid(errors: FieldErrors): ActionResult {
+  return { ok: false, error: errors.first ?? 'Please check the highlighted fields.', fieldErrors: errors.errors }
 }
 
 /**
- * Same as `getStrategySession`, plus a hard route-level gate for one module.
- * Returns the module's block reason instead of throwing so the page can render
- * the canonical no-access / upgrade state rather than a blank screen.
+ * Resolves the session and asserts module entitlement + one capability.
+ * Hidden buttons are UX only — this is the enforcement point.
  */
-export async function requireStrategyModule(
+export async function authorise(
   module: StrategyModule,
-): Promise<StrategySession & { access: ModuleAccess }> {
-  const session = await getStrategySession()
-  return { ...session, access: canAccessStrategyModule(session.ctx, module) }
+  capability: keyof StrategyCapabilities,
+): Promise<{ session: StrategyActionSession; error: null } | { session: null; error: string }> {
+  const session = await getStrategyActionSession()
+  if (!session) return { session: null, error: 'Your session has expired. Sign in again to continue.' }
+  if (!canAccessStrategyModule(session.ctx, module).allowed) {
+    return { session: null, error: 'This area is not available for your workspace.' }
+  }
+  if (!session.capabilities[capability]) {
+    return { session: null, error: 'Your role does not allow this action.' }
+  }
+  return { session, error: null }
+}
+
+/** Confirms a record belongs to the active workspace before touching it. */
+export async function ownsRecord(supabase: SupabaseClient, table: string, id: string | null | undefined, workspaceId: string): Promise<boolean> {
+  if (!id) return false
+  const { data } = await supabase.from(table).select('id').eq('id', id).eq('workspace_id', workspaceId).maybeSingle()
+  return Boolean(data)
 }
 
 /**
- * Workspace members, used to populate owner filters and owner pickers.
- * Scoped to the active workspace — never the whole profiles table.
+ * Fixed-window rate limit backed by the activity log, so it holds across
+ * serverless instances without extra infrastructure. Counts the actor's own
+ * rows for `action` inside the window.
  */
-export async function listWorkspacePeople(supabase: SupabaseClient, workspaceId: string) {
-  const { data } = await supabase
-    .from('workspace_members')
-    .select('user_id, profiles!inner(id, full_name, email, avatar_url)')
-    .eq('workspace_id', workspaceId)
+export async function rateLimited(
+  supabase: SupabaseClient, workspaceId: string, userId: string,
+  action: string, limit: number, windowMinutes: number,
+): Promise<boolean> {
+  const since = new Date(Date.now() - windowMinutes * 60_000).toISOString()
+  const { count } = await supabase.from('strategy_activity')
+    .select('id', { count: 'exact', head: true })
+    .eq('workspace_id', workspaceId).eq('actor_id', userId).eq('action', action).gte('created_at', since)
+  return (count ?? 0) >= limit
+}
 
-  type Row = { user_id: string; profiles: { id: string; full_name: string | null; email: string | null; avatar_url: string | null } }
-  return ((data ?? []) as unknown as Row[])
-    .map(row => row.profiles)
-    .filter(Boolean)
-    .sort((a, b) => (a.full_name ?? a.email ?? '').localeCompare(b.full_name ?? b.email ?? ''))
+export type ActivityEntity =
+  | 'strategy' | 'objective' | 'audience' | 'research' | 'framework' | 'proof_point' | 'claim'
+  | 'competitor' | 'plan' | 'plan_item' | 'forecast' | 'scenario' | 'assumption' | 'approval' | 'system'
+
+/**
+ * Activity feed + audit trail in one call. The feed row is human-readable;
+ * the audit row carries the structured change. Neither may break the action.
+ */
+export async function record(
+  session: StrategyActionSession,
+  entry: {
+    entityType: ActivityEntity
+    entityId?: string | null
+    action: string
+    summary: string
+    surface: StrategyModule
+    audit?: string
+    metadata?: Record<string, unknown>
+  },
+): Promise<void> {
+  const { supabase, ctx, userId } = session
+  const { error } = await supabase.from('strategy_activity').insert({
+    workspace_id: ctx.workspaceId,
+    actor_id: userId,
+    entity_type: entry.entityType,
+    entity_id: entry.entityId ?? null,
+    action: entry.action,
+    summary: entry.summary.slice(0, 300),
+    surface: entry.surface,
+    metadata: entry.metadata ?? {},
+  })
+  if (error) console.error('[strategy] activity write failed', { action: entry.action, code: error.code })
+  await logAudit(supabase, userId, {
+    workspaceId: ctx.workspaceId,
+    action: entry.audit ?? `strategy.${entry.entityType}.${entry.action.replace(/\s+/g, '_')}`,
+    entityType: `strategy_${entry.entityType}`,
+    entityId: entry.entityId ?? null,
+    metadata: { surface: entry.surface, ...(entry.metadata ?? {}) },
+  })
+}
+
+/** Every Strategy route shares one layout, so one revalidation refreshes them all. */
+export function revalidateStrategy() {
+  revalidatePath('/[workspaceType]/strategy', 'layout')
+}
+
+/** Maps a Postgres/PostgREST error to user copy without leaking internals. */
+export function dbError(error: { code?: string; message?: string } | null, fallback: string): string {
+  if (!error) return fallback
+  if (error.code === '42501') return 'You do not have permission to change this record.'
+  if (error.code === '23505') return 'A record with these details already exists.'
+  if (error.code === '23514') return error.message?.includes('circular') ? 'That dependency would create a circular chain.' : 'Some values are outside the allowed range.'
+  if (error.code === '23503') return 'A linked record no longer exists.'
+  console.error('[strategy] database error', { code: error.code })
+  return fallback
 }

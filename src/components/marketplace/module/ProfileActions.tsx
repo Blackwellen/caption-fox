@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { Bookmark, BookmarkCheck, GitCompareArrows, Loader2, Trash2, Check } from 'lucide-react'
+import { Bookmark, BookmarkCheck, GitCompareArrows, Heart, Loader2, Trash2, Check } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { buildMarketplaceHref, type MarketplaceQuery } from '@/lib/marketplace/query'
 import {
@@ -53,12 +53,15 @@ export function SaveButton({
         type="button" onClick={onClick} disabled={disabled} title={error ?? title} aria-label={title}
         aria-pressed={optimistic}
         className={cn(
-          'absolute right-2 top-2 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-white/95 shadow-sm transition',
-          optimistic ? 'text-blue-600' : 'text-slate-500 hover:text-slate-900',
+          // The references put a plain heart over the cover rather than a chip.
+          'absolute right-2 top-2 z-10 flex h-8 w-8 items-center justify-center rounded-full transition hover:bg-black/10 lg:h-7 lg:w-7',
+          optimistic ? 'text-rose-500' : 'text-white',
           disabled && 'cursor-not-allowed opacity-50',
         )}
       >
-        <Icon size={15} className={pending ? 'animate-spin' : undefined} />
+        {pending
+          ? <Loader2 size={16} className="animate-spin" />
+          : <Heart size={17} strokeWidth={2.2} className={cn('drop-shadow-[0_1px_2px_rgba(0,0,0,0.45)]', optimistic && 'fill-current')} />}
       </button>
     )
   }
@@ -68,7 +71,7 @@ export function SaveButton({
       <button
         type="button" onClick={onClick} disabled={disabled} title={error ?? title} aria-pressed={optimistic}
         className={cn(
-          'inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition',
+          'inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition lg:py-1 lg:text-[9.5px]',
           optimistic ? 'border-blue-200 bg-blue-50 text-blue-700' : 'border-slate-200 text-slate-600 hover:bg-slate-50',
           disabled && 'cursor-not-allowed opacity-50',
         )}
@@ -98,15 +101,17 @@ export function SaveButton({
  * the URL so it survives refresh and can be shared.
  */
 export function CompareButton({
-  supplierId, query, pathname, limit, disabled, variant = 'button', label = 'Compare',
+  supplierId, query, pathname, limit, disabled, variant = 'button', label = 'Compare', placement = 'top-left',
 }: {
   supplierId: string
   query: MarketplaceQuery
   pathname: string
   limit: number
   disabled?: boolean
-  variant?: 'button' | 'icon' | 'checkbox'
+  variant?: 'button' | 'icon' | 'checkbox' | 'overlay'
   label?: string
+  /** Overlay corner on the cover image. */
+  placement?: 'top-left' | 'bottom-right'
 }) {
   const router = useRouter()
   const selected = query.compare.includes(supplierId)
@@ -126,12 +131,29 @@ export function CompareButton({
     ? 'Comparison is not available for your role'
     : full ? `You can compare up to ${limit} profiles` : selected ? 'Remove from comparison' : 'Add to comparison'
 
+  if (variant === 'overlay') {
+    // Selection box pinned to the cover's top-left, as on the UGC reference cards.
+    return (
+      <button
+        type="button" onClick={onClick} disabled={disabled || full} title={title} aria-label={title} aria-pressed={selected}
+        className={cn(
+          'absolute z-10 flex h-5 w-5 items-center justify-center rounded-md border shadow-sm transition',
+          placement === 'bottom-right' ? 'bottom-2 right-2' : 'left-2 top-2',
+          selected ? 'border-blue-600 bg-blue-600 text-white' : 'border-white bg-white/90 text-transparent hover:bg-white',
+          (disabled || full) && 'cursor-not-allowed opacity-50',
+        )}
+      >
+        <Check size={12} strokeWidth={3} />
+      </button>
+    )
+  }
+
   if (variant === 'checkbox') {
     return (
       <label className={cn('inline-flex cursor-pointer items-center gap-1.5 text-xs font-medium text-slate-600',
         (disabled || full) && 'cursor-not-allowed opacity-50')}>
         <input
-          type="checkbox" checked={selected} disabled={disabled || full} readOnly
+          type="checkbox" name={`compare-${supplierId}`} checked={selected} disabled={disabled || full} readOnly
           onClick={onClick as unknown as React.MouseEventHandler<HTMLInputElement>}
           className="h-3.5 w-3.5 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
           aria-label={title}
@@ -158,7 +180,7 @@ export function CompareButton({
     <button
       type="button" onClick={onClick} disabled={disabled || full} title={title} aria-pressed={selected}
       className={cn(
-        'inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition',
+        'inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition lg:py-1 lg:text-[9.5px]',
         selected ? 'border-blue-200 bg-blue-50 text-blue-700' : 'border-slate-200 text-slate-600 hover:bg-slate-50',
         (disabled || full) && 'cursor-not-allowed opacity-50',
       )}
@@ -196,7 +218,7 @@ export function ShortlistButton({
       type="button" onClick={onClick} disabled={disabled} aria-pressed={optimistic}
       title={disabled ? 'Shortlisting is not available for your role' : optimistic ? 'Remove from shortlist' : 'Add to shortlist'}
       className={cn(
-        'inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition',
+        'inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition lg:py-1 lg:text-[9.5px]',
         optimistic ? 'border-blue-200 bg-blue-50 text-blue-700' : 'border-slate-200 text-slate-600 hover:bg-slate-50',
         disabled && 'cursor-not-allowed opacity-50',
       )}
@@ -222,17 +244,17 @@ export function SavedItemControls({
   const [saved, setSaved] = useState(false)
 
   if (!canEdit) {
-    return <p className="text-xs text-slate-500">{note || 'No note added.'}</p>
+    return <p className="text-xs text-slate-500 lg:text-[9.5px]">{note || 'No note added.'}</p>
   }
 
   if (!editing) {
     return (
       <div className="flex items-start justify-between gap-2">
-        <p className="min-w-0 flex-1 text-xs text-slate-500">{value || 'Add a note about this partner…'}</p>
+        <p className="min-w-0 flex-1 line-clamp-2 text-xs text-slate-500 lg:text-[9.5px]">{value || 'Add a note about this partner…'}</p>
         <div className="flex shrink-0 items-center gap-1">
           <button
             type="button" onClick={() => setEditing(true)}
-            className="text-[11px] font-medium text-blue-600 hover:text-blue-700"
+            className="text-[11px] font-medium text-blue-600 hover:text-blue-700 lg:text-[9px]"
           >
             {value ? 'Edit note' : 'Add note'}
           </button>

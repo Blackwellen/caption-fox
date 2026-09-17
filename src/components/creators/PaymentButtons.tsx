@@ -1,13 +1,14 @@
 'use client'
 
 import { useMemo, useState } from 'react'
+import { BUTTON_PRIMARY } from './design'
 import { useRouter } from 'next/navigation'
-import { AlertTriangle, CheckCircle2, Plus, Wallet } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Modal } from '@/components/ui/Modal'
 import { Input, Select } from '@/components/ui/Input'
 import { useToast } from '@/components/campaigns/Toast'
-import { approvePaymentBatch, createPayment, createPaymentBatch } from '@/app/app/creators/actions'
+import { approvePaymentBatch, createPayment, createPaymentBatch } from '@/lib/creators/actions'
 import { formatMoney } from './primitives'
 import WizardShell, { WizardSection, WizardSummaryRow } from './WizardShell'
 import type { WizardStepDef } from './WizardShell'
@@ -190,7 +191,7 @@ export function CreatePaymentBatchButton({
 
   return (
     <>
-      <Button size="sm" icon={<Wallet size={15} />} onClick={() => setOpen(true)} className={className}>{label}</Button>
+      <button type="button" onClick={() => setOpen(true)} className={className ?? BUTTON_PRIMARY}><Plus size={16} aria-hidden />{label}</button>
       <WizardShell
         open={open} onClose={() => { setOpen(false); reset() }}
         title="Create a payment batch" subtitle="Group approved, invoiced and tax-ready payments into one payout run."

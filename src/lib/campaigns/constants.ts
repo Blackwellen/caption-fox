@@ -17,31 +17,31 @@ export const CAMPAIGN_MODULE_META: Record<CampaignModule, {
   breadcrumb: string
 }> = {
   overview: {
-    label: 'Overview', href: '/app/campaigns', title: 'Campaigns', breadcrumb: 'Overview',
+    label: 'Overview', href: '', title: 'Campaigns', breadcrumb: 'Overview',
     description: 'Manage the entire campaign lifecycle, track performance, and take action on what matters most.',
   },
   all: {
-    label: 'All', href: '/app/campaigns/all', title: 'All Campaigns', breadcrumb: 'All',
+    label: 'All', href: '/all', title: 'All Campaigns', breadcrumb: 'All',
     description: 'Search, filter, sort, and manage all authorised campaign records across your organisation.',
   },
   giveaways: {
-    label: 'Giveaways', href: '/app/campaigns/giveaways', title: 'Giveaways', breadcrumb: 'Giveaways',
+    label: 'Giveaways', href: '/giveaways', title: 'Giveaways', breadcrumb: 'Giveaways',
     description: 'Manage giveaway campaigns, entries, rewards, approvals, and performance.',
   },
   competitions: {
-    label: 'Competitions', href: '/app/campaigns/competitions', title: 'Competitions', breadcrumb: 'Competitions',
+    label: 'Competitions', href: '/competitions', title: 'Competitions', breadcrumb: 'Competitions',
     description: 'Manage competition campaigns, judging workflows, submissions, and performance.',
   },
   templates: {
-    label: 'Templates', href: '/app/campaigns/templates', title: 'Campaign Templates', breadcrumb: 'Templates',
+    label: 'Templates', href: '/templates', title: 'Campaign Templates', breadcrumb: 'Templates',
     description: 'Manage reusable templates for campaign setup, launch workflows, budgets, and channels.',
   },
   board: {
-    label: 'Board', href: '/app/campaigns/board', title: 'Campaign Board', breadcrumb: 'Board',
+    label: 'Board', href: '/board', title: 'Campaign Board', breadcrumb: 'Board',
     description: 'An operational view of campaign records to plan, track and deliver work across stages.',
   },
   timeline: {
-    label: 'Timeline', href: '/app/campaigns/timeline', title: 'Campaign Timeline', breadcrumb: 'Timeline',
+    label: 'Timeline', href: '/timeline', title: 'Campaign Timeline', breadcrumb: 'Timeline',
     description: 'Alternative operational view of campaign records for planning and delivery.',
   },
 }
@@ -67,6 +67,16 @@ export const LIFECYCLE_BADGE: Record<LifecycleStage, BadgeVariant> = {
 export const BOARD_STAGES: LifecycleStage[] = [
   'planning', 'in_review', 'scheduled', 'live', 'completed', 'at_risk',
 ]
+
+/**
+ * Where a lifecycle stage that is not itself a board column belongs.
+ * Keeps every record visible on the board without inventing a status for it.
+ */
+export const BOARD_COLUMN_FOR: Record<string, LifecycleStage> = {
+  in_progress: 'planning',
+  blocked: 'at_risk',
+  archived: 'completed',
+}
 
 /** Stage transitions the board allows. Archived is terminal from the board. */
 export const ALLOWED_STAGE_TRANSITIONS: Record<LifecycleStage, LifecycleStage[]> = {

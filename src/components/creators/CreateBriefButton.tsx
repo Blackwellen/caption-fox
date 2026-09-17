@@ -1,12 +1,13 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { BUTTON_PRIMARY } from './design'
+import { useCreatorsBase } from './controls'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { Plus, Trash2 } from 'lucide-react'
-import { Button } from '@/components/ui/Button'
 import { Input, Select, Textarea } from '@/components/ui/Input'
 import { useToast } from '@/components/campaigns/Toast'
-import { createBrief } from '@/app/app/creators/actions'
+import { createBrief } from '@/lib/creators/actions'
 import { Avatar, formatMoneyShort } from './primitives'
 import WizardShell, { WizardChipToggle, WizardSection, WizardSummaryRow, type WizardStepDef } from './WizardShell'
 import {
@@ -43,8 +44,11 @@ export default function CreateBriefButton({
   className?: string
 }) {
   const router = useRouter()
+  const base = useCreatorsBase()
   const { notify } = useToast()
-  const [open, setOpen] = useState(false)
+  // Global "Create > UGC brief" deep-links here with ?action=new.
+  const searchParams = useSearchParams()
+  const [open, setOpen] = useState(() => searchParams.get('action') === 'new')
   const [submitting, setSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [form, setForm] = useState(EMPTY_FORM)
@@ -88,7 +92,7 @@ export default function CreateBriefButton({
     if (!result.ok) { setSubmitError(result.error ?? 'Could not create the brief.'); return false }
     notify('success', result.message ?? 'Brief created.')
     setOpen(false); reset(); router.refresh()
-    if (result.id) router.push(`/app/creators/briefs/${result.id}`)
+    if (result.id) router.push(`${base}/briefs/${result.id}`)
     return true
   }
 
@@ -231,7 +235,7 @@ export default function CreateBriefButton({
 
   return (
     <>
-      <Button size="sm" icon={<Plus size={15} />} onClick={() => setOpen(true)} className={className}>{label}</Button>
+      <button type="button" onClick={() => setOpen(true)} className={className ?? BUTTON_PRIMARY}><Plus size={16} aria-hidden />{label}</button>
       <WizardShell
         open={open} onClose={() => { setOpen(false); reset() }}
         title="Create a brief" subtitle="Define the assignment, deliverables and creators for this piece of work."

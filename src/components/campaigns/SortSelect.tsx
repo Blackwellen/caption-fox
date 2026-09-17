@@ -40,3 +40,42 @@ export default function SortSelect({
     </div>
   )
 }
+
+/**
+ * Compact URL-backed select used inside panel headers (e.g. the budget chart's
+ * grouping and period controls). Like SortSelect, the value lives in the query
+ * string so the view is shareable and survives refresh.
+ */
+export function PanelSelect({
+  options, paramKey, ariaLabel, className,
+}: {
+  options: readonly { id: string; label: string }[]
+  paramKey: string
+  ariaLabel: string
+  className?: string
+}) {
+  const router = useRouter()
+  const pathname = usePathname()
+  const params = useSearchParams()
+  const value = params.get(paramKey) ?? options[0]?.id ?? ''
+
+  function change(next: string) {
+    const search = new URLSearchParams(params.toString())
+    if (next === options[0]?.id) search.delete(paramKey)
+    else search.set(paramKey, next)
+    const qs = search.toString()
+    router.push(qs ? `${pathname}?${qs}` : pathname, { scroll: false })
+  }
+
+  return (
+    <div className={cn('relative', className)}>
+      <select
+        value={value} onChange={e => change(e.target.value)} aria-label={ariaLabel}
+        className="h-7 lg:h-6 cursor-pointer appearance-none rounded-md border border-slate-200 bg-white pl-1.5 pr-4 lg:pl-1 lg:pr-2.5 text-[11px] lg:text-[8px] font-medium text-slate-600 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-100"
+      >
+        {options.map(option => <option key={option.id} value={option.id}>{option.label}</option>)}
+      </select>
+      <ChevronDown size={11} className="pointer-events-none absolute right-1 top-1/2 -translate-y-1/2 text-slate-400" />
+    </div>
+  )
+}

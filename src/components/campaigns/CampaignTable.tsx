@@ -18,6 +18,7 @@ import {
 } from '@/lib/campaigns/constants'
 import type { CampaignRow, PersonLite } from '@/lib/campaigns/types'
 import type { CampaignCapabilities } from '@/lib/campaigns/entitlements'
+import { CampaignLink } from './links'
 
 export type ColumnKey =
   | 'campaign' | 'type' | 'owner' | 'stage' | 'status' | 'priority' | 'progress'
@@ -97,7 +98,7 @@ export default function CampaignTable({
 
   if (campaigns.length === 0) {
     return (
-      <div className={cn(!bare && [CARD, CARD_SHADOW], 'px-4 py-10 text-center text-sm text-slate-500')}>
+      <div className={cn(!bare && [CARD, CARD_SHADOW], 'px-4 py-10 text-center text-sm lg:text-[10px] text-slate-500')}>
         {emptyMessage}
       </div>
     )
@@ -107,7 +108,7 @@ export default function CampaignTable({
     <div className={cn(!bare && [CARD, CARD_SHADOW, 'overflow-hidden'])}>
       {selectable && selected.length > 0 && (
         <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 bg-blue-50/60 px-4 py-2">
-          <span className="text-[13px] font-medium text-blue-900">
+          <span className="text-[13px] lg:text-[10px] font-medium text-blue-900">
             {selected.length} selected
           </span>
           {capabilities.edit && (
@@ -128,14 +129,14 @@ export default function CampaignTable({
           {capabilities.archive && (
             <button
               type="button" disabled={pending} onClick={() => runBulk({ archive: true })}
-              className="h-8 rounded-lg border border-slate-200 bg-white px-2.5 text-[13px] font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+              className="h-8 rounded-lg border border-slate-200 bg-white px-2.5 text-[13px] lg:text-[10px] font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-50"
             >
               Archive
             </button>
           )}
           <button
             type="button" onClick={() => setSelected([])}
-            className="ml-auto text-[13px] font-medium text-blue-600 hover:text-blue-700"
+            className="ml-auto text-[13px] lg:text-[10px] font-medium text-blue-600 hover:text-blue-700"
           >
             Clear selection
           </button>
@@ -163,7 +164,7 @@ export default function CampaignTable({
                   <th
                     key={column} scope="col"
                     className={cn(
-                      'group whitespace-nowrap px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500',
+                      'group whitespace-nowrap px-3 py-2 text-[11px] lg:text-[8.5px] font-semibold uppercase tracking-wide text-slate-500',
                       ['budget', 'spend', 'engagements'].includes(column) && 'text-right',
                     )}
                   >
@@ -199,7 +200,7 @@ export default function CampaignTable({
                     </td>
                   )}
                   {columns.map(column => (
-                    <td key={column} className={cn('px-3 text-[13px] text-slate-600', compact ? 'py-1.5' : 'py-2.5')}>
+                    <td key={column} className={cn('px-3 text-[13px] lg:text-[10px] text-slate-600', compact ? 'py-1.5' : 'py-2.5')}>
                       {renderCell(column, campaign, stage, health)}
                     </td>
                   ))}
@@ -226,9 +227,9 @@ function renderCell(
   switch (column) {
     case 'campaign':
       return (
-        <Link href={`/app/campaigns/${campaign.id}`} className="font-medium text-slate-900 hover:text-blue-600">
+        <CampaignLink to={`/${campaign.id}`} className="font-medium text-slate-900 hover:text-blue-600">
           {campaign.name}
-        </Link>
+        </CampaignLink>
       )
     case 'type':
       return CAMPAIGN_TYPE_LABELS[campaign.campaign_type] ?? campaign.campaign_type
@@ -256,7 +257,7 @@ function renderCell(
     case 'progress':
       return (
         <span className="flex min-w-[110px] items-center gap-2">
-          <span className="w-8 shrink-0 text-xs font-medium text-slate-700">{campaign.progress}%</span>
+          <span className="w-8 shrink-0 text-xs lg:text-[9px] font-medium text-slate-700">{campaign.progress}%</span>
           <ProgressBar value={campaign.progress} health={campaign.health} className="w-16" label={`${campaign.name} progress`} />
         </span>
       )
@@ -286,7 +287,7 @@ function BulkSelect({
     <select
       defaultValue="" disabled={disabled} aria-label={label}
       onChange={e => { if (e.target.value) { onChange(e.target.value); e.target.value = '' } }}
-      className="h-8 rounded-lg border border-slate-200 bg-white px-2 text-[13px] font-medium text-slate-600 disabled:opacity-50"
+      className="h-8 rounded-lg border border-slate-200 bg-white px-2 text-[13px] lg:text-[10px] font-medium text-slate-600 disabled:opacity-50"
     >
       <option value="">{label}</option>
       {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}

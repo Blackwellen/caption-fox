@@ -10,7 +10,7 @@ import { ShellAvatar, ShellFoxMark, ShellWordmark } from './ShellLogo'
 import type { ShellContextInfo, ShellUserInfo } from './types'
 
 /**
- * Desktop sidebar. Expanded 264px at ≥1024px; a 76px icon rail when the user
+ * Desktop sidebar. Expanded 236px at ≥1024px; a 76px icon rail when the user
  * collapses it, and always at tablet widths (768–1023px). The header and the
  * profile block are fixed; only the navigation list scrolls (mouse wheel,
  * trackpad or touch), so long Brand and Agency menus never push the account
@@ -89,7 +89,7 @@ export default function ShellSidebar({
       data-collapsed={collapsed ? 'true' : 'false'}
       className={cn(
         'hidden h-full shrink-0 flex-col border-r border-shell-border bg-white transition-[width] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] md:flex',
-        collapsed ? 'w-[76px]' : 'w-[76px] lg:w-[264px]',
+        collapsed ? 'w-[76px]' : 'w-[76px] lg:w-[236px]',
       )}
     >
       <div className={cn('flex h-[72px] shrink-0 items-center justify-center', '[@media(max-height:700px)]:h-14', !collapsed && 'lg:justify-start lg:px-6')}>
