@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import {
   businessModuleEntitled, findActiveNavItem, flatNavItems, getNavigationForContext,
-  normalisePlan, workspaceKindFromType,
+  normalisePlan, workspaceKindFromType, workspaceImplementationHref,
 } from './resolver'
 import type { NavEntitlementContext, WorkspaceKind } from './types'
+import { appPathModule } from './app-path'
 
 const owner = (workspaceType: WorkspaceKind, plan: string, planStatus = 'active'): NavEntitlementContext => ({
   workspaceType, plan, planStatus, role: 'owner', flags: null,
@@ -99,7 +100,8 @@ describe('canonical routes', () => {
     expect(byId.social.href).toBe('/brand/social')
     expect(byId.events.href).toBe('/brand/events')
     expect(byId.strategy.href).toBe('/brand/strategy')
-    expect(byId.audiences.href).toBe('/brand/strategy/audiences')
+    expect(byId.audiences.href).toBe('/brand/audiences')
+    expect(workspaceImplementationHref('brand', 'audiences')).toBe('/app/audiences')
   })
 
   it('never links a workspace module to another workspace type', () => {
@@ -107,8 +109,32 @@ describe('canonical routes', () => {
       const items = flatNavItems(getNavigationForContext({ context: kind, entitlements: owner(kind, 'enterprise') }))
       for (const item of items) {
         expect(item.route.startsWith(`/${kind}/`)).toBe(true)
-        expect(item.href.startsWith('/app/') || item.href.startsWith(`/${kind}/`)).toBe(true)
+        expect(item.href).toBe(item.route)
       }
+    }
+  })
+
+  it('uses the approved canonical destination for every Supplier, Admin and Affiliate entry', () => {
+    for (const context of ['supplier', 'admin', 'affiliate'] as const) {
+      for (const item of flatNavItems(getNavigationForContext({ context, grantId: 'g1' }))) {
+        expect(item.href).toBe(item.route)
+      }
+    }
+  })
+
+  it('keeps compatibility routes correctly gated after canonical sidebar links are resolved', () => {
+    expect(appPathModule('/app/audiences/contacts')).toBe('audiences')
+    expect(appPathModule('/app/templates')).toBe('shared-templates')
+    expect(appPathModule('/app/agency-operations')).toBe('operations')
+    expect(appPathModule('/app/finance/invoices')).toBe('finance')
+    expect(appPathModule('/app/affiliates')).toBeNull()
+  })
+
+  it('has an implementation mapping for every marketing-workspace menu entry', () => {
+    for (const kind of ['creator', 'business', 'brand', 'agency'] as const) {
+      const nav = getNavigationForContext({ context: kind, entitlements: owner(kind, 'enterprise') })
+      expect(nav.homeHref).toBe(`/${kind}/home`)
+      for (const item of flatNavItems(nav)) expect(workspaceImplementationHref(kind, item.id)).toBeTruthy()
     }
   })
 })
@@ -122,12 +148,14 @@ describe('Business plan-gated extensions', () => {
 
   it('adds entitled extensions from the Team plan', () => {
     const items = labels({ context: 'business', entitlements: owner('business', 'team') })
-    expect(items).toEqual(expect.arrayContaining(['Creators & UGC', 'SEO & Discovery', 'Partnerships', 'Events', 'Finance', 'Automations']))
+    expect(items).toEqual(expect.arrayContaining(['SEO & Discovery', 'Partnerships', 'Events', 'Finance', 'Automations']))
   })
 
-  it('routes Creators & UGC to the type-first route and keeps it out of Creator workspaces', () => {
+  it('keeps Creators & UGC in the approved Brand and Agency menus only', () => {
     const business = flatNavItems(getNavigationForContext({ context: 'business', entitlements: owner('business', 'team') }))
-    expect(business.find(item => item.id === 'creators')?.href).toBe('/business/creators')
+    expect(business.find(item => item.id === 'creators')).toBeUndefined()
+    expect(labels({ context: 'brand', entitlements: owner('brand', 'enterprise') })).toContain('Creators & UGC')
+    expect(labels({ context: 'agency', entitlements: owner('agency', 'enterprise') })).toContain('Creators & UGC')
     expect(labels({ context: 'creator', entitlements: owner('creator', 'enterprise') })).not.toContain('Creators & UGC')
   })
 
@@ -159,7 +187,9 @@ describe('active navigation resolution', () => {
 
   it.each([
     [brand, '/brand/campaigns/abc123/content', 'campaigns'],
-    [brand, '/brand/strategy/audiences', 'audiences'],
+    [brand, '/brand/strategy/audiences', 'strategy'],
+    [brand, '/brand/audiences/contacts', 'audiences'],
+    [brand, '/app/audiences/contacts', 'audiences'],
     [brand, '/brand/strategy/objectives', 'strategy'],
     [brand, '/brand/strategy/plans/abc123', 'strategy'],
     [brand, '/brand/calendar/agenda?view=week', 'calendar'],

@@ -16,6 +16,10 @@
   See CAPTION_FOX_BUILD_GRADE_AUDIT.md (Section 19) for the current commercial-depth audit.
 -->
 
+## Permanent sidebar navigation lock (2026-09-17)
+
+Read and follow [SIDEBAR_NAVIGATION_LOCK.md](./SIDEBAR_NAVIGATION_LOCK.md). Preserve the approved entries, labels, groups and canonical routes in all seven contexts. Do not remove sidebar items to match incomplete modules, local page tabs or a feature being built. Only an explicit user instruction authorises changes to the approved navigation. Desktop, collapsed and mobile menus must use the same canonical register; legacy route aliases must keep their server guards and active-state mapping.
+
 ## STANDING BUILD RULES — ALL WORKSPACE TYPES (Creator / Business / Brand / Agency / every other workspace type)
 
 1. **1:1 pixel-perfect designs.** When a section has approved design images under `designs/` (e.g. `designs/Universal Sections/<Section>/*.png`), each image is the authoritative spec for one page. Build every page 1:1 pixel-perfect to its image at the image's native viewport (e.g. 1491 × 1055): same layout, proportions, spacing, typography, colours, card sizes, density and component placement. Build with real components and live data — never embed the image as the UI. Verify with Chrome MCP screenshots compared side-by-side against the reference and iterate until they match. Correct obvious image-generation typos only.

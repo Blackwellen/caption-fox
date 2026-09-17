@@ -124,7 +124,7 @@ const WORKSPACE_IMPLEMENTATION: Record<string, (kind: WorkspaceKind) => string> 
   community: app('community'),
   events: typed('events'),
   inbox: typed('inbox'),
-  audiences: typed('strategy/audiences'),
+  audiences: app('audiences'),
   'client-approvals': app('client-approvals'),
   analytics: app('analytics'),
   finance: app('finance'),
@@ -221,8 +221,8 @@ export function getNavigationForContext(input: NavigationInput): ShellNavigation
     const groups = resolveGroups(
       NAV_REGISTERS[kind],
       base,
-      itemId => workspaceImplementationHref(kind, itemId) ?? `${base}/${itemId}`,
-      itemId => WORKSPACE_ALSO_MATCH[itemId] ?? [],
+      (_itemId, segment) => join(base, segment),
+      itemId => [...(WORKSPACE_ALSO_MATCH[itemId] ?? []), ...(workspaceImplementationHref(kind, itemId) ? [workspaceImplementationHref(kind, itemId)!] : [])],
       gate => !gate || kind !== 'business' || businessModuleEntitled(gate, ctx),
     )
     const present = new Set(groups.flatMap(group => group.items.map(item => item.id)))
@@ -240,7 +240,7 @@ export function getNavigationForContext(input: NavigationInput): ShellNavigation
     return {
       context,
       base,
-      homeHref: '/app/home',
+      homeHref: `${base}/home`,
       groups,
       primaryAction: createItems.length ? { type: 'create', label: 'Create', items: createItems } : null,
       searchPlaceholder: 'Search campaigns, content, people or anything…',
@@ -253,7 +253,7 @@ export function getNavigationForContext(input: NavigationInput): ShellNavigation
 
   if (context === 'supplier') {
     const base = '/supplier'
-    const groups = resolveGroups(NAV_REGISTERS.supplier, base, (_, segment, implementation) => join(base, implementation ?? segment), () => [], () => true)
+    const groups = resolveGroups(NAV_REGISTERS.supplier, base, (_, segment) => join(base, segment), () => [], () => true)
     const primaryAction: PrimaryAction = {
       type: 'create', label: 'Create', items: [
         { id: 'listing', label: 'New listing', icon: 'listings', href: '/supplier/listings?action=new' },

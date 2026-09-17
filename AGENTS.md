@@ -38,6 +38,8 @@ property-domain examples inherited from the source playbook in CLAUDE.md.
 
 ## Working rules (summary — CLAUDE.md is authoritative)
 
+**Permanent sidebar lock:** read [SIDEBAR_NAVIGATION_LOCK.md](./SIDEBAR_NAVIGATION_LOCK.md) before navigation work. Preserve all seven approved menus and canonical routes. Never prune or replace a workspace sidebar during feature work; desktop, collapsed and mobile navigation share the same register. Sidebar changes require an explicit user request.
+
 1. Follow the release-readiness checklists in CLAUDE.md; do not mark work complete until a section is genuinely release-ready.
 2. Audit the real app with **Chrome MCP** across desktop/tablet/mobile/PWA; click and test every route/control/action.
 3. Use shared design tokens/primitives — no one-off colours, spacing, shadows, or typography.

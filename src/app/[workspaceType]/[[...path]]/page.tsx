@@ -1,6 +1,6 @@
 import { notFound, redirect } from 'next/navigation'
 import { loadWorkspaceShell } from '@/lib/navigation/session'
-import { flatNavItems, isWorkspaceKind } from '@/lib/navigation/resolver'
+import { flatNavItems, isWorkspaceKind, workspaceImplementationHref } from '@/lib/navigation/resolver'
 
 /**
  * Canonical /{type}/{module}/… URLs for modules whose real implementation is
@@ -21,7 +21,9 @@ export default async function CanonicalWorkspaceRoute({ params, searchParams }: 
   if (!moduleSegment) redirect(session.nav.homeHref)
 
   const item = flatNavItems(session.nav).find(entry => entry.route === `/${workspaceType}/${moduleSegment}`)
-  if (!item || item.href === item.route) notFound()
+  if (!item) notFound()
+  const implementation = workspaceImplementationHref(workspaceType, item.id)
+  if (!implementation || implementation === item.route) notFound()
 
   const query = new URLSearchParams()
   for (const [key, value] of Object.entries(await searchParams)) {
@@ -29,5 +31,5 @@ export default async function CanonicalWorkspaceRoute({ params, searchParams }: 
   }
   const suffix = rest.length ? `/${rest.map(encodeURIComponent).join('/')}` : ''
   const search = query.toString()
-  redirect(`${item.href}${suffix}${search ? `?${search}` : ''}`)
+  redirect(`${implementation}${suffix}${search ? `?${search}` : ''}`)
 }

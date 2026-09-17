@@ -54,6 +54,10 @@ Below 1024px the sidebar becomes a focus-trapped drawer; it is never horizontall
 - authorised global navigation — **only** by editing the canonical registers and updating the tests
 - search scope, primary action label/action, user/context data
 
+## Navigation contents are locked
+
+See [SIDEBAR_NAVIGATION_LOCK.md](./SIDEBAR_NAVIGATION_LOCK.md) for the approved seven menus and route contract. The permission above to edit authorised global navigation does not permit feature developers to remove, rename or replace approved entries without an explicit user request.
+
 ## Rules for feature work
 
 1. Pages render inside the shell. They must not set body backgrounds, resize the sidebar,
