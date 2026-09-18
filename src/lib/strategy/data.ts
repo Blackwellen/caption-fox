@@ -526,7 +526,7 @@ export async function listAllTags(supabase: SupabaseClient, workspaceId: string)
 
 const FRAMEWORK_COLUMNS = `
   id, workspace_id, name, category_promise, foundation, positioning_statement,
-  target_audience_id, is_primary, version, status, consistency_score, owner_id,
+  target_audience_id, market, is_primary, version, status, consistency_score, owner_id,
   archived_at, created_at, updated_at,
   owner:profiles!strategy_positioning_frameworks_owner_id_fkey(id, full_name, email, avatar_url),
   audience:strategy_audiences!strategy_positioning_frameworks_target_audience_id_fkey(id, name)
@@ -545,6 +545,7 @@ export async function listFrameworks(
   if (q.status) builder = builder.eq('status', q.status)
   if (q.owner) builder = builder.eq('owner_id', q.owner)
   if (q.audience) builder = builder.eq('target_audience_id', q.audience)
+  if (q.market) builder = builder.eq('market', q.market)
   if (q.framework) builder = builder.eq('id', q.framework)
 
   const { data, error, count } = await builder

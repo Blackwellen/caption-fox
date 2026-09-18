@@ -9,8 +9,8 @@ import {
   setMatrixScore, setProofVerification, submitFrameworkForApproval, updateFramework,
 } from '@/lib/strategy/actions/positioning'
 import {
-  IMPACT_LEVELS, IMPACT_SHORT, MATRIX_SCORE_LABELS, MATRIX_SCORE_NEXT, PROOF_CATEGORIES, PROOF_CATEGORY_LABELS, RISK_LEVELS, RISK_LABELS,
-  VERIFICATION_LABELS, VERIFICATION_STATES, type MatrixScore,
+  IMPACT_LEVELS, IMPACT_SHORT, MARKET_LABELS, MATRIX_SCORE_LABELS, MATRIX_SCORE_NEXT, PROOF_CATEGORIES, PROOF_CATEGORY_LABELS,
+  RISK_LEVELS, RISK_LABELS, STRATEGY_MARKETS, VERIFICATION_LABELS, VERIFICATION_STATES, type MatrixScore,
 } from '@/lib/strategy/constants'
 import type { FrameworkRow, PersonLite } from '@/lib/strategy/types'
 import type { ActionResult } from '@/lib/strategy/action-types'
@@ -86,7 +86,8 @@ export function PositioningHeaderActions({
           <FormGrid>
             <TextField className="sm:col-span-2" label="Framework name" name="name" required maxLength={80} error={framework.fieldErrors.name} />
             <TextField className="sm:col-span-2" label="Category promise" name="category_promise" maxLength={240} error={framework.fieldErrors.category_promise} />
-            <SelectField className="sm:col-span-2" label="Target audience" name="target_audience_id" placeholder="Choose later" options={audiences.map(item => ({ value: item.id, label: item.name }))} />
+            <SelectField label="Target audience" name="target_audience_id" placeholder="Choose later" options={audiences.map(item => ({ value: item.id, label: item.name }))} />
+            <SelectField label="Market" name="market" placeholder="Not set" options={STRATEGY_MARKETS.map(value => ({ value, label: MARKET_LABELS[value] }))} />
             <TextArea className="sm:col-span-2" label="Positioning statement" name="positioning_statement" maxLength={600} error={framework.fieldErrors.positioning_statement} />
             <TextField className="sm:col-span-2" label="Foundation" name="foundation" maxLength={240} />
           </FormGrid>
@@ -236,7 +237,8 @@ export function FrameworkMenu({ framework, audiences, can }: { framework: Framew
           <FormGrid>
             <TextField className="sm:col-span-2" label="Framework name" name="name" required maxLength={80} defaultValue={framework.name} error={form.fieldErrors.name} />
             <TextField className="sm:col-span-2" label="Category promise" name="category_promise" maxLength={240} defaultValue={framework.category_promise ?? ''} />
-            <SelectField className="sm:col-span-2" label="Target audience" name="target_audience_id" defaultValue={framework.target_audience_id ?? ''} placeholder="None" options={audiences.map(item => ({ value: item.id, label: item.name }))} />
+            <SelectField label="Target audience" name="target_audience_id" defaultValue={framework.target_audience_id ?? ''} placeholder="None" options={audiences.map(item => ({ value: item.id, label: item.name }))} />
+            <SelectField label="Market" name="market" defaultValue={framework.market ?? ''} placeholder="Not set" options={STRATEGY_MARKETS.map(value => ({ value, label: MARKET_LABELS[value] }))} />
             <TextArea className="sm:col-span-2" label="Positioning statement" name="positioning_statement" rows={4} maxLength={600} defaultValue={framework.positioning_statement ?? ''} error={form.fieldErrors.positioning_statement} />
             <TextField className="sm:col-span-2" label="Foundation" name="foundation" maxLength={240} defaultValue={framework.foundation ?? ''} />
           </FormGrid>

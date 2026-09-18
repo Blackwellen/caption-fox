@@ -11,7 +11,7 @@ import { compare, loadSnapshots, refreshSnapshot } from '@/lib/strategy/kpis'
 import { audienceFitBands, average, competitorGaps, pct } from '@/lib/strategy/metrics'
 import { formatDate, formatRelative, shortName } from '@/lib/strategy/format'
 import {
-  APPROVAL_STAGE_LABELS, FRAMEWORK_STATUS_LABELS, FRAMEWORK_STATUSES, MATRIX_SCORES, PROOF_CATEGORY_LABELS, RISK_LABELS, strategyPath,
+  APPROVAL_STAGE_LABELS, FRAMEWORK_STATUS_LABELS, FRAMEWORK_STATUSES, MARKET_LABELS, MATRIX_SCORES, PROOF_CATEGORY_LABELS, RISK_LABELS, STRATEGY_MARKETS, strategyPath,
   type ApprovalStage, type FrameworkStatus, type MatrixScore, type RiskLevel,
 } from '@/lib/strategy/constants'
 import StrategyHeader from '@/components/strategy/StrategyHeader'
@@ -110,7 +110,7 @@ export default async function PositioningPage({
   const pathname = strategyPath(kind, 'positioning')
   const menuCan = { create: can.createFramework, edit: can.editFramework, approve: can.approveFramework, export: can.export }
   const audienceOptions = audienceRows.map(row => ({ id: row.id, name: row.name }))
-  const filtered = Boolean(q.status || q.audience || q.owner || q.archived)
+  const filtered = Boolean(q.status || q.audience || q.market || q.owner || q.archived)
   const header = (
     <StrategyHeader kind={kind} module="positioning" modules={page.modules}
       actions={<PositioningHeaderActions frameworks={frameworkOptions.map(row => ({ id: row.id, name: row.name }))} primaryId={selected?.id ?? null}
@@ -123,13 +123,15 @@ export default async function PositioningPage({
         <SelectFilter param="framework" labelText="Framework" allLabel="All frameworks" icon="layers" className="lg:w-[150px]"
           options={frameworkOptions.map(row => ({ value: row.id, label: row.name }))} />
         <SelectFilter param="audience" labelText="Audience" allLabel="All audiences" icon="user" className="lg:w-[152px]" options={audienceOptions.map(row => ({ value: row.id, label: row.name }))} />
+        <SelectFilter param="market" labelText="Market" allLabel="All markets" icon="globe" className="lg:w-[132px]"
+          options={STRATEGY_MARKETS.map(value => ({ value, label: MARKET_LABELS[value] }))} />
         <SelectFilter param="status" prefix="Status" labelText="Status" allLabel="All" className="lg:w-[104px]"
           options={FRAMEWORK_STATUSES.filter(value => value !== 'archived').map(value => ({ value, label: FRAMEWORK_STATUS_LABELS[value] }))} />
         <MoreFilters fields={[
           { param: 'owner', label: 'Owner', options: page.people.map(person => ({ value: person.id, label: person.full_name ?? person.email ?? 'Member' })) },
           { param: 'archived', label: 'Archive', options: [{ value: '1', label: 'Archived only' }] },
         ]} />
-        <ClearFilters keys={['framework', 'audience', 'status', 'owner', 'archived']} />
+        <ClearFilters keys={['framework', 'audience', 'market', 'status', 'owner', 'archived']} />
       </div>
       <ViewSwitcher current={view} defaultView="framework"
         views={[{ id: 'framework', label: 'Framework' }, { id: 'matrix', label: 'Matrix' }, { id: 'cards', label: 'Cards' }, { id: 'table', label: 'Table' }]} />

@@ -169,6 +169,7 @@ export interface FrameworkRow {
   foundation: string | null
   positioning_statement: string | null
   target_audience_id: string | null
+  market: string | null
   is_primary: boolean
   version: number
   status: string

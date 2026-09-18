@@ -2,7 +2,7 @@
 
 import type { ActionResult } from '../action-types'
 import { authorise, dbError, fail, invalid, ownsRecord, rateLimited, record, revalidateStrategy } from '../server'
-import { APPROVAL_STAGE_LABELS, IMPACT_LEVELS, MATRIX_SCORES, PROOF_CATEGORIES, RISK_LEVELS, VERIFICATION_STATES, type ApprovalStage } from '../constants'
+import { APPROVAL_STAGE_LABELS, IMPACT_LEVELS, MATRIX_SCORES, PROOF_CATEGORIES, RISK_LEVELS, STRATEGY_MARKETS, VERIFICATION_STATES, type ApprovalStage } from '../constants'
 import { FieldErrors, isoDate, oneOf, text, uuid } from '../validation'
 import { notifyStrategy } from '../notify'
 
@@ -10,7 +10,7 @@ import { notifyStrategy } from '../notify'
 const WORKFLOW: ApprovalStage[] = ['draft', 'review', 'legal_review', 'leadership', 'approved']
 
 export interface FrameworkInput {
-  name?: string; category_promise?: string; foundation?: string; positioning_statement?: string; target_audience_id?: string
+  name?: string; category_promise?: string; foundation?: string; positioning_statement?: string; target_audience_id?: string; market?: string
 }
 
 function parseFramework(input: FrameworkInput, errors: FieldErrors) {
@@ -20,6 +20,7 @@ function parseFramework(input: FrameworkInput, errors: FieldErrors) {
     foundation: text(errors, 'foundation', input.foundation, { label: 'Foundation', max: 240 }),
     positioning_statement: text(errors, 'positioning_statement', input.positioning_statement, { label: 'Positioning statement', max: 600 }),
     target_audience_id: uuid(errors, 'target_audience_id', input.target_audience_id, { label: 'Target audience' }),
+    market: oneOf(errors, 'market', input.market, STRATEGY_MARKETS, { label: 'Market' }),
   }
 }
 

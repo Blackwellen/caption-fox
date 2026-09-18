@@ -284,6 +284,16 @@ export const FRAMEWORK_STATUS_BADGE: Record<FrameworkStatus, BadgeVariant> = {
   draft: 'slate', in_review: 'amber', approved: 'green', changes_requested: 'red', archived: 'slate',
 }
 
+/** Markets a positioning framework can target. Matches the DB check constraint. */
+export const STRATEGY_MARKETS = [
+  'uk', 'ireland', 'europe', 'north_america', 'apac', 'middle_east', 'latam', 'africa', 'global',
+] as const
+export type StrategyMarket = typeof STRATEGY_MARKETS[number]
+export const MARKET_LABELS: Record<StrategyMarket, string> = {
+  uk: 'United Kingdom', ireland: 'Ireland', europe: 'Europe', north_america: 'North America',
+  apac: 'Asia-Pacific', middle_east: 'Middle East', latam: 'Latin America', africa: 'Africa', global: 'Global',
+}
+
 export const MATRIX_SCORES = ['strong', 'moderate', 'weak', 'na'] as const
 export type MatrixScore = typeof MATRIX_SCORES[number]
 export const MATRIX_SCORE_LABELS: Record<MatrixScore, string> = {

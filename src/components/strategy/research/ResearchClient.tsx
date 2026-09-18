@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
 import {
   archiveResearch, createCollection, deleteResearch, getResearchFileUrl, moveResearchToCollection, registerResearchFile,
-  restoreResearch, setResearchStatus, toggleResearchFavourite,
+  restoreResearch, setResearchStatus, setResearchTags, toggleResearchFavourite,
 } from '@/lib/strategy/actions/research'
 import {
   IMPACT_LEVELS, IMPACT_SHORT, RESEARCH_FILE_MAX_BYTES, RESEARCH_FILE_TYPES, RESEARCH_METHOD_LABELS, RESEARCH_METHODS,
@@ -211,6 +211,64 @@ export function NewCollectionButton({ canCreate }: { canCreate: boolean }) {
         footer={<><DialogButton onClick={() => setOpen(false)}>Cancel</DialogButton><DialogButton variant="primary" disabled={pending || !name.trim()}
           onClick={async () => { const result = await run(() => createCollection(name)); if (result.ok) { setOpen(false); setName(''); setError(null) } else setError(result.error ?? null) }}>Create</DialogButton></>}>
         <TextField label="Collection name" name="collection" required maxLength={60} value={name} onChange={event => setName(event.target.value)} error={error ?? undefined} />
+      </Dialog>
+    </>
+  )
+}
+
+/**
+ * "+ Add tag" in the tag bar: applies one tag to the research items currently
+ * listed. Tags live on each item, so this is a bulk edit of real records rather
+ * than a workspace-level tag list.
+ */
+export function AddTagButton({ items, canEdit }: { items: Option[]; canEdit: boolean }) {
+  const { run, pending } = useStrategyAction()
+  const [open, setOpen] = useState(false)
+  const [tag, setTag] = useState('')
+  const [selected, setSelected] = useState<string[]>([])
+  const [error, setError] = useState<string | null>(null)
+  if (!canEdit || items.length === 0) return null
+
+  const close = () => { setOpen(false); setTag(''); setSelected([]); setError(null) }
+  return (
+    <>
+      <button type="button" onClick={() => setOpen(true)}
+        className="inline-flex h-9 items-center gap-1 rounded-md border border-dashed border-sg-line px-2.5 text-[12px] font-medium text-sg-blue hover:bg-sg-blue-soft lg:h-[17px] lg:px-[6px] lg:text-[8.5px]">
+        <Plus aria-hidden className="h-3 w-3 lg:h-2.5 lg:w-2.5" /> Add tag
+      </button>
+      <Dialog open={open} onClose={close} busy={pending} size="md" title="Add a tag"
+        description="Tags belong to research items. Pick the items on this page that should carry it."
+        footer={(
+          <>
+            <DialogButton onClick={close} disabled={pending}>Cancel</DialogButton>
+            <DialogButton variant="primary" disabled={pending || !tag.trim() || selected.length === 0}
+              onClick={async () => {
+                const result = await run(() => setResearchTags(selected, [tag]))
+                if (result.ok) close(); else setError(result.error ?? null)
+              }}>{pending ? 'Saving…' : `Tag ${selected.length || ''} item${selected.length === 1 ? '' : 's'}`}</DialogButton>
+          </>
+        )}>
+        <FormError message={error} />
+        <TextField label="Tag" name="tag" required maxLength={40} value={tag} placeholder="e.g. Gen Z"
+          onChange={event => setTag(event.target.value)} />
+        <fieldset className="mt-4">
+          <legend className="mb-1.5 flex w-full items-center justify-between text-[12.5px] font-medium text-sg-body">
+            Research on this page
+            <button type="button" className="text-[12px] font-medium text-sg-blue"
+              onClick={() => setSelected(selected.length === items.length ? [] : items.map(item => item.id))}>
+              {selected.length === items.length ? 'Clear' : 'Select all'}
+            </button>
+          </legend>
+          <div className="max-h-52 space-y-1 overflow-y-auto rounded-lg border border-sg-line p-2">
+            {items.map(item => (
+              <label key={item.id} className="flex min-h-9 items-center gap-2 rounded px-2 text-[13px] hover:bg-slate-50">
+                <input type="checkbox" className="h-4 w-4 accent-[var(--color-sg-blue)]" checked={selected.includes(item.id)}
+                  onChange={event => setSelected(list => event.target.checked ? [...list, item.id] : list.filter(id => id !== item.id))} />
+                {item.name}
+              </label>
+            ))}
+          </div>
+        </fieldset>
       </Dialog>
     </>
   )

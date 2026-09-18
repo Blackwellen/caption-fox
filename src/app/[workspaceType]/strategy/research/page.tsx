@@ -22,7 +22,7 @@ import { EmptyState, PanelError } from '@/components/strategy/states'
 import { StatusChip } from '@/components/strategy/badges'
 import { Donut } from '@/components/strategy/charts'
 import Pagination from '@/components/strategy/Pagination'
-import { FavouriteToggle, NewCollectionButton, ResearchHeaderActions, ResearchMenu } from '@/components/strategy/research/ResearchClient'
+import { AddTagButton, FavouriteToggle, NewCollectionButton, ResearchHeaderActions, ResearchMenu } from '@/components/strategy/research/ResearchClient'
 
 export const metadata: Metadata = {
   title: 'Research · Strategy · Caption Fox',
@@ -415,6 +415,7 @@ export default async function ResearchPage({
           <li key={tag}><Link href={hrefWith({ tag: q.tag === tag ? null : tag })} aria-current={q.tag === tag ? 'true' : undefined}
             className={cn('inline-flex h-9 items-center rounded-md border px-2.5 text-[12px] lg:h-[17px] lg:px-[6px] lg:text-[8.5px]', q.tag === tag ? 'border-sg-blue/40 bg-sg-blue-soft text-sg-blue' : 'border-sg-line bg-white text-sg-body hover:bg-slate-50')}>{tag}</Link></li>
         ))}
+        <li><AddTagButton canEdit={can.createResearch} items={rows.map(item => ({ id: item.id, name: item.title }))} /></li>
       </ul>
 
       {body}

@@ -4,7 +4,7 @@ import { useRef, useState, useTransition } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import {
   CalendarDays, ChevronDown, LayoutGrid, List, Map as MapIcon, Columns3, GitCompareArrows, BookOpen, Kanban,
-  Grid3x3, GanttChart, CalendarRange, BarChart3, Layers, Search, SlidersHorizontal, Clock3, X, UserRound, Target,
+  Grid3x3, GanttChart, CalendarRange, BarChart3, Layers, Search, SlidersHorizontal, Clock3, X, UserRound, Target, Globe,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Menu } from './client/menu'
@@ -42,7 +42,7 @@ export function useQueryPatch() {
 
 export const CONTROL = 'inline-flex h-11 min-w-0 items-center gap-2 rounded-lg border border-sg-line bg-white px-3 text-[13px] text-sg-ink transition-colors hover:border-slate-300 focus-visible:outline-2 focus-visible:outline-sg-blue lg:h-[30px] lg:gap-[9px] lg:rounded-[7px] lg:px-[10px] lg:text-[11px]'
 
-const FILTER_ICONS = { calendar: CalendarDays, user: UserRound, target: Target, layers: Layers, clock: Clock3 } as const
+const FILTER_ICONS = { calendar: CalendarDays, user: UserRound, target: Target, layers: Layers, clock: Clock3, globe: Globe } as const
 
 export interface Option { value: string; label: string }
 
