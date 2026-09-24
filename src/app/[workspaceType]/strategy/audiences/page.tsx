@@ -211,7 +211,7 @@ export default async function AudiencesPage({
           </div>
           <div>
             <p className="text-[11px] text-sg-body lg:text-[8.5px]">Linked objectives</p>
-            <Link href={strategyPath(kind, 'objectives')} className="mt-1 inline-block text-[12px] text-sg-blue hover:underline lg:mt-[2px] lg:text-[9px]">
+            <Link href={strategyPath(kind, 'objectives')} className="mt-1 inline-block py-2.5 text-[12px] text-sg-blue hover:underline lg:mt-[2px] lg:py-0 lg:text-[9px]">
               {(row.linkedObjectives ?? []).length} objective{(row.linkedObjectives ?? []).length === 1 ? '' : 's'}
             </Link>
           </div>
@@ -254,7 +254,7 @@ export default async function AudiencesPage({
   )
 
   const switcher = (
-    <ViewSwitcher current={view} defaultView="cards" showLabel={false} className="xl:w-full"
+    <ViewSwitcher current={view} defaultView="cards" showLabel={false} compact className="xl:w-full"
       views={[{ id: 'cards', label: 'Cards' }, { id: 'table', label: 'Table' }, { id: 'map', label: 'Map' }, { id: 'compare', label: 'Compare' }]} />
   )
 
@@ -266,10 +266,10 @@ export default async function AudiencesPage({
       footer={<FooterLink href={`${pathname}?view=map`}>View full geographic breakdown</FooterLink>}>
       <WorldMap rows={geography.rows} />
       <h3 className="mt-4 text-[12px] font-semibold text-sg-ink lg:mt-[12px] lg:text-[9.5px]">Top countries by audience</h3>
-      <ul className="mt-2 space-y-2 lg:mt-[3px] lg:space-y-[2.5px]">
+      <ul className="mt-2 space-y-0 lg:mt-[3px] lg:space-y-[2.5px]">
         {geography.rows.slice(0, 5).map(row => (
           <li key={row.code} className="flex items-center gap-3 text-[12px] text-sg-body lg:text-[9px]">
-            <Link href={`${pathname}?region=${row.code}`} className="w-24 shrink-0 truncate hover:underline lg:w-[66px]">{row.name}</Link>
+            <Link href={`${pathname}?region=${row.code}`} className="w-24 shrink-0 truncate py-3 hover:underline lg:w-[66px] lg:py-0">{row.name}</Link>
             <span aria-hidden className="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-100 lg:h-[4px]"><span className="block h-full rounded-full bg-sg-blue" style={{ width: `${pct(row.size, geography.rows[0]?.size ?? 1)}%` }} /></span>
             <span className="w-9 text-right tabular-nums">{pct(row.size, countryTotal)}%</span>
           </li>
@@ -306,10 +306,10 @@ export default async function AudiencesPage({
             <Panel title="Channel affinity" info="Average engagement share by channel across active segments." subtitle="Where audiences are most active"
               headerClassName={DENSE_HEADER} bodyClassName="lg:pt-[5px]! lg:pb-0!" footerClassName={DENSE_FOOTER}
               footer={<FooterLink href={`${pathname}?view=compare`}>View channel insights</FooterLink>}>
-              <ul className="space-y-3 lg:space-y-[4px] lg:pt-[1px]">
+              <ul className="space-y-0 lg:space-y-[4px] lg:pt-[1px]">
                 {channels.slice(0, 6).map(channel => (
                   <li key={channel.key} className="flex items-center gap-3 text-[12px] text-sg-body lg:gap-[12px] lg:text-[8.5px]">
-                    <Link href={`${pathname}?channel=${channel.key === 'social' ? '' : channel.key}`} className="w-20 shrink-0 truncate hover:underline lg:w-[50px]">{channel.label}</Link>
+                    <Link href={`${pathname}?channel=${channel.key === 'social' ? '' : channel.key}`} className="w-20 shrink-0 truncate py-3 hover:underline lg:w-[50px] lg:py-0">{channel.label}</Link>
                     <span aria-hidden className="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-100 lg:h-[4px]"><span className="block h-full rounded-full bg-sg-blue" style={{ width: `${channel.value}%` }} /></span>
                     <span className="w-8 text-right tabular-nums">{channel.value}%</span>
                   </li>

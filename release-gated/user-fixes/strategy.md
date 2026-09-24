@@ -2,6 +2,8 @@
 
 Things I could not complete from here, with exact steps.
 
+**Closed since 2026-09-16:** the Positioning "All markets" filter and Research "+ Add tag" control (previously listed as gaps in the evidence doc, not here) are now built and verified — nothing for you to do there.
+
 ---
 
 ## 1. Decide how approval and review notifications should be emailed (15 minutes)
@@ -62,3 +64,11 @@ delete from public.strategy_actions where is_demo;
 delete from public.strategy_insights where is_demo;
 delete from public.strategy_records where is_demo;
 ```
+
+---
+
+## 7. Decide the market list for Positioning frameworks, if the current one isn't right (10 minutes)
+
+**Why:** the "All markets" filter added on 2026-09-18 uses a fixed list — UK, Ireland, Europe, North America, Asia-Pacific, Middle East, Latin America, Africa, Global — enforced by a database check constraint. If your customers need a different or more granular list (e.g. individual EU countries), that's a product decision, not a bug.
+
+**Steps:** update the `STRATEGY_MARKETS` array in `src/lib/strategy/constants.ts` and the matching `check` constraint in a new migration (`alter table strategy_positioning_frameworks drop constraint strategy_frameworks_market_check, add constraint ... check (market in (...))`). Change both together.

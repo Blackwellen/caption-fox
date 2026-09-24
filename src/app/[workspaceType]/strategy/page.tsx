@@ -170,14 +170,14 @@ export default async function StrategyOverviewPage({
               bodyClassName="lg:pb-0!" footerClassName="lg:pt-[7px] lg:pb-[7px]!"
               footer={<FooterLink href={strategyPath(workspaceType, 'objectives')}>View all objectives</FooterLink>}>
               {data.objectivesTotal ? (
-                <div className="flex items-center gap-3 border-b border-sg-line-soft pb-3 sm:gap-5 lg:gap-[26px] lg:pb-4 lg:pl-[10px] lg:pt-[10px]">
+                <div className="flex items-center gap-3 border-b border-sg-line-soft pb-3 sm:gap-5 lg:gap-4 lg:pb-4 lg:pl-0 lg:pt-[10px] min-[1400px]:gap-[26px] min-[1400px]:pl-[10px]">
                   <Donut caption="Objectives by status" size={132} thickness={24} slices={donut}
                     center={<><span className="text-[18px] font-semibold leading-none text-sg-ink">{data.objectivesTotal}</span><span className="mt-1 text-[9px] text-sg-muted">Total</span></>} />
-                  <ul className="min-w-0 flex-1 space-y-3 lg:space-y-[12px]">
+                  <ul className="min-w-0 flex-1 space-y-0 lg:space-y-[12px]">
                     {donut.map(segment => (
                       <li key={segment.key} className="flex items-center gap-2 text-[12px] text-sg-body lg:text-[9.5px]">
                         <span aria-hidden className="h-2 w-2 rounded-full" style={{ background: segment.colour }} />
-                        <Link className="min-w-0 flex-1 truncate hover:underline" href={`${strategyPath(workspaceType, 'objectives')}?status=${segment.key}`}>{segment.label}</Link>
+                        <Link className="block min-w-0 flex-1 truncate py-3 hover:underline lg:py-0" href={`${strategyPath(workspaceType, 'objectives')}?status=${segment.key}`}>{segment.label}</Link>
                         <span className="whitespace-nowrap font-semibold tabular-nums text-sg-ink">{segment.value} <span className="font-normal text-sg-muted">({Math.round((segment.value / data.objectivesTotal) * 100)}%)</span></span>
                       </li>
                     ))}
@@ -262,7 +262,7 @@ export default async function StrategyOverviewPage({
               <>
                 <SelectFilter param="sort" labelText="Sort by" allLabel="Sort by: Priority" className="w-[150px] lg:w-[126px] [&_button]:lg:h-[27px]"
                   options={[{ value: 'progress', label: 'Sort by: Progress' }, { value: 'due', label: 'Sort by: Due date' }, { value: 'name', label: 'Sort by: Name' }]} />
-                <Link href={`${pathname}?view=table`} className="ml-2 text-[12px] font-medium text-sg-blue hover:underline lg:ml-[30px] lg:text-[10.5px]">View all</Link>
+                <Link href={`${pathname}?view=table`} className="ml-2 inline-flex min-h-10 items-center text-[12px] font-medium text-sg-blue hover:underline lg:ml-[30px] lg:min-h-0 lg:text-[10.5px]">View all</Link>
               </>
             )}>
             {data.initiatives.length

@@ -285,13 +285,15 @@ const VIEW_ICONS = {
 export type ViewId = keyof typeof VIEW_ICONS
 
 export function ViewSwitcher({
-  views, current, defaultView, showLabel = true, className,
+  views, current, defaultView, showLabel = true, className, compact,
 }: {
   views: { id: ViewId; label: string }[]
   current: ViewId
   defaultView: ViewId
   showLabel?: boolean
   className?: string
+  /** Icon-only until the 2xl breakpoint — for switchers sharing a narrow rail (e.g. Audiences beside the geo panel), where 4 labelled tabs do not fit at 1280px and the last one used to be pushed into the hidden overflow-x-auto scroll. */
+  compact?: boolean
 }) {
   const { patch } = useQueryPatch()
   return (
@@ -302,15 +304,16 @@ export function ViewSwitcher({
           const Icon = VIEW_ICONS[view.id]
           const active = view.id === current
           return (
-            <button key={view.id} type="button" role="radio" aria-checked={active}
+            <button key={view.id} type="button" role="radio" aria-checked={active} title={compact ? view.label : undefined}
               onClick={() => { if (!active) patch({ view: view.id === defaultView ? null : view.id, compare: null }) }}
               className={cn(
                 'relative inline-flex h-11 shrink-0 items-center gap-2 whitespace-nowrap px-3.5 text-[13px] transition-colors focus-visible:z-10 focus-visible:outline-2 focus-visible:outline-sg-blue lg:h-[30px] lg:gap-[7px] lg:px-[12px] lg:text-[11px]',
+                compact && '2xl:px-[12px] lg:px-[9px]',
                 index > 0 && 'border-l border-sg-line',
                 active ? 'bg-sg-blue-soft/60 font-medium text-sg-blue shadow-[inset_0_0_0_1px_var(--color-sg-blue)] lg:rounded-[6px]' : 'text-sg-body hover:bg-slate-50',
               )}>
               <Icon aria-hidden className="h-4 w-4 lg:h-[13px] lg:w-[13px]" />
-              {view.label}
+              <span className={compact ? 'sr-only 2xl:not-sr-only' : undefined}>{view.label}</span>
             </button>
           )
         })}

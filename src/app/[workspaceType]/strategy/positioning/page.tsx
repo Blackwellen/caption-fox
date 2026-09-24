@@ -266,7 +266,7 @@ export default async function PositioningPage({
             footer={(
               <div className="flex items-center justify-between text-[11px] text-sg-muted lg:text-[8.5px]">
                 <span>Last updated {formatDate(selected.updated_at)} by {selected.owner?.full_name ?? 'a teammate'}</span>
-                <Link href={`${pathname}?view=table`} className="font-medium text-sg-blue hover:underline lg:text-[9px]">Edit framework →</Link>
+                <Link href={`${pathname}?view=table`} className="inline-flex min-h-10 items-center font-medium text-sg-blue hover:underline lg:min-h-0 lg:text-[9px]">Edit framework →</Link>
               </div>
             )}>
             <h3 className="mb-2 text-[12.5px] font-semibold text-sg-ink lg:mb-[2px] lg:text-[10px]">Message House</h3>
@@ -307,7 +307,7 @@ export default async function PositioningPage({
                 <p className="text-[15px] leading-snug text-sg-ink lg:text-[12px]">{selected.positioning_statement ?? 'No positioning statement yet.'}</p>
               </blockquote>
               <p className="mt-3 text-[11px] text-sg-muted lg:mt-[12px] lg:text-[8.5px]">Target audience</p>
-              {selected.audience ? <Link href={`${strategyPath(kind, 'audiences')}?q=${encodeURIComponent(selected.audience.name)}`} className="text-[12.5px] font-medium text-sg-blue hover:underline lg:text-[9px]">{selected.audience.name}</Link> : <p className="text-[12px] text-sg-muted">Not set</p>}
+              {selected.audience ? <Link href={`${strategyPath(kind, 'audiences')}?q=${encodeURIComponent(selected.audience.name)}`} className="inline-flex min-h-10 items-center text-[12.5px] font-medium text-sg-blue hover:underline lg:min-h-0 lg:text-[9px]">{selected.audience.name}</Link> : <p className="text-[12px] text-sg-muted">Not set</p>}
             </Panel>
             <Panel title="Audience–Message Fit" headerClassName="lg:pt-[5px]!" bodyClassName="lg:pt-[4px]! lg:pb-0!">
               {linkedIds.size ? (

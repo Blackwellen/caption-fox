@@ -50,7 +50,7 @@ export default function InitiativesTable({ kind, rows }: { kind: string; rows: P
             return (
               <tr key={row.id} className="h-12 border-t border-sg-line-soft first:border-t-0 lg:h-9">
                 <td className={TD}>
-                  <Link href={href} className="flex min-w-0 items-center gap-2 font-medium text-sg-ink hover:underline lg:gap-[13px] lg:font-normal">
+                  <Link href={href} className="flex min-h-10 min-w-0 items-center gap-2 font-medium text-sg-ink hover:underline lg:min-h-0 lg:gap-[13px] lg:font-normal">
                     <Target aria-hidden className="h-3.5 w-3.5 shrink-0 text-sg-blue lg:h-3 lg:w-3" />
                     <span className="truncate">{row.name}</span>
                   </Link>
@@ -75,7 +75,7 @@ export default function InitiativesTable({ kind, rows }: { kind: string; rows: P
                 <td className={cn(TD, 'truncate')} title={row.target_summary ?? undefined}>{row.target_summary ?? '—'}</td>
                 <td className={TD}>{formatDate(row.end_date)}</td>
                 <td className={cn(TD, 'pr-0 text-right')}>
-                  <Link href={href} aria-label={`Open ${row.name}`} className="inline-flex h-8 w-8 items-center justify-center rounded text-slate-500 hover:bg-slate-100 lg:h-5 lg:w-5">
+                  <Link href={href} aria-label={`Open ${row.name}`} className="inline-flex h-10 w-10 items-center justify-center rounded text-slate-500 hover:bg-slate-100 lg:h-5 lg:w-5">
                     <MoreHorizontal aria-hidden className="h-4 w-4 lg:h-3.5 lg:w-3.5" />
                   </Link>
                 </td>

@@ -48,7 +48,10 @@ export interface KpiItem {
  */
 export default function KpiStrip({ items, className, itemClassName }: { items: KpiItem[]; className?: string; itemClassName?: string }) {
   return (
-    <ul className={cn('grid grid-cols-1 gap-3 min-[420px]:grid-cols-2 md:grid-cols-3 xl:grid-cols-6 xl:gap-[18px]', className)} aria-label="Key metrics">
+    // Six across only where the content column is wide enough (>= 1400px viewport, which
+    // includes the 1491px design view). Between 1024 and 1399px the sidebar leaves ~155px
+    // per card, which clipped every label, so it stays at three across there.
+    <ul className={cn('grid grid-cols-1 gap-3 min-[420px]:grid-cols-2 md:grid-cols-3 min-[1400px]:grid-cols-6 min-[1400px]:gap-[18px]', className)} aria-label="Key metrics">
       {items.map(item => {
         const Icon = ICONS[item.icon]
         const d = item.delta
@@ -60,7 +63,7 @@ export default function KpiStrip({ items, className, itemClassName }: { items: K
               <Icon aria-hidden className="h-5 w-5 lg:h-[19px] lg:w-[19px]" strokeWidth={2.4} />
             </span>
             <div className="min-w-0 flex-1">
-              <p className="truncate text-[13px] font-medium leading-tight tracking-[-0.005em] text-sg-body lg:text-[10.5px]">{item.label}</p>
+              <p title={item.label} className="line-clamp-2 text-[13px] font-medium leading-tight tracking-[-0.005em] text-sg-body lg:block lg:truncate lg:text-[10.5px]">{item.label}</p>
               <p className="mt-0.5 truncate text-[22px] font-semibold leading-tight tracking-[-0.01em] text-sg-ink lg:mt-[3px] lg:text-[19.5px]">{item.value}</p>
               {item.bar ? (
                 <div className="mt-1 lg:mt-[2px]">
@@ -71,7 +74,7 @@ export default function KpiStrip({ items, className, itemClassName }: { items: K
                   </span>
                 </div>
               ) : d ? (
-                <p className="mt-1 flex items-center gap-1 truncate text-[12px] leading-tight text-sg-muted lg:mt-[5px] lg:text-[9.5px]">
+                <p className="mt-1 flex flex-wrap items-center gap-x-1 text-[12px] leading-tight text-sg-muted lg:mt-[5px] lg:flex-nowrap lg:truncate lg:text-[9.5px]">
                   {d.value > 0 ? <ArrowUp aria-hidden className={cn('h-3 w-3 shrink-0', positive ? 'text-emerald-500' : 'text-red-500')} />
                     : d.value < 0 ? <ArrowDown aria-hidden className={cn('h-3 w-3 shrink-0', positive ? 'text-emerald-500' : 'text-red-500')} />
                       : <Minus aria-hidden className="h-3 w-3 shrink-0 text-slate-400" />}
@@ -79,7 +82,7 @@ export default function KpiStrip({ items, className, itemClassName }: { items: K
                     <span className="sr-only">{d.value > 0 ? 'up ' : d.value < 0 ? 'down ' : 'no change '}</span>
                     {Math.abs(d.value).toLocaleString('en-GB')}{d.unit ?? ''}
                   </span>
-                  <span className="truncate">{d.comparison}</span>
+                  <span className="lg:truncate">{d.comparison}</span>
                 </p>
               ) : item.note ? (
                 <p className={cn('mt-1 truncate text-[12px] lg:mt-[5px] lg:text-[9.5px]', {

@@ -201,8 +201,8 @@ export default async function ForecastsPage({
           <li key={scenario.id} className={cn('relative rounded-lg border p-3 lg:px-[8px] lg:pb-[7px] lg:pt-[7px]', scenario.is_expected ? 'border-[#9fb7fb] bg-sg-blue-soft/30 ring-1 ring-[#9fb7fb]' : 'border-sg-line')}>
             <div className="flex items-start gap-2.5">
               <span className={cn('flex h-9 w-9 shrink-0 items-center justify-center rounded-lg lg:h-[28px] lg:w-[28px]', style.tone)}><style.icon aria-hidden className="h-4 w-4 lg:h-3.5 lg:w-3.5" /></span>
-              <div className="min-w-0 flex-1">
-                <p className={cn('whitespace-nowrap text-[12px] font-medium lg:text-[9px]', scenario.is_expected ? 'text-sg-blue' : 'text-sg-ink')}>{scenario.name}</p>
+              <div className={cn('min-w-0 flex-1', scenario.is_expected && 'pr-16 lg:pr-[52px]')}>
+                <p className={cn('truncate text-[12px] font-medium lg:text-[9px]', scenario.is_expected ? 'text-sg-blue' : 'text-sg-ink')}>{scenario.name}</p>
                 <p className="text-[18px] font-semibold text-sg-ink lg:text-[13px]">{money(Number(scenario.forecast_value))}</p>
                 <p className={cn('text-[11px] lg:text-[8px]', change >= 0 ? 'text-emerald-600' : 'text-red-500')}>{change >= 0 ? '↑' : '↓'} {formatSignedPercent(change).replace(/^[+-]/, '')} vs target</p>
               </div>
@@ -320,7 +320,7 @@ export default async function ForecastsPage({
           footer={(
             <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-sg-muted lg:text-[8.5px]">
               <span>All values in {currency} · Last updated {lastRefreshed ? formatAgoLong(lastRefreshed) : 'never'}</span>
-              <Link href={`${pathname}?view=table&forecast=${forecast.id}`} className="font-medium text-sg-blue hover:underline lg:text-[9.5px]">View full forecast table →</Link>
+              <Link href={`${pathname}?view=table&forecast=${forecast.id}`} className="inline-flex min-h-10 items-center font-medium text-sg-blue hover:underline lg:min-h-0 lg:text-[9.5px]">View full forecast table →</Link>
             </div>
           )}>
           {summaryTable}

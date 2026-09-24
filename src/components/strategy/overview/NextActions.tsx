@@ -46,14 +46,16 @@ export default function NextActions({ kind, rows, canEdit }: { kind: string; row
               aria-label={`Mark "${row.title}" as ${checked ? 'open' : 'done'}`}
               title={canEdit ? undefined : 'Your role cannot complete actions'}
               onClick={() => toggle(row)}
-              className={cn('flex h-6 w-6 shrink-0 items-center justify-center rounded-full border transition-colors lg:h-[14px] lg:w-[14px]',
-                checked ? 'border-emerald-500 bg-emerald-500 text-white' : 'border-slate-300 bg-white hover:border-sg-blue',
-                !canEdit && 'cursor-not-allowed opacity-60')}>
-              {checked && <Check aria-hidden className="h-3 w-3 lg:h-2.5 lg:w-2.5" strokeWidth={3} />}
+              className={cn('group -mx-2 flex h-10 w-10 shrink-0 items-center justify-center lg:mx-0 lg:h-[14px] lg:w-[14px]', !canEdit && 'cursor-not-allowed opacity-60')}>
+              {/* The visible tick stays small; the button around it is a 40px touch target below lg. */}
+              <span aria-hidden className={cn('flex h-6 w-6 items-center justify-center rounded-full border transition-colors lg:h-[14px] lg:w-[14px]',
+                checked ? 'border-emerald-500 bg-emerald-500 text-white' : 'border-slate-300 bg-white group-hover:border-sg-blue')}>
+                {checked && <Check className="h-3 w-3 lg:h-2.5 lg:w-2.5" strokeWidth={3} />}
+              </span>
             </button>
             <Link href={strategyPath(kind, STRATEGY_MODULE_META[area] ? area : 'overview')}
-              className={cn('min-w-0 truncate text-[13px] text-sg-body hover:text-sg-ink hover:underline lg:text-[10px]', checked && 'text-slate-400 line-through')}>
-              {row.title}
+              className={cn('flex min-h-10 min-w-0 items-center text-[13px] text-sg-body hover:text-sg-ink hover:underline lg:min-h-0 lg:text-[10px]', checked && 'text-slate-400 line-through')}>
+              <span className="truncate">{row.title}</span>
             </Link>
             <span className={cn('hidden h-[18px] shrink-0 items-center rounded px-1.5 text-[11px] sm:inline-flex lg:h-[15px] lg:text-[8.5px]', MODULE_TONE[row.module] ?? MODULE_TONE.research)}>
               {STRATEGY_MODULE_META[area]?.label ?? row.module}

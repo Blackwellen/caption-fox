@@ -191,7 +191,7 @@ export default async function ResearchPage({
               <td className="pr-3"><span className="flex items-center gap-1.5 whitespace-nowrap"><Avatar person={item.owner} size={16} />{shortName(item.owner?.full_name)}</span></td>
               <td className="pr-3"><StatusChip status={item.status} label={RESEARCH_STATUS_LABELS[item.status as ResearchStatus]} /></td>
               <td className="whitespace-nowrap pr-3">
-                {(refs.get(item.id) ?? []).length ? <Link href={strategyPath(kind, 'objectives')} className="text-sg-blue hover:underline">{refs.get(item.id)!.slice(0, 2).join(', ')}</Link> : <span className="text-sg-subtle">—</span>}
+                {(refs.get(item.id) ?? []).length ? <Link href={strategyPath(kind, 'objectives')} className="inline-flex min-h-10 items-center text-sg-blue hover:underline lg:min-h-0">{refs.get(item.id)!.slice(0, 2).join(', ')}</Link> : <span className="text-sg-subtle">—</span>}
               </td>
               <td className="whitespace-nowrap pr-3">{formatRelative(item.updated_at)}</td>
               <td className="text-right"><ResearchMenu item={item} collections={collectionOptions} can={menuCan} /></td>
@@ -244,7 +244,7 @@ export default async function ResearchPage({
           )
         })}
       </ul>
-      <Link href={`${pathname}?view=table`} className="mt-2 inline-block px-2 text-[12px] font-medium text-sg-blue hover:underline lg:text-[9px]">View all collections</Link>
+      <Link href={`${pathname}?view=table`} className="mt-2 inline-block px-2 py-2.5 text-[12px] font-medium text-sg-blue hover:underline lg:py-0 lg:text-[9px]">View all collections</Link>
     </nav>
   )
 
@@ -287,11 +287,11 @@ export default async function ResearchPage({
             {live.length ? (
               <div className="flex items-center gap-6 lg:gap-[34px] lg:pl-[12px] lg:pt-[4px]">
                 <Donut caption="Research by method" size={128} thickness={34} slices={methodMix} gap={0} center={<span className="sr-only">{live.length} items</span>} />
-                <ul className="flex-1 space-y-2.5 lg:space-y-[8px]">
+                <ul className="flex-1 space-y-0 lg:space-y-[8px]">
                   {methodMix.map(item => (
                     <li key={item.key} className="flex items-center gap-2 text-[12px] text-sg-body lg:text-[8.5px]">
                       <i aria-hidden className="h-2 w-2 rounded-full" style={{ background: item.colour }} />
-                      <Link href={hrefWith({ q: null })} className="flex-1">{item.label}</Link>
+                      <Link href={hrefWith({ q: null })} className="block flex-1 py-3 lg:py-0">{item.label}</Link>
                       <span className="tabular-nums">{pct(item.value, live.length)}% ({item.value})</span>
                     </li>
                   ))}

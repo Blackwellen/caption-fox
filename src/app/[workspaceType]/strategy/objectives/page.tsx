@@ -133,7 +133,7 @@ export default async function ObjectivesPage({
       <article className={cn(CARD, 'flex h-full flex-col px-3.5 py-3 lg:px-[13px] lg:pb-[6px] lg:pt-[6px]')} aria-labelledby={`obj-${row.id}`}>
         <header className="flex items-start gap-2">
           <h3 id={`obj-${row.id}`} className="min-w-0 truncate text-[14px] font-semibold text-sg-ink lg:text-[11.5px]">
-            <Link href={`${pathname}?view=table&q=${encodeURIComponent(row.name)}`} className="hover:underline">{row.name}</Link>
+            <Link href={`${pathname}?view=table&q=${encodeURIComponent(row.name)}`} className="block truncate py-2.5 hover:underline lg:py-0">{row.name}</Link>
           </h3>
           <TypeChip type={row.objective_type} label={OBJECTIVE_TYPE_LABELS[row.objective_type as ObjectiveType] ?? row.objective_type} className="mt-px" />
           <span className="ml-auto -mt-0.5"><ObjectiveMenu objective={row} people={page.people} strategies={strategyOptions} can={menuCan} /></span>
@@ -343,11 +343,11 @@ export default async function ObjectivesPage({
                   <Donut caption="Objectives by status" size={100} thickness={17} slices={donut}
                     center={<><span className="text-[16px] font-semibold leading-none text-sg-ink">{total}</span><span className="mt-0.5 text-[9px] text-sg-muted">Total</span></>} />
                   <div className="min-w-0 flex-1 lg:pt-[12px]">
-                  <ul className="space-y-3 lg:space-y-[12px]">
+                  <ul className="space-y-0 lg:space-y-[12px]">
                     {donut.map(item => (
                       <li key={item.key} className="flex items-center gap-2 text-[12px] text-sg-body lg:text-[9.5px]">
                         <span aria-hidden className="h-2 w-2 rounded-full" style={{ background: item.colour }} />
-                        <Link className="flex-1 hover:underline" href={`${pathname}?view=table&status=${item.key}`}>{item.label}</Link>
+                        <Link className="block flex-1 py-3 hover:underline lg:py-0" href={`${pathname}?view=table&status=${item.key}`}>{item.label}</Link>
                         <span className="tabular-nums">{item.value} <span className="text-sg-muted">({pct(item.value, total)}%)</span></span>
                       </li>
                     ))}

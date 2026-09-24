@@ -32,13 +32,13 @@ export default function StrategyHeader({
             </Link>
           </li>
           <li aria-hidden><ChevronRight className="h-3.5 w-3.5 text-slate-300 lg:h-3 lg:w-3" /></li>
-          <li className="hidden shrink-0 sm:block"><Link href={home} className="hover:text-sg-ink">Campaign Manager</Link></li>
+          <li className="hidden shrink-0 sm:block"><Link href={home} className="inline-flex min-h-9 items-center hover:text-sg-ink lg:min-h-0">Campaign Manager</Link></li>
           <li aria-hidden className="hidden sm:block"><ChevronRight className="h-3.5 w-3.5 text-slate-300 lg:h-3 lg:w-3" /></li>
-          <li className="shrink-0"><Link href={strategyPath(kind)} className="hover:text-sg-ink">Strategy</Link></li>
+          <li className="shrink-0"><Link href={strategyPath(kind)} className="inline-flex min-h-9 items-center hover:text-sg-ink lg:min-h-0">Strategy</Link></li>
           <li aria-hidden><ChevronRight className="h-3.5 w-3.5 text-slate-300 lg:h-3 lg:w-3" /></li>
           {crumb?.parentLabel && (
             <>
-              <li className="shrink-0"><Link href={strategyPath(kind, module)} className="hover:text-sg-ink">{crumb.parentLabel}</Link></li>
+              <li className="shrink-0"><Link href={strategyPath(kind, module)} className="inline-flex min-h-9 items-center hover:text-sg-ink lg:min-h-0">{crumb.parentLabel}</Link></li>
               <li aria-hidden><ChevronRight className="h-3.5 w-3.5 text-slate-300 lg:h-3 lg:w-3" /></li>
             </>
           )}
