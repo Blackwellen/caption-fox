@@ -59,7 +59,12 @@ export async function GET() {
   const session = await getStrategyActionSession()
   if (!session) return NextResponse.json({ error: 'Sign in to use Fox AI.' }, { status: 401 })
   const availability = availabilityFor(session)
-  if (!availability.available) return NextResponse.json({ available: false, message: availability.message })
+  if (!availability.available) {
+    return NextResponse.json({
+      available: false, message: availability.message, reason: availability.reason,
+      upgrade: availability.reason === 'plan' || availability.reason === 'subscription',
+    })
+  }
   const used = await usage(session)
   return NextResponse.json({
     available: true,
@@ -80,9 +85,9 @@ export async function POST(request: NextRequest) {
 
   let body: { question?: unknown; module?: unknown }
   try { body = await request.json() } catch { return NextResponse.json({ error: 'Invalid request.' }, { status: 400 }) }
-  const module = (STRATEGY_MODULES as readonly string[]).includes(String(body.module)) ? body.module as StrategyModule : null
-  if (!module) return NextResponse.json({ error: 'Unknown Strategy area.' }, { status: 400 })
-  if (!canAccessStrategyModule(session.ctx, module).allowed) return NextResponse.json({ error: 'This area is not available for your workspace.' }, { status: 404 })
+  const area = (STRATEGY_MODULES as readonly string[]).includes(String(body.module)) ? body.module as StrategyModule : null
+  if (!area) return NextResponse.json({ error: 'Unknown Strategy area.' }, { status: 400 })
+  if (!canAccessStrategyModule(session.ctx, area).allowed) return NextResponse.json({ error: 'This area is not available for your workspace.' }, { status: 404 })
   const question = cleanQuestion(body.question)
   if (!question) return NextResponse.json({ error: 'Ask a question between 3 and 600 characters.' }, { status: 400 })
 
@@ -93,7 +98,7 @@ export async function POST(request: NextRequest) {
   const { limits } = availability
   const used = await usage(session)
   if (used.burst >= BURST_LIMIT) {
-    await log(session, module, 'blocked')
+    await log(session, area, 'blocked')
     return NextResponse.json({ error: 'You are asking very quickly. Wait a minute and try again.' }, { status: 429, headers: { 'Retry-After': '60' } })
   }
   if (used.userToday >= limits.userDaily) {
@@ -103,7 +108,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'This workspace has used its Fox AI allowance for Strategy this month.', upgrade: true }, { status: 429 })
   }
 
-  const records = await loadStrategyAiContext(session.supabase, session.ctx, module)
+  const records = await loadStrategyAiContext(session.supabase, session.ctx, area)
   const { text: data, used: supplied } = buildContextBlock(records)
   if (!supplied.length) {
     return NextResponse.json({ answer: 'There is no Strategy data in this workspace yet, so there is nothing to answer from. Add objectives, audiences, research or plans first.', citations: [] })
@@ -114,14 +119,14 @@ export async function POST(request: NextRequest) {
       model: STRATEGY_AI_MODEL,
       system: STRATEGY_AI_SYSTEM_PROMPT,
       maxOutputTokens: MAX_OUTPUT_TOKENS,
-      messages: [{ role: 'user', content: `Current page: ${STRATEGY_MODULE_META[module].title}\n\nDATA (untrusted records):\n<<<\n${data}>>>\n\nQuestion: ${question}` }],
+      messages: [{ role: 'user', content: `Current page: ${STRATEGY_MODULE_META[area].title}\n\nDATA (untrusted records):\n<<<\n${data}>>>\n\nQuestion: ${question}` }],
     }),
     new Promise<{ ok: false; reason: string }>(resolve => setTimeout(() => resolve({ ok: false, reason: 'timeout' }), TIMEOUT_MS)),
   ])
 
   if (!outcome.ok) {
-    console.error('[strategy-ai] provider failure', { module, timeout: outcome.reason === 'timeout' })
-    await log(session, module, 'failed')
+    console.error('[strategy-ai] provider failure', { module: area, timeout: outcome.reason === 'timeout' })
+    await log(session, area, 'failed')
     return NextResponse.json({ error: 'Fox AI could not answer right now. Nothing was charged against your allowance — try again shortly.' }, { status: 502 })
   }
 
@@ -130,10 +135,10 @@ export async function POST(request: NextRequest) {
     ref: record.ref, label: record.label, module: record.module,
     href: `${strategyPath(workspaceRouteSegment(session.ctx.workspaceType) ?? 'brand', record.module)}?focus=${record.id}`,
   }))
-  await log(session, module, 'success', { prompt: outcome.result.promptTokens, completion: outcome.result.completionTokens })
+  await log(session, area, 'success', { prompt: outcome.result.promptTokens, completion: outcome.result.completionTokens })
   await logAudit(session.supabase, session.userId, {
     workspaceId: session.ctx.workspaceId, action: 'strategy.ai.asked', entityType: 'strategy_ai', entityId: null,
-    metadata: { surface: module, model: STRATEGY_AI_MODEL, records_supplied: supplied.length, citations: citations.length, tokens: outcome.result.totalTokens },
+    metadata: { surface: area, model: STRATEGY_AI_MODEL, records_supplied: supplied.length, citations: citations.length, tokens: outcome.result.totalTokens },
   })
 
   return NextResponse.json({

@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { ChevronDown, Download, FileSpreadsheet, MoreVertical, Plus, PlusCircle, Send } from 'lucide-react'
+import { openStrategyAssistant } from '../assistant/open'
 import { cn } from '@/lib/utils'
 import {
   addClaim, addProofPoint, createFramework, decideApproval, makeFrameworkPrimary, sendApprovalReminder, setFrameworkArchived,
@@ -73,6 +74,7 @@ export function PositioningHeaderActions({
         )} />
       )}
       <Menu label="More actions" items={[
+        { id: 'fox-ai', label: 'Ask Fox AI about positioning', onSelect: openStrategyAssistant },
         { id: 'claims', label: 'Add claim for risk review', disabled: !can.edit || frameworks.length === 0, disabledReason: 'Your role cannot add claims', onSelect: () => setClaimOpen(true) },
         { id: 'archived', label: 'View archived frameworks', href: '?view=table&archived=1' },
       ]} trigger={({ ref, toggle, ...aria }) => (

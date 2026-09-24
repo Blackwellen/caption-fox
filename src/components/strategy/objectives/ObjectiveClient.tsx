@@ -3,6 +3,7 @@
 import { useRef, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { ChevronDown, Download, FileSpreadsheet, MoreHorizontal, MoreVertical, PencilLine, PlusCircle, Upload } from 'lucide-react'
+import { openStrategyAssistant } from '../assistant/open'
 import { cn } from '@/lib/utils'
 import {
   archiveObjective, bulkUpdateObjectives, deleteObjective, importObjectives, restoreObjective, updateObjectiveStatus,
@@ -52,6 +53,7 @@ export function ObjectivesHeaderActions({
         )} />
       )}
       <Menu label="More actions" items={[
+        { id: 'fox-ai', label: 'Ask Fox AI about objectives', onSelect: openStrategyAssistant },
         { id: 'archived', label: 'View archived objectives', href: '?archived=1' },
         { id: 'print', label: 'Print', onSelect: () => window.print() },
       ]} trigger={({ ref, toggle, ...aria }) => (

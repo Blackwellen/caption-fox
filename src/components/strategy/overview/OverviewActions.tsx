@@ -2,7 +2,8 @@
 
 import { useState } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { ChevronDown, Download, FileSpreadsheet, Link2, MoreVertical, PencilLine, PlusCircle, Printer } from 'lucide-react'
+import { ChevronDown, Download, FileSpreadsheet, Link2, MoreVertical, PencilLine, PlusCircle, Printer, Sparkles } from 'lucide-react'
+import { openStrategyAssistant } from '../assistant/open'
 import { BUTTON, ICON } from '../buttons'
 import { Menu } from '../client/menu'
 import { useToast } from '../client/toast'
@@ -67,6 +68,7 @@ export default function StrategyPageActions({
       <Menu
         label="More actions"
         items={[
+          { id: 'fox-ai', label: 'Ask Fox AI about this page', icon: <Sparkles className="h-3.5 w-3.5" />, onSelect: openStrategyAssistant },
           ...extraMenu.map(item => ({ ...item })),
           {
             id: 'copy', label: 'Copy link to this view', icon: <Link2 className="h-3.5 w-3.5" />,

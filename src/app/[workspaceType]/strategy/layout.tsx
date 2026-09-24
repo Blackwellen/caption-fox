@@ -1,5 +1,6 @@
 import { requireWorkspaceModule } from '@/lib/navigation/session'
 import { StrategyToastProvider } from '@/components/strategy/client/toast'
+import StrategyAssistantHost from '@/components/strategy/assistant/StrategyAssistantHost'
 
 /**
  * Strategy renders inside the canonical shell from app/[workspaceType]/layout.tsx.
@@ -13,6 +14,7 @@ export default async function StrategyLayout({ children }: { children: React.Rea
       <div className="min-w-0 bg-sg-canvas px-4 pb-[calc(6rem+env(safe-area-inset-bottom))] sm:px-6 lg:px-[22px] lg:pb-10">
         {children}
       </div>
+      <StrategyAssistantHost />
     </StrategyToastProvider>
   )
 }

@@ -6,22 +6,32 @@ Things I could not complete from here, with exact steps.
 
 ---
 
-## 1. Decide how approval and review notifications should be emailed (15 minutes)
+## 1. Turn on approval and review emails (per workspace, 10 minutes)
 
-**Why:** approval requests, reminders and research review decisions currently create **in-app notifications only**. Sending email needs a sender identity and a decision on whether these go through the workspace's own email settings.
+**Status:** built and unit-tested. Approval requests, reminders, decisions and research review decisions always create an in-app notification. They also send an email **only when this workspace supplies its own sender**. Until then Strategy quietly stays in-app only. Demo workspaces never send email.
 
 **Steps:**
-1. Confirm the sender (e.g. `notifications@captionfox.com`) is verified in Resend.
-2. Confirm users can opt out under Account Settings → Notifications.
-3. Ask for `strategy_approval_request`, `strategy_approval_reminder`, `strategy_approval_decision` and `strategy_research_review` to be added to the email notification templates.
+1. In Resend, verify the sending domain you want to use and create an API key.
+2. Set `RESEND_API_KEY` and `MESSAGING_EMAIL_FROM` (for example `Acme <hello@acme.com>`) in the deployment environment (Vercel project settings, then redeploy). Also make sure `NEXT_PUBLIC_APP_URL` is your public app URL so the email's "Open in Caption Fox" button links correctly.
+3. In a **non-demo** workspace, request approval on a Positioning framework and assign it to another user. Expect one in-app notification and one email. Check the Resend dashboard for the send.
+4. Turn off "Approval requests" email for that user in Account Settings, then request approval again. Expect the in-app notification only.
+
+**If nothing arrives:** check the Resend dashboard for a rejected send (unverified domain is the usual cause). Strategy logs `[strategy] approval email rejected` with the HTTP status only, never the address or key.
 
 ---
 
-## 2. Connect a CRM before using "Sync CRM" (per workspace, 10 minutes)
+## 2. Connect HubSpot before using "Sync CRM" (per workspace, 10 minutes)
 
-**Why:** HubSpot and Salesforce are listed as "coming soon" in the integrations catalogue. Until one is connected with the workspace's own credentials, Sync CRM explains how to connect and does nothing else.
+**Status:** built and unit-tested with a mocked HubSpot. It has not been run against a real HubSpot account because that needs your token. **Salesforce is not built.**
 
-**Steps:** when the CRM integration ships, connect it in Settings → Integrations. No code change is needed on the Strategy side; the action checks `integrations.is_active` for `hubspot` / `salesforce`.
+**Steps (workspace owner or admin):**
+1. In HubSpot: Settings, Integrations, Private Apps, create an app with the **`crm.lists.read`** scope, then copy its access token (it starts with `pat-`).
+2. Strategy, Audiences, More actions, "Connect HubSpot", paste the token. Caption Fox verifies it, checks the scope, encrypts it and shows only its last characters.
+3. More actions, "Sync CRM". Expect your HubSpot contact lists to appear as audiences (source: CRM) with their sizes; only list names and sizes are read, never contacts.
+4. Run it again after adding a contact to a list in HubSpot: the existing audience updates rather than duplicating.
+5. Try "Disconnect": synced audiences are kept.
+
+**Requires** `ADVERTISING_ENCRYPTION_KEY` (the shared credential-encryption key) to be set on the deployment; otherwise the connect step says it cannot store the token safely.
 
 ---
 
@@ -72,3 +82,26 @@ delete from public.strategy_records where is_demo;
 **Why:** the "All markets" filter added on 2026-09-18 uses a fixed list — UK, Ireland, Europe, North America, Asia-Pacific, Middle East, Latin America, Africa, Global — enforced by a database check constraint. If your customers need a different or more granular list (e.g. individual EU countries), that's a product decision, not a bug.
 
 **Steps:** update the `STRATEGY_MARKETS` array in `src/lib/strategy/constants.ts` and the matching `check` constraint in a new migration (`alter table strategy_positioning_frameworks drop constraint strategy_frameworks_market_check, add constraint ... check (market in (...))`). Change both together.
+
+---
+
+## 8. Run the physical-phone check (30 minutes, one iPhone and one Android)
+
+**Why:** every mobile check so far used Chrome DevTools device emulation (390x844, touch, DPR 2). It catches layout, touch-target and overflow problems but not real-device behaviour: the iOS keyboard, Safari toolbar height, safe areas and true touch handling.
+
+**Setup:** sign in as a manager on the Brand demo workspace at your deployed URL. Install to the home screen (Share, Add to Home Screen) to test the PWA as well as the browser.
+
+**For each of Overview, Objectives, Audiences, Research, Positioning, Plans, Forecasts, check:**
+1. The page scrolls only vertically (no sideways wobble) and nothing is cut off at the right edge.
+2. The section tabs collapse to the dropdown and the view switcher (Cards / Table and so on) is reachable.
+3. Every tappable control is comfortable to hit with a thumb (no mis-taps on neighbours).
+4. The bottom of the page is not hidden by the browser bar or the home indicator.
+
+**Then these specific flows:**
+- **Create:** New objective, type in each field. The on-screen keyboard must not cover the field you are typing in or the Save button, and Save must stay reachable.
+- **Fox AI:** More actions, "Ask Fox AI about this page". The dialog fits the screen, the text box is not hidden by the keyboard, and answer links open the record.
+- **Plans:** the Gantt scrolls sideways inside its own box only. Dragging a bar with a finger should move it and save; if a bar is hard to grab, note the phone model.
+- **Forecasts:** the scenario cards and table do not overlap their badges.
+- **Rotate** to landscape on Plans and Forecasts; nothing should break.
+
+**Report back:** phone model, OS and browser version, page, and a screenshot of anything that looks wrong. Anything found becomes a fix in this section.

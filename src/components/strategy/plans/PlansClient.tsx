@@ -6,6 +6,7 @@ import {
   ChevronDown, ChevronRight, Diamond, Download, FileSpreadsheet, Maximize2, Minimize2, Minus, MoreHorizontal, MoreVertical, Plus, PlusCircle,
   UserRound, CheckCircle2, Circle,
 } from 'lucide-react'
+import { openStrategyAssistant } from '../assistant/open'
 import { cn } from '@/lib/utils'
 import {
   addPlanDependency, addPlanItem, addPlanRisk, assignPlanOwner, createPlan, deletePlanItem, setPlanDates, setPlanStatus, setRiskStatus, updatePlanItem,
@@ -78,6 +79,7 @@ export function PlansHeaderActions({ plans, strategies, people, can }: { plans: 
         )} />
       )}
       <Menu label="More actions" items={[
+        { id: 'fox-ai', label: 'Ask Fox AI about plans', onSelect: openStrategyAssistant },
         { id: 'dependency', label: 'Add dependency', disabled: !can.dependencies || plans.length < 2, disabledReason: can.dependencies ? 'Needs at least two plans' : 'Your role cannot manage dependencies', onSelect: () => setOpen('dependency') },
         { id: 'risk', label: 'Log a risk', disabled: !can.edit || plans.length === 0, disabledReason: 'Your role cannot log risks', onSelect: () => setOpen('risk') },
         { id: 'archived', label: 'View archived plans', href: '?view=table&archived=1', separatorBefore: true },

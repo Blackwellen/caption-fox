@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { ChevronDown, Download, FileSpreadsheet, MoreVertical, Pencil, Plus, PlusCircle, Scale } from 'lucide-react'
+import { openStrategyAssistant } from '../assistant/open'
 import { cn } from '@/lib/utils'
 import { addScenario, createForecast, refreshForecastModel, setForecastArchived, updateAssumption } from '@/lib/strategy/actions/forecasts'
 import { CONFIDENCE_LABELS, CONFIDENCE_LEVELS, FORECAST_METRIC_LABELS, FORECAST_METRICS, RISK_LABELS, RISK_LEVELS } from '@/lib/strategy/constants'
@@ -70,6 +71,7 @@ export function ForecastsHeaderActions({
         )} />
       )}
       <Menu label="More actions" items={[
+        { id: 'fox-ai', label: 'Ask Fox AI about forecasts', onSelect: openStrategyAssistant },
         { id: 'refresh', label: 'Refresh model now', disabled: !can.edit || !forecast || pending, disabledReason: !forecast ? 'No forecast selected' : 'Your role cannot refresh models', onSelect: () => { if (forecast) void run(() => refreshForecastModel(forecast.id)) } },
         { id: 'archive', label: 'Archive this forecast', disabled: !can.edit || !forecast, disabledReason: 'Your role cannot archive forecasts', onSelect: () => setOpen('archive') },
         { id: 'archived', label: 'View archived forecasts', href: '?view=table&archived=1', separatorBefore: true },

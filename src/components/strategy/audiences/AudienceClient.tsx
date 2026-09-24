@@ -6,6 +6,7 @@ import {
   Bookmark, ChevronDown, Download, FileSpreadsheet, Mail, Mic, Monitor, MoreVertical, MonitorPlay, PlusCircle, RefreshCw, Search, Share2, Upload,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { openStrategyAssistant } from '../assistant/open'
 import { BrandLogo } from '@/components/brand/BrandLogo'
 import { connectHubSpot, createAudience, disconnectCrm, importAudiences, setAudienceArchived, syncAudiencesFromCrm, updateAudience } from '@/lib/strategy/actions/audiences'
 import { saveView } from '@/lib/strategy/actions/common'
@@ -82,6 +83,7 @@ export function AudiencesHeaderActions({ people, can, crm, canManageCrm }: { peo
         )} />
       )}
       <Menu label="More actions" items={[
+        { id: 'fox-ai', label: 'Ask Fox AI about audiences', onSelect: openStrategyAssistant },
         { id: 'archived', label: 'View archived audiences', href: '?view=table&archived=1' },
         ...(canManageCrm && !crm ? [{ id: 'connect', label: 'Connect HubSpot', description: 'Uses your own private-app token', onSelect: () => setConnectOpen(true) }] : []),
         ...(canManageCrm && crm ? [

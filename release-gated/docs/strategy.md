@@ -8,8 +8,8 @@
 | Workspace types | Business, Brand, Agency. Creator: hidden from nav and 404 by URL |
 | Plan / flag gates | Positioning & Plans: Team+. Forecasts: Team+ for Brand/Agency, Brand+ for Business, plus flag `strategy_forecasts` |
 | Roles tested | Owner, Admin, Manager, Member, Viewer (RLS + app capabilities) |
-| Date | 2026-09-16, revised 2026-09-24 |
-| Release score | **97 / 100** — see "Remaining to reach 100" |
+| Date | 2026-09-16, revised 2026-09-25 |
+| Release score | **98 / 100** — see "Remaining to reach 100" |
 | Decision | **Ready for release** |
 
 ---
@@ -69,6 +69,7 @@ Same 33+ `strategy_*` tables as the 2026-09-16 pass, plus `strategy_positioning_
 |---|---|
 | `20260916100000_strategy_release.sql` … `20260916100600_strategy_ai_usage.sql` | Unchanged from the 2026-09-16 pass |
 | `20260918000000_strategy_framework_market.sql` | **New.** Adds nullable `market` to `strategy_positioning_frameworks` with a check constraint (uk, ireland, europe, north_america, apac, middle_east, latam, africa, global) and a partial index; seeds a market on existing **demo-workspace-only** frameworks (matched by `workspaces.slug like '%-demo'`) so the new filter has real data to match. Real customer rows are untouched. |
+| `20260925000000_strategy_rls_read_perf.sql` | **New.** Adds `strategy_member_workspaces()` (STABLE, SECURITY DEFINER, execute revoked from `anon`) and re-points the 34 workspace-member read policies from the per-row `is_workspace_member(workspace_id)` call to a once-per-statement lookup. **Same access rule** (any workspace member can read); only how often the check runs changes. Found by the load test (section 12). Rollback SQL is in the migration header. |
 
 ## 7. RLS / security
 
@@ -87,18 +88,19 @@ Two suites now run, both against the live database in transactions that are alwa
   8. Release-specific: the new `market` check constraint rejects an invalid value and accepts a valid one; a member cannot change a framework's market (role check, not just the constraint).
   9. The `strategy_can_write()` SQL function is not directly executable by `anon`.
 
-Total: **717/717 RLS checks pass** across both suites.
+Total: **717/717 RLS checks pass** across both suites. Both were **re-run after the 2026-09-25 read-policy change** and still pass, so the performance fix did not loosen isolation.
 
 ## 8. Tests run
 
 | Suite | Result |
 |---|---|
-| `npx vitest run src/lib/strategy src/lib/navigation` | **69 / 69** |
+| `npx vitest run src/lib/strategy src/lib/navigation` | **97 / 97** (adds notify 8, HubSpot 14, Fox AI render helpers 6) |
+| `node scripts/load-test-strategy.mjs 12000` | **41 / 41 within budget** (new, section 12) |
 | `node scripts/verify-strategy.mjs` | 13 / 13 (routes + redirects) |
 | `node scripts/verify-strategy-rls.mjs` | **23 / 23** |
 | `node scripts/verify-strategy-rls-sweep.mjs` | **694 / 694** (new) |
 | `npx tsc --noEmit` (whole repo) | 0 errors in any Strategy file |
-| `npx eslint` (all Strategy folders) | 0 errors, 0 warnings |
+| `npx eslint` (Strategy folders, AI route, load-test script) | 0 errors, 0 warnings |
 | Responsive automated audit | 390/768/1024/1280/1440 × 7 pages: 0 horizontal-scroll, 0 undersized-target, 0 clipped-KPI failures |
 
 ## 9. Bugs found and fixed during this pass
@@ -110,18 +112,59 @@ Total: **717/717 RLS checks pass** across both suites.
 5. **KPI card labels clipped at 1280–1399px** on all 7 pages (the strip forced 6 columns as soon as `xl` (1280px) hit, leaving ~155px per card). Changed the 6-column breakpoint to 1400px so the layout matches the design's 1491px viewport, and stays 3-across (readable) between 1024–1399px; added a `title` attribute as a fallback for any remaining long label.
 6. **Forecasts: "Expected case" scenario name overlapped its "Most likely" badge** at 1280px. Reserved space for the absolute-positioned badge and truncated the name instead of letting it run underneath.
 
+7. **Read policies re-ran a SECURITY DEFINER function once per row scanned** (found by the 12k-row load test). Unindexed sorts and KPI aggregates cost about 180 ms at 12k rows and about 930 ms at 60k plan items. Fixed by migration `20260925000000` (section 6): 180 ms to about 5 ms and 930 ms to 25 ms, with isolation re-proven (section 7).
+8. **Latent bug in the Strategy AI route:** the audit row's `metadata.surface` referenced the JavaScript global `module` instead of the page, so the surface was logged as an object. It now records the Strategy area (lint flagged it: `no-assign-module-variable`).
+
 ## 10. Cross-section effects checked
 
 Unchanged from 2026-09-16; re-verified no regression: activity feed rows link to the originating tab; audit logs carry actor/workspace/record/action/surface; KPI snapshots update after mutations; `revalidatePath` refreshes all tabs after a write.
 
-## 11. Remaining to reach 100 / 100
+## 11. Items closed this pass (2026-09-25)
+
+### Gantt drag-to-reschedule — built (the previous version of this doc was stale), now verified end to end
+- Bars are `role="slider"`: drag the body to move, drag either edge to resize; ← → move one day, Shift+← → the end date, Alt+← → the start date. Commit happens once on release; failures snap back and show the reason.
+- **Keyboard (verified live):** "Discovery — Wave 2" 12 Jul → 13 Jul; the database row and the Recent-activity feed ("moved task … Just now") updated.
+- **Real pointer drag (verified live, Chrome DevTools `drag`):** the bar moved +23 days keeping its duration and persisted. The row was then restored to its original dates.
+- **Dependency rule (verified live):** moving the "Gen Z Market Expansion" plan (it depends on "Revenue Growth Program", which ends 24 Sept) was **rejected by the server**, snapped back, and toasted: "…depends on … which ends 2026-09-24. Start on or after that date." Database unchanged.
+
+### Approval / review emails — built and tested; dormant until you supply a sender
+- `notifyStrategy` (src/lib/strategy/notify.ts) writes the in-app row **and** sends an email through Resend when the workspace has its own `RESEND_API_KEY` and `MESSAGING_EMAIL_FROM`, the recipient has not opted out (Account Settings → Notifications, including the legacy preference), the recipient has an address, and the workspace is not a demo. It never throws; a failure leaves the in-app row and the approval intact.
+- **8 unit tests with a mocked provider:** payload, headers and idempotency key; HTML-escaped title and body; deep link; self/no recipient; per-channel and legacy opt-outs; demo by slug and by setting; missing key / sender / address; provider 422 and timeout; no address or key in logs; in-app failure does not block the email.
+- **Not verified against real Resend:** no key is configured here on purpose (the workspace supplies its own). Steps: `release-gated/user-fixes/strategy.md` §1.
+
+### CRM sync — HubSpot built and tested; Salesforce is not built
+- Workspace owners/admins connect HubSpot with **their own private-app token** (verified against HubSpot, scope-checked, encrypted at rest, masked tail shown, 5 attempts/hour). "Sync CRM" imports list names and sizes only (never contacts), pages up to 500 lists, is rate limited (6/hour), audited, and re-syncs update in place.
+- **14 unit tests with a mocked HubSpot:** token shape; list mapping edge cases; 401/403/429/500/unreachable messages (the token is never echoed); paging; stuck-offset guard; 500-list cap and truncation flag; growth-rate clamp.
+- **Not verified against a real HubSpot account** (needs your token). **Salesforce is not implemented** and nothing in Strategy claims otherwise.
+
+### Fox AI in Strategy — built, verified against the real model
+- Every page's **More actions → "Ask Fox AI about …"** opens one shared dialog (no change to the approved page headers). Read-only, module-aware starter questions, 600-character limit, Enter to send, stops on close, plan / limit / upgrade / offline states, no chat persistence.
+- Server (`/api/strategy/ai`): auth, workspace and module entitlement, plan gate (Team+), per-user and per-workspace limits, grounded only in records the caller's RLS client can read, citation tags mapped to server-built same-origin links, audit row and `ai_usage_logs`.
+- **Verified live (Azure):** Objectives, "off track or at risk?" returned 5 objectives, each citing a record that opens; Plans, "behind schedule?" returned 7 plans with status and progress and working links; the remaining allowance decremented (60 to 59). The blocked (plan) state shows the message and "See plans" pointing at `/app/settings?tab=billing` with the input disabled; a 429 shows the limit message inline. 6 unit tests cover the render helpers (citation parsing, safe-link filter, module detection).
+- Evidence: `evidence/fox-ai-1280.jpeg`, `evidence/fox-ai-390.jpeg`. The close button of the shared dialog is 36 px on mobile (design-system component, left as is).
+
+## 12. Load test at 10k+ rows per table
+
+`node scripts/load-test-strategy.mjs 12000` runs in one transaction that is always rolled back, in the Brand workspace: **12,000 rows in each of objectives, audiences, research, frameworks, plans and forecasts; 60,000 plan items; 60,000 activity rows.** Queries run as the real `authenticated` owner so RLS executes, using the exact query shapes in `data.ts`. Best of 3, database time, against budgets (page 100 ms, deep page 150, filter 150, search 400, count 150, KPI aggregate 200).
+
+| | Before migration | After migration |
+|---|---|---|
+| Within budget | 28 / 41 | **41 / 41** |
+| Unindexed-sort first page (audiences, research, frameworks, forecasts) | ~180 ms | ~6 ms |
+| Deep page (offset 9,600) | ~185 ms | 8-12 ms |
+| KPI count by status | ~180 ms | ~4.5 ms |
+| Plan-item KPI aggregate (60k rows) | 928 ms | 25 ms |
+| Search `%term%` across text columns (no trigram index) | 210-226 ms | 32-45 ms |
+| Exact counts (11.4k to 60k rows) | not separately shown | 3-12 ms |
+
+Search is a sequential scan: well inside budget at this size, and the first thing to index (trigram) if one workspace grows past roughly 100k rows per table. Not tested: many simultaneous users, and browser render time.
+
+## 13. Remaining to reach 100 / 100 (currently 98 / 100)
 
 | # | Item | Why not done |
 |---|---|---|
-| 1 | Automated Playwright E2E + visual-regression suite committed to CI | Flows and responsive states were exercised manually through Chrome DevTools MCP (real viewport emulation, not just breakpoint math) this session; no Playwright harness exists in the repo yet |
-| 2 | Gantt drag-to-reschedule | Rescheduling works through the item dialog (validated, audited); direct drag is not built |
-| 3 | Email delivery for approvals / research review | Only in-app notifications are sent — see `release-gated/user-fixes/strategy.md` |
-| 4 | CRM segment sync | HubSpot/Salesforce integrations are "coming soon"; the button is honest about it |
-| 5 | Fox AI Copilot actions for Strategy | Not wired in this pass (Copilot is audited separately) |
-| 6 | Real device testing (physical iOS/Android) | Verified with Chrome DevTools' real-device emulation (`isMobile`, `hasTouch`, 390×844 = iPhone 12/13/14 class) at full viewport width, not a shrunk desktop browser window; a physical device was not available in this environment |
-| 7 | Stress test at 10k+ records per table | Large-data paths are bounded (1000-row semantic sort cap, 5000-row export cap) but not load-tested |
+| 1 | Automated Playwright E2E and visual-regression suite committed to CI | Flows and responsive states were exercised through Chrome DevTools MCP with real viewport emulation; no Playwright harness exists in the repo yet |
+| 2 | Physical iOS/Android device pass | No device available here. Verified with DevTools device emulation (`isMobile`, `hasTouch`, DPR 2, 390x844). A ready-to-run checklist is in `user-fixes/strategy.md` §8 |
+| 3 | Live check of email delivery and HubSpot sync | Both need **your** credentials by design; both are covered by mocked-provider tests and the user-fixes steps |
+
+Salesforce is out of scope (not built, not advertised in Strategy).

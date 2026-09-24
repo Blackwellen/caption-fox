@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { ChevronDown, CloudUpload, Download, FileSpreadsheet, FileText, MoreHorizontal, MoreVertical, Plus, PlusCircle, Star } from 'lucide-react'
+import { openStrategyAssistant } from '../assistant/open'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
 import {
@@ -53,6 +54,7 @@ export function ResearchHeaderActions({ workspaceId, collections, can }: { works
         )} />
       )}
       <Menu label="More actions" items={[
+        { id: 'fox-ai', label: 'Ask Fox AI about research', onSelect: openStrategyAssistant },
         { id: 'archived', label: 'View archived research', href: '?view=table&archived=1' },
         { id: 'review', label: 'Pending review', href: '?view=board' },
       ]} trigger={({ ref, toggle, ...aria }) => (
